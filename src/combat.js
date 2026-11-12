@@ -1,21 +1,23 @@
-import * as THREE from 'three';
+// @ts-check
+import * as THREE from "three";
 
 const { Vector3 } = THREE;
 
 /**
  * 创建战斗结算与弹道伤害判定系统 (Combat & Hitscan Adjudication System)
  * 负责玩家射线击发、命中敌人弱点判定、敌方对玩家弹道判定、物理表面碰撞与范围爆炸
- * @param {object} ctx 全局引擎上下文 (包含 events, physics, enemies, player)
+ * @param {import('./types').EngineContext} ctx 全局引擎上下文 (包含 events, physics, enemies, player)
+ * @returns {import('./types').CombatSystem}
  */
 function createCombatSystem(ctx) {
   // 战绩数据统计
   const stats = {
     shots: 0,
     hits: 0,
-    kills: 0
+    kills: 0,
   };
 
-  ctx.events.on('enemy:killed', () => {
+  ctx.events.on("enemy:killed", () => {
     stats.kills++;
   });
 
@@ -58,31 +60,32 @@ function createCombatSystem(ctx) {
         stats.hits++;
 
         // 弱点/爆头暴击判定 (光学镜头核心 / 动力核心)
-        const isWeakpoint = enemyHit.part === 'weak';
+        const isWeakpoint = enemyHit.part === "weak";
         const damageMultiplier = isWeakpoint ? 2.2 : 1.0;
         const totalDamage = damage * damageMultiplier;
 
-        const isKilled = enemyHit.enemy.damage(totalDamage, enemyHit.point, direction, enemyHit.part) === true;
+        const isKilled =
+          enemyHit.enemy.damage(totalDamage, enemyHit.point, direction, enemyHit.part) === true;
 
         const impactEvent = {
           point: enemyHit.point,
           normal: enemyHit.normal || direction.clone().negate(),
           dist: enemyHit.dist,
-          surface: 'enemy',
+          surface: "enemy",
           enemy: enemyHit.enemy,
           part: enemyHit.part,
           dir: direction,
-          from: 'player',
-          killed: isKilled
+          from: "player",
+          killed: isKilled,
         };
 
         // 触发命中特效与 HUD 反馈 (Hitmarker)
-        ctx.events.emit('impact', impactEvent);
-        ctx.events.emit('player:hitEnemy', {
+        ctx.events.emit("impact", impactEvent);
+        ctx.events.emit("player:hitEnemy", {
           enemy: enemyHit.enemy,
           part: enemyHit.part,
           killed: isKilled,
-          weak: isWeakpoint
+          weak: isWeakpoint,
         });
 
         return impactEvent;
@@ -97,9 +100,9 @@ function createCombatSystem(ctx) {
           surface: envHit.surface,
           enemy: null,
           dir: direction,
-          from: 'player'
+          from: "player",
         };
-        ctx.events.emit('impact', impactEvent);
+        ctx.events.emit("impact", impactEvent);
         return impactEvent;
       }
 
@@ -132,7 +135,10 @@ function createCombatSystem(ctx) {
           // 计算射线上最接近点
           const closestPoint = tempVec2.copy(origin).addScaledVector(direction, rayProj);
           const deltaY = Math.abs(closestPoint.y - (player.pos.y + 0.95));
-          const planarDist = Math.hypot(closestPoint.x - player.pos.x, closestPoint.z - player.pos.z);
+          const planarDist = Math.hypot(
+            closestPoint.x - player.pos.x,
+            closestPoint.z - player.pos.z,
+          );
 
           // 玩家胶囊体碰撞判定 (柱体半径 0.38m, 半高 0.95m)
           if (planarDist < 0.38 && deltaY < 0.95) {
@@ -144,14 +150,14 @@ function createCombatSystem(ctx) {
 
       // 未命中玩家但击中环境
       if (envHit) {
-        ctx.events.emit('impact', {
+        ctx.events.emit("impact", {
           point: envHit.point,
           normal: envHit.normal,
           dist: envHit.dist,
           surface: envHit.surface,
           enemy: null,
           dir: direction,
-          from: 'enemy'
+          from: "enemy",
         });
       }
 
@@ -165,7 +171,7 @@ function createCombatSystem(ctx) {
      * @param {number} [maxDamage=80] 中心最高伤害
      * @param {string} [source='player'] 伤害来源
      */
-    explode(center, radius = 5, maxDamage = 80, source = 'player') {
+    explode(center, radius = 5, maxDamage = 80, source = "player") {
       // 遍历所有敌方单位
       for (const enemy of ctx.enemies.list) {
         if (!enemy.alive) continue;
@@ -176,7 +182,7 @@ function createCombatSystem(ctx) {
           if (ctx.physics.lineOfSight(center, targetPos)) {
             const damage = maxDamage * (1 - dist / radius);
             const impulseDir = tempVec2.copy(enemy.pos).sub(center).normalize();
-            enemy.damage(damage, enemy.pos, impulseDir, 'body');
+            enemy.damage(damage, enemy.pos, impulseDir, "body");
           }
         }
       }
@@ -191,7 +197,7 @@ function createCombatSystem(ctx) {
           player.damage(damage, center);
         }
       }
-    }
+    },
   };
 }
 

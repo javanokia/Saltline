@@ -1,104 +1,108 @@
+// @ts-check
 import * as THREE from "three";
 import {
-  oi,
-  Mn,
-  en,
-  Pi,
-  vf,
-  zc,
-  Pr,
-  zy,
-  Dy,
-  il,
-  Zn,
-  bi,
-  Fo,
-  sl,
-  kn,
-  Wt,
-  dr,
+  oi as SCENE_BOUNDS,
+  Mn as SUN_CONFIG,
+  en as SKY_CONFIG,
+  Pi as PLAYER_CONFIG,
+  vf as FACTION_PLAYER,
+  zc as FACTION_ENEMY,
+  Pr as QUALITY_PRESETS,
+  zy as detectQualityPreset,
+  Dy as createEventBus,
+  il as createSeededRandom,
+  Zn as clamp,
+  bi as lerp,
+  Fo as saturate,
+  sl as smoothstep,
+  kn as damp,
+  Wt as noop,
+  dr as STUBS,
 } from "./constants.js";
 import {
-  sa,
-  Ly,
-  oa,
-  $e,
-  Wi,
-  ot,
-  Fn,
-  ky,
-  Fy,
-  Uy,
-  Ny,
-  Fg,
-  Dc,
-  Lc,
-  Ii,
-  By,
-  Qi,
+  sa as mergeGeometries,
+  Ly as mergeAttributes,
+  oa as vScratch,
+  $e as createBoxGeometry,
+  Wi as createBoxBevelGeometry,
+  ot as createCylinderGeometry,
+  Fn as createTubeFromPoints,
+  ky as mTransform,
+  Fy as qTransform,
+  Uy as eTransform,
+  Ny as vTransformPos,
+  Fg as vTransformScale,
+  Dc as transformGeometry,
+  Lc as setVertexColors,
+  Ii as mergeGeometriesClean,
+  By as mergeStaticMeshHierarchy,
+  Qi as createMeshWithShadows,
 } from "./geo.js";
 
 // Three.js 类与枚举映射
-const gf = THREE.WebGLRenderer;
-const W = THREE.Vector3;
-const Ae = THREE.Vector2;
-const Ye = THREE.Matrix4;
-const ir = THREE.Scene;
-const Wn = THREE.PerspectiveCamera;
-const cr = THREE.OrthographicCamera;
-const Qe = THREE.Mesh;
-const wt = THREE.Group;
-const nt = THREE.BufferGeometry;
-const et = THREE.BufferAttribute;
-const W0 = THREE.DirectionalLight;
-const Qr = THREE.PointLight;
-const Qt = THREE.MeshStandardMaterial;
-const si = THREE.WebGLRenderTarget;
-const Tr = THREE.DepthTexture;
-const ls = THREE.SphereGeometry;
-const un = THREE.BoxGeometry;
-const It = THREE.ShaderChunk;
-const P0 = THREE.DataUtils;
-const ui = THREE.DataTexture;
-const ia = THREE.PMREMGenerator;
-const q0 = THREE.AlwaysDepth;
+const WebGLRenderer = THREE.WebGLRenderer;
+const Vector3 = THREE.Vector3;
+const Vector2 = THREE.Vector2;
+const Matrix4 = THREE.Matrix4;
+const Scene = THREE.Scene;
+const PerspectiveCamera = THREE.PerspectiveCamera;
+const OrthographicCamera = THREE.OrthographicCamera;
+const Mesh = THREE.Mesh;
+const Group = THREE.Group;
+const BufferGeometry = THREE.BufferGeometry;
+const BufferAttribute = THREE.BufferAttribute;
+const DirectionalLight = THREE.DirectionalLight;
+const PointLight = THREE.PointLight;
+const MeshStandardMaterial = THREE.MeshStandardMaterial;
+const WebGLRenderTarget = THREE.WebGLRenderTarget;
+const DepthTexture = THREE.DepthTexture;
+const SphereGeometry = THREE.SphereGeometry;
+const BoxGeometry = THREE.BoxGeometry;
+const ShaderChunk = THREE.ShaderChunk;
+const DataUtils = THREE.DataUtils;
+const DataTexture = THREE.DataTexture;
+const PMREMGenerator = THREE.PMREMGenerator;
+const AlwaysDepth = THREE.AlwaysDepth;
 
 // 常量定义
-const Vn = THREE.SRGBColorSpace;
-const hi = THREE.NoColorSpace;
-const _n = THREE.RGBAFormat;
-const js = THREE.HalfFloatType;
-const Zs = THREE.UnsignedIntType;
-const as = THREE.FloatType;
-const J0 = THREE.RedFormat;
-const gc = THREE.PCFShadowMap;
-const ys = THREE.NoToneMapping;
-const xc = THREE.ACESFilmicToneMapping;
-const Zt = THREE.LinearFilter;
-const Gn = THREE.NearestFilter;
-const Is = THREE.RepeatWrapping;
-const yi = THREE.UnsignedByteType;
-const zn = THREE.ShaderMaterial;
-const Ki = THREE.NormalBlending;
-const ko = THREE.FrontSide;
-const D0 = THREE.WebGLCubeRenderTarget;
-const z0 = THREE.CubeCamera;
-const Eh = 2;
+const SRGBColorSpace = THREE.SRGBColorSpace;
+const NoColorSpace = THREE.NoColorSpace;
+const RGBAFormat = THREE.RGBAFormat;
+const HalfFloatType = THREE.HalfFloatType;
+const UnsignedIntType = THREE.UnsignedIntType;
+const FloatType = THREE.FloatType;
+const RedFormat = THREE.RedFormat;
+const PCFShadowMap = THREE.PCFShadowMap;
+const NoToneMapping = THREE.NoToneMapping;
+const ACESFilmicToneMapping = THREE.ACESFilmicToneMapping;
+const LinearFilter = THREE.LinearFilter;
+const NearestFilter = THREE.NearestFilter;
+const RepeatWrapping = THREE.RepeatWrapping;
+const UnsignedByteType = THREE.UnsignedByteType;
+const ShaderMaterial = THREE.ShaderMaterial;
+const NormalBlending = THREE.NormalBlending;
+const FrontSide = THREE.FrontSide;
+const WebGLCubeRenderTarget = THREE.WebGLCubeRenderTarget;
+const CubeCamera = THREE.CubeCamera;
+const PCFSoftShadowMap = 2;
 
-const _M = Object.defineProperty;
-const br = (i, e) => {
-  for (var t in e) _M(i, t, { get: e[t], enumerable: true });
+const defineProperty = Object.defineProperty;
+const defineGetters = (i, e) => {
+  for (var t in e) defineProperty(i, t, { get: e[t], enumerable: true });
 };
 
-var Vg = {};
-br(Vg, { create: () => Hg, showcase: () => sA });
-var Ug = `
+var RenderModule = {};
+defineGetters(RenderModule, {
+  create: () => buildRenderSystem,
+  showcase: () => buildRenderShowcase,
+});
+var noiseShaderFunctions = `
 uniform sampler2D tNoise;
 float n2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f); return texture2D(tNoise, (i + f + 0.5) / 256.0).r; }
 float fbm5(vec2 p){ float a = 0.5, s = 0.0; for (int i = 0; i < 5; i++){ s += a * n2(p); p = mat2(1.6, 1.2, -1.2, 1.6) * p + 17.3; a *= 0.5; } return s / 0.96875; }
 float fbm3(vec2 p){ float a = 0.5, s = 0.0; for (int i = 0; i < 3; i++){ s += a * n2(p); p = mat2(1.6, 1.2, -1.2, 1.6) * p + 17.3; a *= 0.5; } return s / 0.875; }
 `,
-  Ng = `
+  skyColorShaderFunctions = `
 uniform vec3 uSunDir, uZen, uHor, uHorAway, uSunCol;
 float skyToSun(vec3 d){ return clamp(dot(normalize(d.xz + vec2(1e-5)), normalize(uSunDir.xz)) * 0.5 + 0.5, 0.0, 1.0); }
 vec3 horizonColor(vec3 d){
@@ -109,7 +113,7 @@ vec3 horizonColor(vec3 d){
   return c;
 }
 `;
-function Oy() {
+function buildNoiseTexture() {
   let e = new Uint8Array(262144),
     t = 2654435769,
     n = () => (
@@ -125,24 +129,24 @@ function Oy() {
       (e[o * 4 + 1] = n() * 256),
       (e[o * 4 + 2] = n() * 256),
       (e[o * 4 + 3] = 255));
-  let s = new ui(e, 256, 256, _n, yi);
+  let s = new DataTexture(e, 256, 256, RGBAFormat, UnsignedByteType);
   return (
-    (s.wrapS = s.wrapT = Is),
-    (s.magFilter = s.minFilter = Zt),
+    (s.wrapS = s.wrapT = RepeatWrapping),
+    (s.magFilter = s.minFilter = LinearFilter),
     (s.generateMipmaps = !1),
-    (s.colorSpace = hi),
+    (s.colorSpace = NoColorSpace),
     (s.needsUpdate = !0),
     s
   );
 }
-var H6 = `
+var skyFragmentShader = `
 // SALTLINE_SKY
 precision highp float;
 varying vec3 vDir;
 uniform float uTime, uEnv, uFlash;
 uniform vec3 uFlashDir;
-${Ug}
-${Ng}
+${noiseShaderFunctions}
+${skyColorShaderFunctions}
 
 void main(){
   vec3 d = normalize(vDir);
@@ -224,37 +228,37 @@ void main(){
   col = mix(col, min(col, vec3(6.0)), uEnv);
   gl_FragColor = vec4(max(col, vec3(0.0)), 1.0);
 }`,
-  V6 = `
+  skyVertexShader = `
 varying vec3 vDir;
 void main(){ vDir = position; vec4 p = projectionMatrix * vec4(mat3(viewMatrix) * position, 1.0); gl_Position = p.xyww; }`;
-function W6(i) {
+function buildSkyUniforms(noiseTexture) {
   return {
-    tNoise: { value: i },
+    tNoise: { value: noiseTexture },
     uTime: { value: 0 },
     uEnv: { value: 0 },
     uFlash: { value: 0 },
-    uFlashDir: { value: new W(-0.5, 0.5, -0.7).normalize() },
-    uSunDir: { value: Mn.dir.clone() },
-    uZen: { value: en.zenith.clone() },
-    uHor: { value: en.horizon.clone() },
-    uHorAway: { value: en.horizonAway.clone() },
-    uSunCol: { value: Mn.color.clone() },
+    uFlashDir: { value: new Vector3(-0.5, 0.5, -0.7).normalize() },
+    uSunDir: { value: SUN_CONFIG.dir.clone() },
+    uZen: { value: SKY_CONFIG.zenith.clone() },
+    uHor: { value: SKY_CONFIG.horizon.clone() },
+    uHorAway: { value: SKY_CONFIG.horizonAway.clone() },
+    uSunCol: { value: SUN_CONFIG.color.clone() },
   };
 }
-function Hy(i) {
-  let e = new zn({
+function buildSkyDome(noiseTexture) {
+  let e = new ShaderMaterial({
       name: "saltline-sky",
-      side: Ki,
+      side: NormalBlending,
       depthWrite: !1,
       depthTest: !0,
       fog: !1,
       toneMapped: !1,
-      uniforms: W6(i),
-      vertexShader: V6,
-      fragmentShader: H6,
+      uniforms: buildSkyUniforms(noiseTexture),
+      vertexShader: skyVertexShader,
+      fragmentShader: skyFragmentShader,
     }),
-    t = new un(2, 2, 2),
-    n = new Qe(t, e);
+    t = new BoxGeometry(2, 2, 2),
+    n = new Mesh(t, e);
   return (
     (n.name = "sky"),
     (n.frustumCulled = !1),
@@ -265,29 +269,28 @@ function Hy(i) {
     { mesh: n, material: e, geometry: t }
   );
 }
-function Vy(i, e) {
-  let t = new ia(i),
-    n = e.material.clone();
-  ((n.uniforms.tNoise.value = e.material.uniforms.tNoise.value),
-    (n.uniforms.uEnv.value = 1));
-  let s = new ir(),
-    o = new Qe(e.geometry, n);
+function buildEnvironmentCapture(renderer, skyDome) {
+  let t = new PMREMGenerator(renderer),
+    n = skyDome.material.clone();
+  ((n.uniforms.tNoise.value = skyDome.material.uniforms.tNoise.value), (n.uniforms.uEnv.value = 1));
+  let s = new Scene(),
+    o = new Mesh(skyDome.geometry, n);
   ((o.frustumCulled = !1), s.add(o));
   let r = t.fromScene(s, 0, 0.1, 100);
   return (n.dispose(), t.dispose(), r);
 }
-var Wy = "// SALTLINE_SHADOW",
-  xf = null;
-function Gy(i, e, t, n, s) {
-  let o = Mn.dir.clone().normalize(),
-    r = e.clone().add(t).multiplyScalar(0.5);
-  (i.target.position.copy(r),
-    i.position.copy(r).addScaledVector(o, 200),
-    i.updateMatrixWorld(!0),
-    i.target.updateMatrixWorld(!0));
-  let a = new Ye().lookAt(i.position, r, new W(0, 1, 0));
-  (a.setPosition(i.position), a.invert());
-  let l = new W(),
+var softShadowShaderHeader = "// SALTLINE_SHADOW",
+  originalShadowChunk = null;
+function fitSunShadowCamera(sunLight, minCorner, maxCorner, extraMin, extraMax) {
+  let o = SUN_CONFIG.dir.clone().normalize(),
+    r = minCorner.clone().add(maxCorner).multiplyScalar(0.5);
+  (sunLight.target.position.copy(r),
+    sunLight.position.copy(r).addScaledVector(o, 200),
+    sunLight.updateMatrixWorld(!0),
+    sunLight.target.updateMatrixWorld(!0));
+  let a = new Matrix4().lookAt(sunLight.position, r, new Vector3(0, 1, 0));
+  (a.setPosition(sunLight.position), a.invert());
+  let l = new Vector3(),
     c = 1 / 0,
     u = -1 / 0,
     h = 1 / 0,
@@ -296,12 +299,9 @@ function Gy(i, e, t, n, s) {
     d = -1 / 0,
     v = (y, b, m) => {
       for (let A = 0; A < 8; A++)
-        (l
-          .set(A & 1 ? b.x : y.x, A & 2 ? b.y : y.y, A & 4 ? b.z : y.z)
-          .applyMatrix4(a),
-          m(l));
+        (l.set(A & 1 ? b.x : y.x, A & 2 ? b.y : y.y, A & 4 ? b.z : y.z).applyMatrix4(a), m(l));
     };
-  (v(e, t, (y) => {
+  (v(minCorner, maxCorner, (y) => {
     ((c = Math.min(c, y.x)),
       (u = Math.max(u, y.x)),
       (h = Math.min(h, y.y)),
@@ -309,10 +309,10 @@ function Gy(i, e, t, n, s) {
       (p = Math.min(p, -y.z)),
       (d = Math.max(d, -y.z)));
   }),
-    v(n, s, (y) => {
+    v(extraMin, extraMax, (y) => {
       p = Math.min(p, -y.z);
     }));
-  let g = i.shadow.camera,
+  let g = sunLight.shadow.camera,
     x = 1;
   return (
     (g.left = c - x),
@@ -325,10 +325,10 @@ function Gy(i, e, t, n, s) {
     { width: g.right - g.left, height: g.top - g.bottom, depth: g.far - g.near }
   );
 }
-function qy(i, { taps: e = 16, searchTaps: t = 8 } = {}) {
-  let n = It.shadowmap_pars_fragment;
-  xf === null && (xf = n);
-  let s = xf,
+function patchSoftShadows(shadowMetrics, { taps: taps = 16, searchTaps: searchTaps = 8 } = {}) {
+  let n = ShaderChunk.shadowmap_pars_fragment;
+  originalShadowChunk === null && (originalShadowChunk = n);
+  let s = originalShadowChunk,
     o = s.indexOf("float getShadow("),
     r = s.indexOf("vec2 cubeToUV"),
     a = s.lastIndexOf("// cubeToUV()", r);
@@ -340,9 +340,9 @@ function qy(i, { taps: e = 16, searchTaps: t = 8 } = {}) {
       !1
     );
   let l = `
-	${Wy}
-	const vec2 SL_FRUSTUM = vec2( ${i.width.toFixed(3)}, ${i.height.toFixed(3)} );   // metres across the shadow map
-	const float SL_DEPTH = ${i.depth.toFixed(3)};                                       // metres across the depth range
+	${softShadowShaderHeader}
+	const vec2 SL_FRUSTUM = vec2( ${shadowMetrics.width.toFixed(3)}, ${shadowMetrics.height.toFixed(3)} );   // metres across the shadow map
+	const float SL_DEPTH = ${shadowMetrics.depth.toFixed(3)};                                       // metres across the depth range
 	float slIGN( vec2 p ) { return fract( 52.9829189 * fract( dot( p, vec2( 0.06711056, 0.00583715 ) ) ) ); }
 	vec2 slVogel( int i, int n, float phi ) {
 		float r = sqrt( ( float( i ) + 0.5 ) / float( n ) );
@@ -367,8 +367,8 @@ function qy(i, { taps: e = 16, searchTaps: t = 8 } = {}) {
 		// --- blocker search ---
 		vec2 searchR = ( 0.55 * shadowRadius ) / SL_FRUSTUM;     // metres -> uv
 		float blk = 0.0, nb = 0.0;
-		for ( int i = 0; i < ${t}; i ++ ) {
-			vec2 o = slVogel( i, ${t}, phi ) * searchR;
+		for ( int i = 0; i < ${searchTaps}; i ++ ) {
+			vec2 o = slVogel( i, ${searchTaps}, phi ) * searchR;
 			float d = unpackRGBAToDepth( texture2D( shadowMap, sc.xy + o ) );
 			float z = zr + dot( o, dz );
 			if ( d < z ) { blk += d; nb += 1.0; }
@@ -380,12 +380,12 @@ function qy(i, { taps: e = 16, searchTaps: t = 8 } = {}) {
 		float penM = clamp( distM * 0.022 * shadowRadius, 0.012 * shadowRadius, 0.60 * shadowRadius );
 		vec2 filtR = max( vec2( penM ) / SL_FRUSTUM, texel * 1.25 );
 		float lit = 0.0;
-		for ( int i = 0; i < ${e}; i ++ ) {
-			vec2 o = slVogel( i, ${e}, phi + 1.7 ) * filtR;
+		for ( int i = 0; i < ${taps}; i ++ ) {
+			vec2 o = slVogel( i, ${taps}, phi + 1.7 ) * filtR;
 			float d = unpackRGBAToDepth( texture2D( shadowMap, sc.xy + o ) );
 			lit += step( zr + dot( o, dz ), d );
 		}
-		lit /= float( ${e} );
+		lit /= float( ${taps} );
 		// fade to lit at the very edge of the map so the frustum border never shows
 		vec2 e = min( sc.xy, 1.0 - sc.xy );
 		lit = mix( 1.0, lit, smoothstep( 0.0, 0.02, min( e.x, e.y ) ) );
@@ -393,45 +393,45 @@ function qy(i, { taps: e = 16, searchTaps: t = 8 } = {}) {
 	}
 
 	`;
-  return ((It.shadowmap_pars_fragment = s.slice(0, o) + l + s.slice(a)), !0);
+  return ((ShaderChunk.shadowmap_pars_fragment = s.slice(0, o) + l + s.slice(a)), !0);
 }
-function Xy() {
-  xf !== null && (It.shadowmap_pars_fragment = xf);
+function restoreShadowChunk() {
+  originalShadowChunk !== null && (ShaderChunk.shadowmap_pars_fragment = originalShadowChunk);
 }
-var Yy = Wy;
-var Bg = "// SALTLINE_POST",
-  n1 = "0.05",
-  Zy = "0.05",
-  G6 =
+var softShadowShaderMarker = softShadowShaderHeader;
+var postShaderPrefix = "// SALTLINE_POST",
+  depthHalfEpsilon = "0.05",
+  screenSpaceDepthEpsilon = "0.05",
+  postVertexShader =
     "varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }",
-  Js = `
+  postShaderCommon = `
 varying vec2 vUv;
 float ign(vec2 p){ return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715)))); }
 float hash12(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
 float luma(vec3 c){ return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
 `,
-  Og = `
+  exposureShaderChunk = `
 uniform sampler2D tAdapt; uniform float uExposure, uKey, uMinE, uMaxE, uAuto;
 float slExposure(){ float a = texture2D(tAdapt, vec2(0.5)).r; return uExposure * mix(1.0, clamp(pow(uKey / max(a, 1e-4), 0.85), uMinE, uMaxE), uAuto); }
 `,
-  q6 = `${Js}
+  depthCopyFragmentShader = `${postShaderCommon}
 uniform sampler2D tDepth;
 void main(){ gl_FragDepth = texture2D(tDepth, vUv).r; gl_FragColor = vec4(0.0); }`,
-  X6 = `${Js}
+  depthHalfFragmentShader = `${postShaderCommon}
 uniform sampler2D tDepth; uniform float uNear, uFar;
 void main(){
   // exact texel fetch: sampling at a texel corner would pick rows unpredictably and band the AO on grazing floors
   ivec2 p = min(ivec2(gl_FragCoord.xy) * 2, textureSize(tDepth, 0) - 1);
   float d = texelFetch(tDepth, p, 0).r;
-  float z = d < ${n1} ? 0.01 : (uNear * uFar) / (uFar - d * (uFar - uNear));
+  float z = d < ${depthHalfEpsilon} ? 0.01 : (uNear * uFar) / (uFar - d * (uFar - uNear));
   gl_FragColor = vec4(z, 0.0, 0.0, 1.0);
 }`,
-  Y6 = `${Js}
+  ambientOcclusionFragmentShader = `${postShaderCommon}
 uniform sampler2D tDepthHalf; uniform vec2 uTanHalf, uTexel; uniform float uRadius, uIntensity, uAspect;
 vec3 vpos(vec2 uv, float z){ return vec3((uv * 2.0 - 1.0) * uTanHalf * z, -z); }
 void main(){
   float z0 = texture2D(tDepthHalf, vUv).r;
-  if (z0 < ${Zy} || z0 > 140.0) { gl_FragColor = vec4(1.0); return; }
+  if (z0 < ${screenSpaceDepthEpsilon} || z0 > 140.0) { gl_FragColor = vec4(1.0); return; }
   vec3 P = vpos(vUv, z0);
   vec2 ox = vec2(uTexel.x, 0.0), oy = vec2(0.0, uTexel.y);
   float zl = texture2D(tDepthHalf, vUv - ox).r, zr = texture2D(tDepthHalf, vUv + ox).r;
@@ -459,14 +459,14 @@ void main(){
   ao = mix(ao, 1.0, smoothstep(70.0, 140.0, z0));
   gl_FragColor = vec4(ao, ao, ao, 1.0);
 }`,
-  $6 = `${Js}
+  volumetricLightFragmentShader = `${postShaderCommon}
 uniform sampler2D tDepthHalf, tShadow;
 uniform mat4 uShadowMatrix, uCamWorld;
 uniform vec3 uCamPos, uSunRad, uAmb;
 uniform vec2 uTanHalf;
 uniform float uHasShadow, uMaxDist, uSigma, uFarZ, uFarHaze, uFlicker, uBoxDust;
 uniform vec3 uBoxMin, uBoxMax;
-${Ng}
+${skyColorShaderFunctions}
 float shape(float h){ return 0.30 + 0.70 * exp(-max(h, 0.0) / 5.5); }
 float hg(float mu, float g){ float g2 = g * g; return (1.0 - g2) / (12.566371 * pow(max(1.0 + g2 - 2.0 * g * mu, 1e-4), 1.5)); }
 float sunVis(vec3 p){
@@ -477,7 +477,7 @@ float sunVis(vec3 p){
 }
 void main(){
   float z = texture2D(tDepthHalf, vUv).r;
-  if (z < ${Zy}) { gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); return; }
+  if (z < ${screenSpaceDepthEpsilon}) { gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); return; }
   vec3 vd = vec3((vUv * 2.0 - 1.0) * uTanHalf, -1.0);
   float rl = length(vd);
   vec3 rd = normalize(mat3(uCamWorld) * vd);
@@ -516,7 +516,7 @@ void main(){
   }
   gl_FragColor = vec4(acc, T);
 }`,
-  $y = `${Js}
+  bilateralBlurFragmentShader = `${postShaderCommon}
 uniform sampler2D tSrc, tDepthHalf; uniform vec2 uDir;
 void main(){
   float z0 = texture2D(tDepthHalf, vUv).r;
@@ -530,14 +530,14 @@ void main(){
   }
   gl_FragColor = ws > 1e-4 ? acc / ws : texture2D(tSrc, vUv);
 }`,
-  Z6 = `${Js}
+  compositeFragmentShader = `${postShaderCommon}
 uniform sampler2D tColor, tDepth, tDepthHalf, tAO, tVol;
 uniform vec2 uHalfRes; uniform float uNear, uFar, uAoOn, uVolOn, uAoStrength;
-${Og}
+${exposureShaderChunk}
 void main(){
   vec3 col = max(texture2D(tColor, vUv).rgb, vec3(0.0));
   float d = texture2D(tDepth, vUv).r;
-  if (d >= ${n1}) {
+  if (d >= ${depthHalfEpsilon}) {
     float z = (uNear * uFar) / (uFar - d * (uFar - uNear));
     // joint bilateral upsample of the half-res buffers
     vec2 hp = vUv * uHalfRes - 0.5; vec2 f = fract(hp); vec2 base = (floor(hp) + 0.5) / uHalfRes; vec2 tx = 1.0 / uHalfRes;
@@ -563,12 +563,12 @@ void main(){
   }
   gl_FragColor = vec4(col, 1.0);
 }`,
-  j6 = `${Js}
+  motionBlurFragmentShader = `${postShaderCommon}
 uniform sampler2D tColor, tDepth; uniform mat4 uInvViewProj, uPrevViewProj; uniform float uShutter; uniform vec2 uRes;
 void main(){
   vec4 c0 = texture2D(tColor, vUv);
   float d = texture2D(tDepth, vUv).r;
-  if (d < ${n1}) { gl_FragColor = c0; return; }
+  if (d < ${depthHalfEpsilon}) { gl_FragColor = c0; return; }
   vec4 wp = uInvViewProj * vec4(vUv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0); wp /= wp.w;
   vec4 pc = uPrevViewProj * wp;
   vec2 puv = pc.xy / max(pc.w, 1e-4) * 0.5 + 0.5;
@@ -580,12 +580,12 @@ void main(){
   vec3 acc = c0.rgb; float ws = 1.0;
   for (int i = 0; i < 9; i++) {
     vec2 uv = vUv + vel * ((float(i) + 0.5 + j) / 9.0 - 0.5);
-    float w = texture2D(tDepth, uv).r < ${n1} ? 0.0 : 1.0;
+    float w = texture2D(tDepth, uv).r < ${depthHalfEpsilon} ? 0.0 : 1.0;
     acc += texture2D(tColor, uv).rgb * w; ws += w;
   }
   gl_FragColor = vec4(acc / ws, 1.0);
 }`,
-  J6 = `${Js}
+  bloomDownsampleFragmentShader = `${postShaderCommon}
 uniform sampler2D tSrc; uniform vec2 uTexel; uniform float uFirst;
 vec3 s(vec2 o){ return min(max(texture2D(tSrc, vUv + o * uTexel).rgb, vec3(0.0)), vec3(400.0)); }
 float kw(vec3 c){ return 1.0 / (1.0 + luma(c) * 0.08); }
@@ -605,7 +605,7 @@ void main(){
   }
   gl_FragColor = vec4(col, 1.0);
 }`,
-  K6 = `${Js}
+  bloomUpsampleFragmentShader = `${postShaderCommon}
 uniform sampler2D tLow, tHigh; uniform vec2 uTexel; uniform float uMix;
 void main(){
   vec2 o = uTexel;
@@ -615,9 +615,9 @@ void main(){
   t *= 1.0 / 16.0;
   gl_FragColor = vec4(mix(texture2D(tHigh, vUv).rgb, t, uMix), 1.0);
 }`,
-  Q6 = `${Js}
+  anamorphicStreakFragmentShader = `${postShaderCommon}
 uniform sampler2D tSrc; uniform vec2 uDir; uniform float uThreshold;
-${Og}
+${exposureShaderChunk}
 void main(){
   float thr = uThreshold / max(slExposure(), 0.2);
   vec3 acc = vec3(0.0); float ws = 0.0;
@@ -629,7 +629,7 @@ void main(){
   }
   gl_FragColor = vec4(acc / ws, 1.0);
 }`,
-  eA = `${Js}
+  eyeAdaptationFragmentShader = `${postShaderCommon}
 uniform sampler2D tPrev, tLum, tDepth; uniform vec2 uSunUv; uniform float uSunOn, uRate, uVisRate, uAspect;
 void main(){
   float ls = 0.0, ws = 0.0;
@@ -656,8 +656,8 @@ void main(){
   if (!(v >= 0.0)) v = vis;
   gl_FragColor = vec4(a, v, 0.0, 1.0);
 }`,
-  tA = `${Js}
-${Ug}
+  lensDirtFragmentShader = `${postShaderCommon}
+${noiseShaderFunctions}
 uniform float uAspect;
 void main(){
   vec2 p = vUv * vec2(uAspect, 1.0);
@@ -676,9 +676,9 @@ void main(){
   v *= 0.45 + 0.9 * smoothstep(0.15, 0.75, length(vUv - 0.5));
   gl_FragColor = vec4(vec3(v) * vec3(1.0, 0.96, 0.9), 1.0);
 }`,
-  nA = `${Js}
+  colorGradeFragmentShader = `${postShaderCommon}
 uniform sampler2D tScene, tBloom, tBlur, tStreak, tDirt;
-${Og}
+${exposureShaderChunk}
 uniform vec3 uSunCol;
 uniform vec2 uSunUv;
 uniform float uTime, uAspect, uBloom, uDirt, uStreak, uFlare, uCA, uVignette;
@@ -783,7 +783,7 @@ void main(){
   col = toSRGB(clamp(col, 0.0, 1.0));
   gl_FragColor = vec4(col, dot(col, vec3(0.299, 0.587, 0.114)));
 }`,
-  iA = `${Js}
+  finalOutputFragmentShader = `${postShaderCommon}
 uniform sampler2D tSrc; uniform vec2 uTexel; uniform float uTime, uGrain, uSharpen, uFxaa;
 void main(){
   vec4 M = texture2D(tSrc, vUv);
@@ -814,59 +814,72 @@ void main(){
   col += (hash12(gl_FragCoord.xy * 1.37 + 11.0) + hash12(gl_FragCoord.xy * 0.71 + 3.0) - 1.0) / 255.0;
   gl_FragColor = vec4(col, 1.0);
 }`;
-function jy(i, e, { noiseTex: t }) {
-  let n = new nt();
+/**
+ * 构建延迟后处理管线：深度拷贝、环境光遮蔽、体积光、运动模糊、Bloom、
+ * 镜头污迹、色调映射（ACES/AgX）与最终 FXAA/颗粒输出。
+ * @param {import('three').WebGLRenderer} renderer
+ * @param {import('./types').EngineContext} engineContext
+ * @param {{ noiseTex: import('three').DataTexture }} options
+ * @returns {import('./types').PostPipeline}
+ */
+function buildPostPipeline(renderer, engineContext, { noiseTex }) {
+  let n = new BufferGeometry();
   (n.setAttribute(
     "position",
-    new et(new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]), 3),
+    new BufferAttribute(new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]), 3),
   ),
-    n.setAttribute("uv", new et(new Float32Array([0, 0, 2, 0, 0, 2]), 2)));
-  let s = new Qe(n, null);
+    n.setAttribute("uv", new BufferAttribute(new Float32Array([0, 0, 2, 0, 0, 2]), 2)));
+  let s = new Mesh(n, null);
   s.frustumCulled = !1;
-  let o = new cr(-1, 1, 1, -1, 0, 1),
+  let o = new OrthographicCamera(-1, 1, 1, -1, 0, 1),
     r = [],
-    a = (oe, fe, le, R = {}) => {
-      let I = new zn({
-        name: "post-" + oe,
-        vertexShader: G6,
-        fragmentShader: `${Bg} ${oe}
-${fe}`,
-        uniforms: le,
+    a = (passName, fragmentShaderSource, passUniforms, R = {}) => {
+      let I = new ShaderMaterial({
+        name: "post-" + passName,
+        vertexShader: postVertexShader,
+        fragmentShader: `${postShaderPrefix} ${passName}
+${fragmentShaderSource}`,
+        uniforms: passUniforms,
         depthTest: !1,
         depthWrite: !1,
-        blending: ko,
+        blending: FrontSide,
         toneMapped: !1,
         ...R,
       });
       return (r.push(I), I);
     };
-  function l(oe, fe) {
-    ((s.material = oe), i.setRenderTarget(fe), i.render(s, o));
+  function l(material, target) {
+    ((s.material = material), renderer.setRenderTarget(target), renderer.render(s, o));
   }
-  let c = js,
-    u = yi,
-    h = Zt,
-    f = Gn,
-    p = (oe = c, fe = h, le = {}) => {
-      let R = new si(4, 4, {
-        type: oe,
-        format: _n,
-        minFilter: fe,
-        magFilter: fe,
-        depthBuffer: !1,
-        stencilBuffer: !1,
-        generateMipmaps: !1,
-        ...le,
-      });
-      return ((R.texture.generateMipmaps = !1), R);
-    },
-    d = () => e.quality,
+  const c = HalfFloatType;
+  const u = UnsignedByteType;
+  const h = LinearFilter;
+  const f = NearestFilter;
+  /**
+   * @param {any} [textureType]
+   * @param {any} [filterMode]
+   * @param {any} [options]
+   */
+  const p = (textureType = c, filterMode = h, options = {}) => {
+    let renderTarget = new WebGLRenderTarget(4, 4, {
+      type: textureType,
+      format: RGBAFormat,
+      minFilter: filterMode,
+      magFilter: filterMode,
+      depthBuffer: !1,
+      stencilBuffer: !1,
+      generateMipmaps: !1,
+      ...options,
+    });
+    return ((renderTarget.texture.generateMipmaps = !1), renderTarget);
+  };
+  const d = () => engineContext.quality,
     v = () => ({
-      uSunDir: { value: Mn.dir.clone() },
-      uZen: { value: en.zenith.clone() },
-      uHor: { value: en.horizon.clone() },
-      uHorAway: { value: en.horizonAway.clone() },
-      uSunCol: { value: Mn.color.clone() },
+      uSunDir: { value: SUN_CONFIG.dir.clone() },
+      uZen: { value: SKY_CONFIG.zenith.clone() },
+      uHor: { value: SKY_CONFIG.horizon.clone() },
+      uHorAway: { value: SKY_CONFIG.horizonAway.clone() },
+      uSunCol: { value: SUN_CONFIG.color.clone() },
     }),
     g = {
       volSunScale: 0.85,
@@ -895,10 +908,10 @@ ${fe}`,
       sharpen: 0.3,
       lookPower: 1.18,
       lookSat: 1.22,
-    },
-    x = !1;
+    };
+  let x = !1;
   try {
-    x = !!i.extensions.has("EXT_color_buffer_float");
+    x = !!renderer.extensions.has("EXT_color_buffer_float");
   } catch {
     x = !1;
   }
@@ -906,7 +919,7 @@ ${fe}`,
       scene: p(c, h),
       motion: p(c, h),
       ldr: p(u, h),
-      depthHalf: x ? p(as, f, { format: J0 }) : p(c, f),
+      depthHalf: x ? p(FloatType, f, { format: RedFormat }) : p(c, f),
       aoA: p(u, f),
       aoB: p(u, f),
       volA: p(c, f),
@@ -920,11 +933,9 @@ ${fe}`,
       depthCopy: null,
     },
     b = 6;
-  for (let oe = 0; oe < b; oe++) y.down.push(p(c, h));
-  for (let oe = 0; oe < b - 1; oe++) y.up.push(p(c, h));
-  (y.adapt[0].setSize(1, 1),
-    y.adapt[1].setSize(1, 1),
-    y.dirt.setSize(512, 288));
+  for (let level = 0; level < b; level++) y.down.push(p(c, h));
+  for (let level = 0; level < b - 1; level++) y.up.push(p(c, h));
+  (y.adapt[0].setSize(1, 1), y.adapt[1].setSize(1, 1), y.dirt.setSize(512, 288));
   let m = 0,
     A = 0,
     _ = !1,
@@ -939,22 +950,22 @@ ${fe}`,
     },
     w = a(
       "depthcopy",
-      q6,
+      depthCopyFragmentShader,
       { tDepth: { value: null } },
-      { depthTest: !0, depthWrite: !0, depthFunc: q0, colorWrite: !1 },
+      { depthTest: !0, depthWrite: !0, depthFunc: AlwaysDepth, colorWrite: !1 },
     ),
-    S = a("depthhalf", X6, {
+    S = a("depthhalf", depthHalfFragmentShader, {
       tDepth: { value: null },
       uNear: { value: 0.08 },
       uFar: { value: 900 },
     }),
     z = a(
       "ao",
-      Y6,
+      ambientOcclusionFragmentShader,
       {
         tDepthHalf: { value: y.depthHalf.texture },
-        uTanHalf: { value: new Ae() },
-        uTexel: { value: new Ae() },
+        uTanHalf: { value: new Vector2() },
+        uTexel: { value: new Vector2() },
         uRadius: { value: g.aoRadius },
         uIntensity: { value: g.aoIntensity },
         uAspect: { value: 1 },
@@ -963,16 +974,16 @@ ${fe}`,
     ),
     H = a(
       "vol",
-      $6,
+      volumetricLightFragmentShader,
       {
         tDepthHalf: { value: y.depthHalf.texture },
         tShadow: { value: null },
-        uShadowMatrix: { value: new Ye() },
-        uCamWorld: { value: new Ye() },
-        uCamPos: { value: new W() },
-        uSunRad: { value: new W() },
-        uAmb: { value: new W() },
-        uTanHalf: { value: new Ae() },
+        uShadowMatrix: { value: new Matrix4() },
+        uCamWorld: { value: new Matrix4() },
+        uCamPos: { value: new Vector3() },
+        uSunRad: { value: new Vector3() },
+        uAmb: { value: new Vector3() },
+        uTanHalf: { value: new Vector2() },
         uHasShadow: { value: 0 },
         uMaxDist: { value: g.volMaxDist },
         uSigma: { value: g.volSigma },
@@ -980,39 +991,39 @@ ${fe}`,
         uFarHaze: { value: g.volFarHaze },
         uFlicker: { value: 0 },
         uBoxDust: { value: 0 },
-        uBoxMin: { value: new W(1e6, 1e6, 1e6) },
-        uBoxMax: { value: new W(-1e6, -1e6, -1e6) },
+        uBoxMin: { value: new Vector3(1e6, 1e6, 1e6) },
+        uBoxMax: { value: new Vector3(-1e6, -1e6, -1e6) },
         ...v(),
       },
       { defines: { VOL_STEPS: 16 } },
     ),
     O = a(
       "blur-ao",
-      $y,
+      bilateralBlurFragmentShader,
       {
         tSrc: { value: null },
         tDepthHalf: { value: y.depthHalf.texture },
-        uDir: { value: new Ae() },
+        uDir: { value: new Vector2() },
       },
       { defines: { BLUR_TOL: "0.04" } },
     ),
     q = a(
       "blur-vol",
-      $y,
+      bilateralBlurFragmentShader,
       {
         tSrc: { value: null },
         tDepthHalf: { value: y.depthHalf.texture },
-        uDir: { value: new Ae() },
+        uDir: { value: new Vector2() },
       },
       { defines: { BLUR_TOL: "0.30" } },
     ),
-    U = a("composite", Z6, {
+    U = a("composite", compositeFragmentShader, {
       tColor: { value: null },
       tDepth: { value: null },
       tDepthHalf: { value: y.depthHalf.texture },
       tAO: { value: y.aoA.texture },
       tVol: { value: y.volA.texture },
-      uHalfRes: { value: new Ae() },
+      uHalfRes: { value: new Vector2() },
       uNear: { value: 0.08 },
       uFar: { value: 900 },
       uAoOn: { value: 1 },
@@ -1020,45 +1031,48 @@ ${fe}`,
       uAoStrength: { value: g.aoStrength },
       ...E,
     }),
-    T = a("motion", j6, {
+    T = a("motion", motionBlurFragmentShader, {
       tColor: { value: y.scene.texture },
       tDepth: { value: null },
-      uInvViewProj: { value: new Ye() },
-      uPrevViewProj: { value: new Ye() },
+      uInvViewProj: { value: new Matrix4() },
+      uPrevViewProj: { value: new Matrix4() },
       uShutter: { value: 0.5 },
-      uRes: { value: new Ae() },
+      uRes: { value: new Vector2() },
     }),
-    D = a("down", J6, {
+    D = a("down", bloomDownsampleFragmentShader, {
       tSrc: { value: null },
-      uTexel: { value: new Ae() },
+      uTexel: { value: new Vector2() },
       uFirst: { value: 0 },
     }),
-    C = a("up", K6, {
+    C = a("up", bloomUpsampleFragmentShader, {
       tLow: { value: null },
       tHigh: { value: null },
-      uTexel: { value: new Ae() },
+      uTexel: { value: new Vector2() },
       uMix: { value: g.bloomMix },
     }),
-    G = a("streak", Q6, {
+    G = a("streak", anamorphicStreakFragmentShader, {
       tSrc: { value: null },
-      uDir: { value: new Ae() },
+      uDir: { value: new Vector2() },
       uThreshold: { value: 0 },
       ...E,
     }),
-    j = a("adapt", eA, {
+    j = a("adapt", eyeAdaptationFragmentShader, {
       tPrev: { value: null },
       tLum: { value: null },
       tDepth: { value: null },
-      uSunUv: { value: new Ae(0.5, 0.5) },
+      uSunUv: { value: new Vector2(0.5, 0.5) },
       uSunOn: { value: 0 },
       uRate: { value: 1 },
       uVisRate: { value: 1 },
       uAspect: { value: 1 },
     }),
-    N = a("dirt", tA, { tNoise: { value: t }, uAspect: { value: 16 / 9 } }),
+    N = a("dirt", lensDirtFragmentShader, {
+      tNoise: { value: noiseTex },
+      uAspect: { value: 16 / 9 },
+    }),
     Q = a(
       "grade",
-      nA,
+      colorGradeFragmentShader,
       {
         tScene: { value: null },
         tBloom: { value: y.up[0].texture },
@@ -1066,8 +1080,8 @@ ${fe}`,
         tStreak: { value: y.streakB.texture },
         tDirt: { value: y.dirt.texture },
         ...E,
-        uSunCol: { value: Mn.color.clone() },
-        uSunUv: { value: new Ae(0.5, 0.5) },
+        uSunCol: { value: SUN_CONFIG.color.clone() },
+        uSunUv: { value: new Vector2(0.5, 0.5) },
         uTime: { value: 0 },
         uAspect: { value: 1 },
         uBloom: { value: g.bloom },
@@ -1093,287 +1107,288 @@ ${fe}`,
         },
       },
     ),
-    K = a("final", iA, {
+    K = a("final", finalOutputFragmentShader, {
       tSrc: { value: y.ldr.texture },
-      uTexel: { value: new Ae() },
+      uTexel: { value: new Vector2() },
       uTime: { value: 0 },
       uGrain: { value: g.grain },
       uSharpen: { value: g.sharpen },
       uFxaa: { value: 1 },
     }),
-    ie = new Ye(),
-    F = new Ye(),
-    X = new Ye(),
-    ne = new W(),
-    re = new W(),
+    viewProjectionMatrix = new Matrix4(),
+    F = new Matrix4(),
+    X = new Matrix4(),
+    sunWorldPosition = new Vector3(),
+    viewDirection = new Vector3(),
     $ = !1;
-  function ue() {
-    let oe = Math.max(6, d().volSteps | 0),
-      fe =
-        d().name === "test" || d().name === "low"
-          ? 8
-          : d().name === "ultra"
-            ? 16
-            : 12;
-    (H.defines.VOL_STEPS !== oe &&
-      ((H.defines.VOL_STEPS = oe), (H.needsUpdate = !0)),
-      z.defines.AO_TAPS !== fe &&
-        ((z.defines.AO_TAPS = fe), (z.needsUpdate = !0)));
+  function applyQuality() {
+    let volumetricSteps = Math.max(6, d().volSteps | 0),
+      aoTaps = d().name === "test" || d().name === "low" ? 8 : d().name === "ultra" ? 16 : 12;
+    (H.defines.VOL_STEPS !== volumetricSteps &&
+      ((H.defines.VOL_STEPS = volumetricSteps), (H.needsUpdate = !0)),
+      z.defines.AO_TAPS !== aoTaps && ((z.defines.AO_TAPS = aoTaps), (z.needsUpdate = !0)));
   }
-  function me(oe, fe) {
+  function resize(width, height) {
     if (
-      ((oe = Math.max(8, oe | 0)),
-      (fe = Math.max(8, fe | 0)),
-      (M.w = oe),
-      (M.h = fe),
-      (M.hw = Math.max(4, Math.ceil(oe / 2))),
-      (M.hh = Math.max(4, Math.ceil(fe / 2))),
-      y.scene.setSize(oe, fe),
-      y.motion.setSize(oe, fe),
-      y.ldr.setSize(oe, fe),
+      ((width = Math.max(8, width | 0)),
+      (height = Math.max(8, height | 0)),
+      (M.w = width),
+      (M.h = height),
+      (M.hw = Math.max(4, Math.ceil(width / 2))),
+      (M.hh = Math.max(4, Math.ceil(height / 2))),
+      y.scene.setSize(width, height),
+      y.motion.setSize(width, height),
+      y.ldr.setSize(width, height),
       y.depthCopy)
     ) {
-      y.depthCopy.setSize(oe, fe);
+      y.depthCopy.setSize(width, height);
       let I = y.depthCopy.depthTexture.image;
-      (I.width !== oe || I.height !== fe) &&
-        ((I.width = oe),
-        (I.height = fe),
-        (y.depthCopy.depthTexture.needsUpdate = !0));
+      (I.width !== width || I.height !== height) &&
+        ((I.width = width), (I.height = height), (y.depthCopy.depthTexture.needsUpdate = !0));
     }
-    for (let I of [y.depthHalf, y.aoA, y.aoB, y.volA, y.volB])
-      I.setSize(M.hw, M.hh);
-    let le = M.hw,
-      R = M.hh;
+    for (let I of [y.depthHalf, y.aoA, y.aoB, y.volA, y.volB]) I.setSize(M.hw, M.hh);
+    let halfWidth = M.hw,
+      halfHeight = M.hh;
     for (let I = 0; I < b; I++)
-      (y.down[I].setSize(le, R),
-        I < b - 1 && y.up[I].setSize(le, R),
-        (le = Math.max(2, le >> 1)),
-        (R = Math.max(2, R >> 1)));
+      (y.down[I].setSize(halfWidth, halfHeight),
+        I < b - 1 && y.up[I].setSize(halfWidth, halfHeight),
+        (halfWidth = Math.max(2, halfWidth >> 1)),
+        (halfHeight = Math.max(2, halfHeight >> 1)));
     (y.streakA.setSize(y.down[2].width, y.down[2].height),
       y.streakB.setSize(y.down[2].width, y.down[2].height),
       ($ = !1),
-      ue());
+      applyQuality());
   }
-  function ee() {
+  function ensureDepthCopy() {
     if (!y.depthCopy) {
-      let oe = new Tr(M.w, M.h);
-      ((oe.type = Zs),
-        (oe.minFilter = oe.magFilter = f),
-        (y.depthCopy = new si(M.w, M.h, {
+      let depthTexture = new DepthTexture(M.w, M.h);
+      ((depthTexture.type = UnsignedIntType),
+        (depthTexture.minFilter = depthTexture.magFilter = f),
+        (y.depthCopy = new WebGLRenderTarget(M.w, M.h, {
           type: u,
-          format: _n,
+          format: RGBAFormat,
           minFilter: f,
           magFilter: f,
           depthBuffer: !0,
           stencilBuffer: !1,
-          depthTexture: oe,
+          depthTexture: depthTexture,
           generateMipmaps: !1,
         })),
-        i.setRenderTarget(y.depthCopy),
-        i.setClearColor(0, 1),
-        i.clear(!0, !0, !1),
-        i.setRenderTarget(null));
+        renderer.setRenderTarget(y.depthCopy),
+        renderer.setClearColor(0, 1),
+        renderer.clear(!0, !0, !1),
+        renderer.setRenderTarget(null));
     }
     return y.depthCopy.depthTexture;
   }
-  function B(oe) {
-    y.depthCopy && ((w.uniforms.tDepth.value = oe), l(w, y.depthCopy));
+  function B(depthTexture) {
+    y.depthCopy && ((w.uniforms.tDepth.value = depthTexture), l(w, y.depthCopy));
   }
   function P({
-    hdr: oe,
-    camera: fe,
-    sun: le,
-    dt: R,
+    hdr: hdrTarget,
+    camera: camera,
+    sun: sunLight,
+    dt: deltaTime,
     post: I,
-    exposure: se,
-    time: ae,
+    exposure: exposure,
+    time: time,
     fast: k,
-    thunder: ce,
+    thunder: thunder,
   }) {
-    let ve = d(),
-      _e = fe.projectionMatrix.elements,
-      Te = 1 / _e[0],
-      Pe = 1 / _e[5],
-      Re = Te / Pe,
-      Fe = oe.depthTexture;
+    let quality = d(),
+      projectionElements = camera.projectionMatrix.elements,
+      tanHalfX = 1 / projectionElements[0],
+      tanHalfY = 1 / projectionElements[5],
+      aspectRatio = tanHalfX / tanHalfY,
+      depthTexture = hdrTarget.depthTexture;
     ((E.tAdapt.value = y.adapt[m].texture),
-      (E.uExposure.value = se),
+      (E.uExposure.value = exposure),
       (E.uAuto.value = J.autoExposure ? 1 : 0),
       (E.uKey.value = g.key),
       (E.uMinE.value = g.minExposure),
       (E.uMaxE.value = g.maxExposure),
       _ || ((N.uniforms.uAspect.value = 16 / 9), l(N, y.dirt), (_ = !0)),
-      (S.uniforms.tDepth.value = Fe),
-      (S.uniforms.uNear.value = fe.near),
-      (S.uniforms.uFar.value = fe.far),
+      (S.uniforms.tDepth.value = depthTexture),
+      (S.uniforms.uNear.value = camera.near),
+      (S.uniforms.uFar.value = camera.far),
       l(S, y.depthHalf));
-    let ze = 1 / M.hw,
-      We = 1 / M.hh,
-      Ne = !!ve.ao;
-    Ne &&
-      (z.uniforms.uTanHalf.value.set(Te, Pe),
-      z.uniforms.uTexel.value.set(ze, We),
-      (z.uniforms.uAspect.value = Re),
+    let invHalfWidth = 1 / M.hw,
+      invHalfHeight = 1 / M.hh,
+      aoEnabled = !!quality.ao;
+    aoEnabled &&
+      (z.uniforms.uTanHalf.value.set(tanHalfX, tanHalfY),
+      z.uniforms.uTexel.value.set(invHalfWidth, invHalfHeight),
+      (z.uniforms.uAspect.value = aspectRatio),
       l(z, y.aoA),
       (O.uniforms.tSrc.value = y.aoA.texture),
-      O.uniforms.uDir.value.set(ze, 0),
+      O.uniforms.uDir.value.set(invHalfWidth, 0),
       l(O, y.aoB),
       (O.uniforms.tSrc.value = y.aoB.texture),
-      O.uniforms.uDir.value.set(0, We),
+      O.uniforms.uDir.value.set(0, invHalfHeight),
       l(O, y.aoA));
-    let dt = (ve.volSteps | 0) > 0;
-    if (dt) {
-      let be = H.uniforms,
-        Oe = e.level && e.level.interiorBoxes && e.level.interiorBoxes[0];
-      Oe
-        ? (be.uBoxMin.value.copy(Oe.min),
-          be.uBoxMax.value.copy(Oe.max),
-          (be.uBoxDust.value = g.volInteriorDust))
-        : (be.uBoxDust.value = 0);
-      let pt = le.shadow && le.shadow.map ? le.shadow.map.texture : null;
-      ((be.tShadow.value = pt),
-        (be.uHasShadow.value = pt ? 1 : 0),
-        pt && be.uShadowMatrix.value.copy(le.shadow.matrix),
-        be.uCamWorld.value.copy(fe.matrixWorld),
-        be.uCamPos.value.setFromMatrixPosition(fe.matrixWorld),
-        be.uTanHalf.value.set(Te, Pe),
-        (be.uFarZ.value = fe.far));
-      let ut = le.intensity * g.volSunScale;
-      be.uSunRad.value.set(le.color.r * ut, le.color.g * ut, le.color.b * ut);
-      let nn = g.volAmbient * (1 + ce * 1.5);
-      (be.uAmb.value.set(en.fog.r * nn, en.fog.g * nn, en.fog.b * nn),
+    let volumetricEnabled = (quality.volSteps | 0) > 0;
+    if (volumetricEnabled) {
+      let uniforms = H.uniforms,
+        interiorBox =
+          engineContext.level &&
+          engineContext.level.interiorBoxes &&
+          engineContext.level.interiorBoxes[0];
+      interiorBox
+        ? (uniforms.uBoxMin.value.copy(interiorBox.min),
+          uniforms.uBoxMax.value.copy(interiorBox.max),
+          (uniforms.uBoxDust.value = g.volInteriorDust))
+        : (uniforms.uBoxDust.value = 0);
+      let shadowTexture =
+        sunLight.shadow && sunLight.shadow.map ? sunLight.shadow.map.texture : null;
+      ((uniforms.tShadow.value = shadowTexture),
+        (uniforms.uHasShadow.value = shadowTexture ? 1 : 0),
+        shadowTexture && uniforms.uShadowMatrix.value.copy(sunLight.shadow.matrix),
+        uniforms.uCamWorld.value.copy(camera.matrixWorld),
+        uniforms.uCamPos.value.setFromMatrixPosition(camera.matrixWorld),
+        uniforms.uTanHalf.value.set(tanHalfX, tanHalfY),
+        (uniforms.uFarZ.value = camera.far));
+      let sunRadianceScale = sunLight.intensity * g.volSunScale;
+      uniforms.uSunRad.value.set(
+        sunLight.color.r * sunRadianceScale,
+        sunLight.color.g * sunRadianceScale,
+        sunLight.color.b * sunRadianceScale,
+      );
+      let ambientScale = g.volAmbient * (1 + thunder * 1.5);
+      (uniforms.uAmb.value.set(
+        SKY_CONFIG.fog.r * ambientScale,
+        SKY_CONFIG.fog.g * ambientScale,
+        SKY_CONFIG.fog.b * ambientScale,
+      ),
         l(H, y.volA),
         (q.uniforms.tSrc.value = y.volA.texture),
-        q.uniforms.uDir.value.set(ze, 0),
+        q.uniforms.uDir.value.set(invHalfWidth, 0),
         l(q, y.volB),
         (q.uniforms.tSrc.value = y.volB.texture),
-        q.uniforms.uDir.value.set(0, We),
+        q.uniforms.uDir.value.set(0, invHalfHeight),
         l(q, y.volA));
     }
     {
-      let be = U.uniforms;
-      ((be.tColor.value = oe.texture),
-        (be.tDepth.value = Fe),
-        be.uHalfRes.value.set(M.hw, M.hh),
-        (be.uNear.value = fe.near),
-        (be.uFar.value = fe.far),
-        (be.uAoOn.value = Ne ? 1 : 0),
-        (be.uVolOn.value = dt ? 1 : 0),
+      let uniforms = U.uniforms;
+      ((uniforms.tColor.value = hdrTarget.texture),
+        (uniforms.tDepth.value = depthTexture),
+        uniforms.uHalfRes.value.set(M.hw, M.hh),
+        (uniforms.uNear.value = camera.near),
+        (uniforms.uFar.value = camera.far),
+        (uniforms.uAoOn.value = aoEnabled ? 1 : 0),
+        (uniforms.uVolOn.value = volumetricEnabled ? 1 : 0),
         l(U, y.scene));
     }
-    let xe = y.scene.texture;
+    let sceneColor = y.scene.texture;
     if (
-      (ie.multiplyMatrices(fe.projectionMatrix, fe.matrixWorldInverse),
-      ve.motionBlur && $ && R > 0)
+      (viewProjectionMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse),
+      quality.motionBlur && $ && deltaTime > 0)
     ) {
-      let be = T.uniforms;
-      ((be.tDepth.value = Fe),
-        be.uInvViewProj.value.copy(X.copy(ie).invert()),
-        be.uPrevViewProj.value.copy(F),
-        (be.uShutter.value = Math.min(0.5, 1 / 190 / Math.max(R, 0.001))),
-        be.uRes.value.set(M.w, M.h),
+      let uniforms = T.uniforms;
+      ((uniforms.tDepth.value = depthTexture),
+        uniforms.uInvViewProj.value.copy(X.copy(viewProjectionMatrix).invert()),
+        uniforms.uPrevViewProj.value.copy(F),
+        (uniforms.uShutter.value = Math.min(0.5, 1 / 190 / Math.max(deltaTime, 0.001))),
+        uniforms.uRes.value.set(M.w, M.h),
         l(T, y.motion),
-        (xe = y.motion.texture));
+        (sceneColor = y.motion.texture));
     }
-    if ((F.copy(ie), ($ = !0), ve.bloom)) {
-      let be = xe,
-        Oe = M.w,
-        pt = M.h;
-      for (let bt = 0; bt < b; bt++)
-        ((D.uniforms.tSrc.value = be),
-          D.uniforms.uTexel.value.set(1 / Oe, 1 / pt),
-          (D.uniforms.uFirst.value = bt === 0 ? 1 : 0),
-          l(D, y.down[bt]),
-          (be = y.down[bt].texture),
-          (Oe = y.down[bt].width),
-          (pt = y.down[bt].height));
-      let ut = y.down[b - 1];
-      for (let bt = b - 2; bt >= 0; bt--)
-        ((C.uniforms.tLow.value = ut.texture),
-          (C.uniforms.tHigh.value = y.down[bt].texture),
-          C.uniforms.uTexel.value.set(1 / ut.width, 1 / ut.height),
-          l(C, y.up[bt]),
-          (ut = y.up[bt]));
-      let nn = 1 / y.streakA.width;
+    if ((F.copy(viewProjectionMatrix), ($ = !0), quality.bloom)) {
+      let uniforms = sceneColor,
+        levelWidth = M.w,
+        levelHeight = M.h;
+      for (let level = 0; level < b; level++)
+        ((D.uniforms.tSrc.value = uniforms),
+          D.uniforms.uTexel.value.set(1 / levelWidth, 1 / levelHeight),
+          (D.uniforms.uFirst.value = level === 0 ? 1 : 0),
+          l(D, y.down[level]),
+          (uniforms = y.down[level].texture),
+          (levelWidth = y.down[level].width),
+          (levelHeight = y.down[level].height));
+      let currentLevel = y.down[b - 1];
+      for (let level = b - 2; level >= 0; level--)
+        ((C.uniforms.tLow.value = currentLevel.texture),
+          (C.uniforms.tHigh.value = y.down[level].texture),
+          C.uniforms.uTexel.value.set(1 / currentLevel.width, 1 / currentLevel.height),
+          l(C, y.up[level]),
+          (currentLevel = y.up[level]));
+      let streakTexel = 1 / y.streakA.width;
       ((G.uniforms.tSrc.value = y.down[2].texture),
-        G.uniforms.uDir.value.set(nn * 1.5, 0),
+        G.uniforms.uDir.value.set(streakTexel * 1.5, 0),
         (G.uniforms.uThreshold.value = g.streakThreshold),
         l(G, y.streakA),
         (G.uniforms.tSrc.value = y.streakA.texture),
-        G.uniforms.uDir.value.set(nn * 5, 0),
+        G.uniforms.uDir.value.set(streakTexel * 5, 0),
         (G.uniforms.uThreshold.value = 0),
         l(G, y.streakB));
     }
-    (ne
-      .copy(Mn.dir)
+    (sunWorldPosition
+      .copy(SUN_CONFIG.dir)
       .multiplyScalar(500)
-      .add(re.setFromMatrixPosition(fe.matrixWorld))
-      .project(fe),
-      fe.getWorldDirection(re));
-    let Ie = re.dot(Mn.dir) > 0.05,
-      Be = Math.max(Math.abs(ne.x), Math.abs(ne.y)),
-      Xe = Ie ? 1 - Math.min(1, Math.max(0, (Be - 1) / 0.3)) : 0,
-      Me = ne.x * 0.5 + 0.5,
-      we = ne.y * 0.5 + 0.5;
+      .add(viewDirection.setFromMatrixPosition(camera.matrixWorld))
+      .project(camera),
+      camera.getWorldDirection(viewDirection));
+    let sunFacing = viewDirection.dot(SUN_CONFIG.dir) > 0.05,
+      sunEdgeFactor = Math.max(Math.abs(sunWorldPosition.x), Math.abs(sunWorldPosition.y)),
+      sunVisibility = sunFacing ? 1 - Math.min(1, Math.max(0, (sunEdgeFactor - 1) / 0.3)) : 0,
+      sunUvX = sunWorldPosition.x * 0.5 + 0.5,
+      sunUvY = sunWorldPosition.y * 0.5 + 0.5;
     {
-      let be = j.uniforms,
-        Oe = y.adapt[m],
-        pt = y.adapt[1 - m];
-      ((be.tPrev.value = Oe.texture),
-        (be.tLum.value = ve.bloom ? y.down[b - 1].texture : xe),
-        (be.tDepth.value = Fe),
-        be.uSunUv.value.set(Me, we),
-        (be.uSunOn.value = Xe),
-        (be.uAspect.value = Re));
-      let ut = A < 2 || k;
-      ((be.uRate.value = ut
+      let uniforms = j.uniforms,
+        readAdaptTarget = y.adapt[m],
+        writeAdaptTarget = y.adapt[1 - m];
+      ((uniforms.tPrev.value = readAdaptTarget.texture),
+        (uniforms.tLum.value = quality.bloom ? y.down[b - 1].texture : sceneColor),
+        (uniforms.tDepth.value = depthTexture),
+        uniforms.uSunUv.value.set(sunUvX, sunUvY),
+        (uniforms.uSunOn.value = sunVisibility),
+        (uniforms.uAspect.value = aspectRatio));
+      let instantAdaptation = A < 2 || k;
+      ((uniforms.uRate.value = instantAdaptation
         ? A < 2
           ? 1
           : 0.6
-        : 1 - Math.exp(-R / g.adaptTau)),
-        (be.uVisRate.value = ut ? 1 : 1 - Math.exp(-R / 0.12)),
-        l(j, pt),
+        : 1 - Math.exp(-deltaTime / g.adaptTau)),
+        (uniforms.uVisRate.value = instantAdaptation ? 1 : 1 - Math.exp(-deltaTime / 0.12)),
+        l(j, writeAdaptTarget),
         (m = 1 - m),
         A++);
     }
     {
-      let be = Q.uniforms;
-      ((be.tScene.value = xe),
+      let uniforms = Q.uniforms;
+      ((uniforms.tScene.value = sceneColor),
         (E.tAdapt.value = y.adapt[m].texture),
-        be.uSunUv.value.set(Me, we),
-        (be.uSunOn.value = Xe),
-        (be.uAspect.value = Re),
-        (be.uTime.value = ae),
-        (be.uBloom.value = ve.bloom ? g.bloom : 0),
-        (be.uDirt.value = ve.bloom ? g.dirt : 0),
-        (be.uStreak.value = ve.bloom ? g.streak : 0),
-        (be.uFlare.value = g.flare),
-        (be.uAgxMix.value = g.agxMix),
-        (be.uCA.value = g.ca),
-        (be.uVignette.value = g.vignette),
-        (be.uDamage.value = V(I.damage)),
-        (be.uLowHealth.value = V(I.lowHealth)),
-        (be.uAds.value = V(I.ads)),
-        (be.uFlash.value = V(I.flash)),
-        (be.uFade.value = V(I.fade)),
-        (be.uSaturation.value = Number.isFinite(I.saturation)
-          ? I.saturation
-          : 1),
+        uniforms.uSunUv.value.set(sunUvX, sunUvY),
+        (uniforms.uSunOn.value = sunVisibility),
+        (uniforms.uAspect.value = aspectRatio),
+        (uniforms.uTime.value = time),
+        (uniforms.uBloom.value = quality.bloom ? g.bloom : 0),
+        (uniforms.uDirt.value = quality.bloom ? g.dirt : 0),
+        (uniforms.uStreak.value = quality.bloom ? g.streak : 0),
+        (uniforms.uFlare.value = g.flare),
+        (uniforms.uAgxMix.value = g.agxMix),
+        (uniforms.uCA.value = g.ca),
+        (uniforms.uVignette.value = g.vignette),
+        (uniforms.uDamage.value = V(I.damage)),
+        (uniforms.uLowHealth.value = V(I.lowHealth)),
+        (uniforms.uAds.value = V(I.ads)),
+        (uniforms.uFlash.value = V(I.flash)),
+        (uniforms.uFade.value = V(I.fade)),
+        (uniforms.uSaturation.value = Number.isFinite(I.saturation) ? I.saturation : 1),
         l(Q, y.ldr));
     }
     {
-      let be = K.uniforms;
-      (be.uTexel.value.set(1 / M.w, 1 / M.h),
-        (be.uTime.value = ae),
-        (be.uGrain.value = g.grain),
-        (be.uSharpen.value = g.sharpen),
+      let uniforms = K.uniforms;
+      (uniforms.uTexel.value.set(1 / M.w, 1 / M.h),
+        (uniforms.uTime.value = time),
+        (uniforms.uGrain.value = g.grain),
+        (uniforms.uSharpen.value = g.sharpen),
         l(K, null));
     }
   }
-  let V = (oe) => (oe > 0 ? (oe < 1 ? oe : 1) : 0);
+  let V = (value) => (value > 0 ? (value < 1 ? value : 1) : 0);
   function Y() {
-    for (let fe of r) fe.dispose();
-    let oe = [
+    for (let material of r) material.dispose();
+    let targets = [
       y.scene,
       y.motion,
       y.ldr,
@@ -1389,22 +1404,22 @@ ${fe}`,
       ...y.up,
       ...y.adapt,
     ];
-    y.depthCopy && oe.push(y.depthCopy);
-    for (let fe of oe) fe.dispose();
+    y.depthCopy && targets.push(y.depthCopy);
+    for (let target of targets) target.dispose();
   }
   let L = new Uint16Array(4);
   function Z() {
     try {
-      i.readRenderTargetPixels(y.adapt[m], 0, 0, 1, 1, L);
-      let oe = P0.fromHalfFloat(L[0]),
-        fe = Math.min(
+      renderer.readRenderTargetPixels(y.adapt[m], 0, 0, 1, 1, L);
+      let luminance = DataUtils.fromHalfFloat(L[0]),
+        autoExposure = Math.min(
           g.maxExposure,
-          Math.max(g.minExposure, Math.pow(g.key / Math.max(oe, 1e-4), 0.85)),
+          Math.max(g.minExposure, Math.pow(g.key / Math.max(luminance, 1e-4), 0.85)),
         );
       return {
-        lum: +oe.toFixed(4),
-        auto: +fe.toFixed(3),
-        sunVis: +P0.fromHalfFloat(L[1]).toFixed(2),
+        lum: +luminance.toFixed(4),
+        auto: +autoExposure.toFixed(3),
+        sunVis: +DataUtils.fromHalfFloat(L[1]).toFixed(2),
       };
     } catch {
       return null;
@@ -1413,10 +1428,10 @@ ${fe}`,
   let J = {
     readAdapt: Z,
     run: P,
-    resize: me,
+    resize: resize,
     copyDepth: B,
-    ensureDepthCopy: ee,
-    applyQuality: ue,
+    ensureDepthCopy: ensureDepthCopy,
+    applyQuality: applyQuality,
     dispose: Y,
     materials: r,
     rt: y,
@@ -1429,12 +1444,18 @@ ${fe}`,
   };
   return J;
 }
-var Jy = 2,
-  Ky = 1;
-async function Hg(i) {
-  let e = i.params || {},
+var ENVIRONMENT_INTENSITY = 2,
+  INTERIOR_ENVIRONMENT_INTENSITY = 1;
+/**
+ * 创建渲染系统：WebGL 渲染器、场景/相机、天空、太阳阴影、光池、
+ * 环境反射与可选的高级后处理链，并暴露统一渲染接口。
+ * @param {import('./types').EngineContext} engineContext
+ * @returns {Promise<import('./types').RenderSystem>}
+ */
+async function buildRenderSystem(engineContext) {
+  let e = engineContext.params || {},
     t = document.getElementById("view"),
-    n = new gf({
+    n = new WebGLRenderer({
       canvas: t,
       antialias: !1,
       powerPreference: "high-performance",
@@ -1442,60 +1463,58 @@ async function Hg(i) {
       depth: !0,
       stencil: !1,
     });
-  ((n.outputColorSpace = Vn),
-    (n.toneMapping = ys),
+  ((n.outputColorSpace = SRGBColorSpace),
+    (n.toneMapping = NoToneMapping),
     (n.toneMappingExposure = 1),
     (n.shadowMap.enabled = !0),
-    (n.shadowMap.type = gc),
+    (n.shadowMap.type = PCFShadowMap),
     (n.shadowMap.autoUpdate = !1),
     (n.autoClear = !1),
     (n.info.autoReset = !1),
     n.setClearColor(0, 1));
   let s = n.getContext(),
     o = { post: !1, shadow: !1, sky: !1, other: 0 };
-  n.debug.onShaderError = (ie, F, X, ne) => {
-    let re = "",
-      $ = "";
+  n.debug.onShaderError = (renderer, F, X, fragmentShader) => {
+    let shaderSource = "",
+      infoLog = "";
     try {
-      ((re = ie.getShaderSource(ne) || ""),
-        ($ =
-          (ie.getShaderInfoLog(ne) || "") +
+      ((shaderSource = renderer.getShaderSource(fragmentShader) || ""),
+        (infoLog =
+          (renderer.getShaderInfoLog(fragmentShader) || "") +
           " " +
-          (ie.getShaderInfoLog(X) || "") +
+          (renderer.getShaderInfoLog(X) || "") +
           " " +
-          (ie.getProgramInfoLog(F) || "")));
+          (renderer.getProgramInfoLog(F) || "")));
     } catch {}
-    let ue = "material";
-    (re.includes(Bg)
+    let materialLabel = "material";
+    (shaderSource.includes(postShaderPrefix)
       ? ((o.post = !0),
-        (ue = "post pass " + (re.match(/SALTLINE_POST (\S+)/) || [])[1]))
-      : re.includes("SALTLINE_SKY")
-        ? ((o.sky = !0), (ue = "sky"))
-        : re.includes(Yy)
-          ? ((o.shadow = !0), (ue = "material (soft shadow chunk active)"))
+        (materialLabel = "post pass " + (shaderSource.match(/SALTLINE_POST (\S+)/) || [])[1]))
+      : shaderSource.includes("SALTLINE_SKY")
+        ? ((o.sky = !0), (materialLabel = "sky"))
+        : shaderSource.includes(softShadowShaderMarker)
+          ? ((o.shadow = !0), (materialLabel = "material (soft shadow chunk active)"))
           : o.other++,
-      console.error(
-        `[render] shader error in ${ue}: ${$.trim().slice(0, 700)}`,
-      ));
+      console.error(`[render] shader error in ${materialLabel}: ${infoLog.trim().slice(0, 700)}`));
   };
-  let r = new ir(),
-    a = new Wn(Pi.fov, 16 / 9, 0.08, 900);
-  (a.layers.set(vf), (a.rotation.order = "YXZ"), r.add(a));
-  let l = new Wn(Pi.viewFov, 16 / 9, 0.01, 10);
-  l.layers.set(zc);
-  let c = Oy(),
-    u = Hy(c);
+  let r = new Scene(),
+    a = new PerspectiveCamera(PLAYER_CONFIG.fov, 16 / 9, 0.08, 900);
+  (a.layers.set(FACTION_PLAYER), (a.rotation.order = "YXZ"), r.add(a));
+  let l = new PerspectiveCamera(PLAYER_CONFIG.viewFov, 16 / 9, 0.01, 10);
+  l.layers.set(FACTION_ENEMY);
+  let c = buildNoiseTexture(),
+    u = buildSkyDome(c);
   r.add(u.mesh);
-  let h = new W0(Mn.color, Mn.intensity);
+  let h = new DirectionalLight(SUN_CONFIG.color, SUN_CONFIG.intensity);
   ((h.name = "sun"), (h.castShadow = !0));
-  let f = Gy(
+  let f = fitSunShadowCamera(
       h,
-      new W(-41, -0.2, -33),
-      new W(37, 32, 31),
-      new W(-41, -3, -64),
-      new W(72, 36, 34),
+      new Vector3(-41, -0.2, -33),
+      new Vector3(37, 32, 31),
+      new Vector3(-41, -3, -64),
+      new Vector3(72, 36, 34),
     ),
-    p = () => Math.min(i.quality.shadow || 2048, n.capabilities.maxTextureSize);
+    p = () => Math.min(engineContext.quality.shadow || 2048, n.capabilities.maxTextureSize);
   (h.shadow.mapSize.set(p(), p()),
     (h.shadow.bias = -12e-5),
     (h.shadow.normalBias = 0.02),
@@ -1504,121 +1523,116 @@ async function Hg(i) {
     r.add(h, h.target));
   let d = !1;
   try {
-    d = qy(f, { taps: i.quality.name === "low" ? 10 : 16, searchTaps: 8 });
-  } catch (ie) {
-    console.warn("[render] soft shadows unavailable: " + ie);
+    d = patchSoftShadows(f, {
+      taps: engineContext.quality.name === "low" ? 10 : 16,
+      searchTaps: 8,
+    });
+  } catch (error) {
+    console.warn("[render] soft shadows unavailable: " + error);
   }
   let v = 6,
     g = [];
-  for (let ie = 0; ie < v; ie++) {
-    let F = new Qr(16777215, 0, 12, 2);
-    ((F.userData = { busy: !1, ttl: 0, dur: 0, peak: 0, persistent: !1 }),
-      r.add(F),
-      g.push(F));
+  for (let index = 0; index < v; index++) {
+    let F = new PointLight(16777215, 0, 12, 2);
+    ((F.userData = { busy: !1, ttl: 0, dur: 0, peak: 0, persistent: !1 }), r.add(F), g.push(F));
   }
   let x = {
-      flash(ie, F = 16763008, X = 30, ne = 10, re = 0.06) {
-        let $ =
-          g.find((ue) => !ue.userData.busy) ||
+      flash(position, color = 16763008, intensity = 30, distance = 10, duration = 0.06) {
+        let light =
+          g.find((light) => !light.userData.busy) ||
           g
-            .filter((ue) => !ue.userData.persistent)
-            .sort((ue, me) => ue.userData.ttl - me.userData.ttl)[0];
-        $ &&
-          ($.position.copy(ie),
-          $.color.set(F),
-          ($.distance = ne),
-          ($.intensity = X),
-          Object.assign($.userData, {
+            .filter((light) => !light.userData.persistent)
+            .sort((light, comparison) => light.userData.ttl - comparison.userData.ttl)[0];
+        light &&
+          (light.position.copy(position),
+          light.color.set(color),
+          (light.distance = distance),
+          (light.intensity = intensity),
+          Object.assign(light.userData, {
             busy: !0,
-            ttl: re,
-            dur: re,
-            peak: X,
+            ttl: duration,
+            dur: duration,
+            peak: intensity,
             persistent: !1,
           }));
       },
       acquire() {
-        let ie = g.find((F) => !F.userData.busy);
-        return ie
-          ? ((ie.userData.busy = !0),
-            (ie.userData.persistent = !0),
-            (ie.intensity = 0),
+        let light = g.find((candidate) => !candidate.userData.busy);
+        return light
+          ? ((light.userData.busy = !0),
+            (light.userData.persistent = !0),
+            (light.intensity = 0),
             {
-              light: ie,
+              light: light,
               release() {
-                ((ie.userData.busy = !1),
-                  (ie.userData.persistent = !1),
-                  (ie.intensity = 0));
+                ((light.userData.busy = !1),
+                  (light.userData.persistent = !1),
+                  (light.intensity = 0));
               },
             })
           : null;
       },
-      update(ie) {
+      update(deltaTime) {
         for (let F of g) {
-          let X = F.userData;
-          X.busy &&
-            !X.persistent &&
-            ((X.ttl -= ie),
-            X.ttl <= 0
-              ? ((X.busy = !1), (F.intensity = 0))
-              : (F.intensity = X.peak * (X.ttl / X.dur)));
+          let state = F.userData;
+          state.busy &&
+            !state.persistent &&
+            ((state.ttl -= deltaTime),
+            state.ttl <= 0
+              ? ((state.busy = !1), (F.intensity = 0))
+              : (F.intensity = state.peak * (state.ttl / state.dur)));
         }
       },
     },
     y = null;
   try {
-    ((y = Vy(n, u)),
+    ((y = buildEnvironmentCapture(n, u)),
       (r.environment = y.texture),
-      (r.environmentIntensity = Jy));
-  } catch (ie) {
-    console.error(
-      "[render] environment capture failed: " + ((ie && ie.stack) || ie),
-    );
+      (r.environmentIntensity = ENVIRONMENT_INTENSITY));
+  } catch (error) {
+    console.error("[render] environment capture failed: " + ((error && error.stack) || error));
   }
-  let b = new Tr(4, 4);
-  ((b.type = Zs), (b.minFilter = b.magFilter = Gn));
-  let m = new si(4, 4, {
-      type: js,
-      format: _n,
-      minFilter: Zt,
-      magFilter: Zt,
+  let b = new DepthTexture(4, 4);
+  ((b.type = UnsignedIntType), (b.minFilter = b.magFilter = NearestFilter));
+  let m = new WebGLRenderTarget(4, 4, {
+      type: HalfFloatType,
+      format: RGBAFormat,
+      minFilter: LinearFilter,
+      magFilter: LinearFilter,
       depthBuffer: !0,
       stencilBuffer: !1,
       depthTexture: b,
-      samples: i.quality.msaa | 0,
+      samples: engineContext.quality.msaa | 0,
       generateMipmaps: !1,
     }),
     A = null,
     _ = e.post !== "0";
   if (
-    (e.ao === "0" && (i.quality.ao = !1),
-    e.vol === "0" && (i.quality.volSteps = 0),
-    e.bloom === "0" && (i.quality.bloom = !1),
-    e.mb === "1" && (i.quality.motionBlur = !0),
+    (e.ao === "0" && (engineContext.quality.ao = !1),
+    e.vol === "0" && (engineContext.quality.volSteps = 0),
+    e.bloom === "0" && (engineContext.quality.bloom = !1),
+    e.mb === "1" && (engineContext.quality.motionBlur = !0),
     _)
   )
     try {
-      A = jy(n, i, { noiseTex: c });
-    } catch (ie) {
+      A = buildPostPipeline(n, engineContext, { noiseTex: c });
+    } catch (error) {
       ((_ = !1),
         console.error(
           "[render] post chain failed to initialise, using forward fallback: " +
-            ((ie && ie.stack) || ie),
+            ((error && error.stack) || error),
         ));
     }
   let M = !!(e.shot || e.show),
     E = !1,
     w = { t: 99, power: 0, value: 0 };
-  i.events &&
-    i.events.on &&
-    i.events.on("thunder", (ie) => {
-      ((w.t = 0), (w.power = Math.min(1, (ie && ie.intensity) || 0.6)));
+  engineContext.events &&
+    engineContext.events.on &&
+    engineContext.events.on("thunder", (payload) => {
+      ((w.t = 0), (w.power = Math.min(1, (payload && payload.intensity) || 0.6)));
       let F = Math.PI * (0.55 + Math.random() * 0.9);
       u.material.uniforms.uFlashDir.value
-        .set(
-          Math.cos(F),
-          0.35 + Math.random() * 0.3,
-          Math.sin(F) * (Math.random() < 0.5 ? -1 : 1),
-        )
+        .set(Math.cos(F), 0.35 + Math.random() * 0.3, Math.sin(F) * (Math.random() < 0.5 ? -1 : 1))
         .normalize();
     });
   let S = {
@@ -1630,13 +1644,13 @@ async function Hg(i) {
     upWait: 4,
     upDelay: 4,
   };
-  function z(ie) {
-    if (!S.enabled || !_ || ie > 1500) return;
-    if (((S.settle -= ie / 1e3), (S.upWait -= ie / 1e3), S.settle > 0)) {
+  function z(deltaMs) {
+    if (!S.enabled || !_ || deltaMs > 1500) return;
+    if (((S.settle -= deltaMs / 1e3), (S.upWait -= deltaMs / 1e3), S.settle > 0)) {
       ((S.acc = 0), (S.n = 0));
       return;
     }
-    if (((S.acc += ie), S.n++, S.n < 45 && S.acc < 900)) return;
+    if (((S.acc += deltaMs), S.n++, S.n < 45 && S.acc < 900)) return;
     let F = S.acc / S.n;
     ((S.acc = 0), (S.n = 0));
     let X = S.scale;
@@ -1652,8 +1666,10 @@ async function Hg(i) {
       X <= 0.6 && F > 26)
     ) {
       S.floorHits = (S.floorHits || 0) + 1;
-      let ne = { ultra: "high", high: "medium", medium: "low" }[i.quality.name];
-      if (S.floorHits >= 2 && ne && Pr[ne]) {
+      let lowerQualityName = { ultra: "high", high: "medium", medium: "low" }[
+        engineContext.quality.name
+      ];
+      if (S.floorHits >= 2 && lowerQualityName && QUALITY_PRESETS[lowerQualityName]) {
         ((S.floorHits = 0),
           (S.scale = 0.8),
           (S.settle = 2),
@@ -1662,11 +1678,11 @@ async function Hg(i) {
             "[render] frame time " +
               F.toFixed(0) +
               " ms at minimum scale: dropping quality to " +
-              ne,
+              lowerQualityName,
           ));
         try {
-          (N.setQuality({ ...Pr[ne] }),
-            i.events.emit("quality:auto", { name: ne }));
+          (N.setQuality({ ...QUALITY_PRESETS[lowerQualityName] }),
+            engineContext.events.emit("quality:auto", { name: lowerQualityName }));
         } catch {}
         return;
       }
@@ -1675,8 +1691,8 @@ async function Hg(i) {
   }
   let H = [],
     O = {},
-    q = (ie, F) => {
-      O[ie] || ((O[ie] = 1), console.error(F));
+    q = (errorKey, message) => {
+      O[errorKey] || ((O[errorKey] = 1), console.error(message));
     },
     U = { calls: 0, tris: 0 },
     T = 0,
@@ -1689,9 +1705,8 @@ async function Hg(i) {
       l.matrixWorldInverse.copy(l.matrixWorld).invert());
   }
   function G() {
-    (n.toneMapping !== xc && (n.toneMapping = xc),
-      (n.toneMappingExposure =
-        0.6 * N.exposure * (1 - Math.min(1, Math.max(0, N.post.fade)))),
+    (n.toneMapping !== ACESFilmicToneMapping && (n.toneMapping = ACESFilmicToneMapping),
+      (n.toneMappingExposure = 0.6 * N.exposure * (1 - Math.min(1, Math.max(0, N.post.fade)))),
       n.setRenderTarget(null),
       n.clear(),
       (n.shadowMap.needsUpdate = !0),
@@ -1699,37 +1714,37 @@ async function Hg(i) {
       n.clearDepth(),
       n.render(r, l));
   }
-  function j(ie) {
-    (n.toneMapping !== ys && (n.toneMapping = ys),
+  function j(deltaTime) {
+    (n.toneMapping !== NoToneMapping && (n.toneMapping = NoToneMapping),
       (n.toneMappingExposure = 1),
       n.setRenderTarget(m),
       n.clear(!0, !0, !1),
-      (i.quality.name === "ultra" ||
-        e.shot ||
-        (T & 1) === 0 ||
-        !h.shadow.map) &&
+      (engineContext.quality.name === "ultra" || e.shot || (T & 1) === 0 || !h.shadow.map) &&
         (n.shadowMap.needsUpdate = !0),
       n.render(r, a),
       E && (A.copyDepth(b), n.setRenderTarget(m)),
       s.depthRange(0, 0.05));
     let F = r.environmentIntensity,
       X = r.environment,
-      ne =
+      interiorBox =
         N.interiorEnv &&
-        i.level &&
-        i.level.interiorBoxes &&
-        i.level.interiorBoxes[0],
-      re = !!(
-        ne &&
-        ne.min &&
-        a.position.x > ne.min.x &&
-        a.position.x < ne.max.x &&
-        a.position.z > ne.min.z &&
-        a.position.z < ne.max.z &&
-        a.position.y < ne.max.y
+        engineContext.level &&
+        engineContext.level.interiorBoxes &&
+        engineContext.level.interiorBoxes[0],
+      insideInterior = !!(
+        interiorBox &&
+        interiorBox.min &&
+        a.position.x > interiorBox.min.x &&
+        a.position.x < interiorBox.max.x &&
+        a.position.z > interiorBox.min.z &&
+        a.position.z < interiorBox.max.z &&
+        a.position.y < interiorBox.max.y
       );
-    (re && (r.environment = N.interiorEnv),
-      (r.environmentIntensity = F * (re ? Ky / Jy : 1) * (N.viewFill || 1.35)));
+    (insideInterior && (r.environment = N.interiorEnv),
+      (r.environmentIntensity =
+        F *
+        (insideInterior ? INTERIOR_ENVIRONMENT_INTENSITY / ENVIRONMENT_INTENSITY : 1) *
+        (N.viewFill || 1.35)));
     try {
       n.render(r, l);
     } finally {
@@ -1740,10 +1755,10 @@ async function Hg(i) {
         hdr: m,
         camera: a,
         sun: h,
-        dt: ie,
+        dt: deltaTime,
         post: N.post,
         exposure: N.exposure,
-        time: i.time ? i.time.t : T / 60,
+        time: engineContext.time ? engineContext.time.t : T / 60,
         fast: M,
         thunder: w.value,
       }),
@@ -1759,7 +1774,7 @@ async function Hg(i) {
       viewCamera: l,
       sun: h,
       sky: u.mesh,
-      sunDir: Mn.dir.clone(),
+      sunDir: SUN_CONFIG.dir.clone(),
       lightPool: x,
       post: {
         damage: 0,
@@ -1775,7 +1790,7 @@ async function Hg(i) {
       exposure: 1,
       env: y ? y.texture : null,
       interiorEnv: null,
-      resolution: new Ae(4, 4),
+      resolution: new Vector2(4, 4),
       depthTextureIsLive: !1,
       tune: A ? A.TUNE : {},
       get advanced() {
@@ -1784,8 +1799,8 @@ async function Hg(i) {
       get autoExposure() {
         return A ? A.autoExposure : !1;
       },
-      set autoExposure(ie) {
-        A && (A.autoExposure = !!ie);
+      set autoExposure(enabled) {
+        A && (A.autoExposure = !!enabled);
       },
       get depthTexture() {
         if (!A) return null;
@@ -1796,103 +1811,97 @@ async function Hg(i) {
           return null;
         }
       },
-      addPrePass(ie) {
-        H.push(ie);
+      addPrePass(prePass) {
+        H.push(prePass);
       },
-      renderWorld(ie, F) {
+      renderWorld(camera, target) {
         let X = n.getRenderTarget(),
-          ne = n.shadowMap.needsUpdate,
-          re = n.toneMapping,
-          $ = n.toneMappingExposure,
-          ue = ie.layers.mask;
-        (ie.layers.disable(zc),
+          previousShadowUpdate = n.shadowMap.needsUpdate,
+          previousToneMapping = n.toneMapping,
+          previousExposure = n.toneMappingExposure,
+          layersMask = camera.layers.mask;
+        (camera.layers.disable(FACTION_ENEMY),
           (n.shadowMap.needsUpdate = !1),
-          (n.toneMapping = ys),
+          (n.toneMapping = NoToneMapping),
           (n.toneMappingExposure = 1));
         try {
-          (n.setRenderTarget(F), n.clear(), n.render(r, ie));
+          (n.setRenderTarget(target), n.clear(), n.render(r, camera));
         } finally {
-          ((ie.layers.mask = ue),
+          ((camera.layers.mask = layersMask),
             n.setRenderTarget(X),
-            (n.shadowMap.needsUpdate = ne),
-            (n.toneMapping = re),
-            (n.toneMappingExposure = $));
+            (n.shadowMap.needsUpdate = previousShadowUpdate),
+            (n.toneMapping = previousToneMapping),
+            (n.toneMappingExposure = previousExposure));
         }
       },
       async onLevelReady() {
         n.shadowMap.needsUpdate = !0;
         try {
           K();
-        } catch (ie) {
-          console.error(
-            "[render] interior probe failed: " + ((ie && ie.stack) || ie),
-          );
+        } catch (error) {
+          console.error("[render] interior probe failed: " + ((error && error.stack) || error));
         }
         try {
-          if (
-            (_ && n.setRenderTarget(m),
-            await n.compileAsync(r, a),
-            N.interiorEnv)
-          ) {
-            let ie = r.environment;
+          if ((_ && n.setRenderTarget(m), await n.compileAsync(r, a), N.interiorEnv)) {
+            let previousEnvironment = r.environment;
             r.environment = N.interiorEnv;
             try {
               n.compile(r, l);
             } finally {
-              r.environment = ie;
+              r.environment = previousEnvironment;
             }
           }
         } catch {}
         (n.setRenderTarget(null), (S.settle = 3.5), (S.acc = 0), (S.n = 0));
       },
-      setQuality(ie) {
-        i.quality = ie;
-        let F = p();
-        h.shadow.mapSize.x !== F &&
-          (h.shadow.mapSize.set(F, F),
+      setQuality(quality) {
+        engineContext.quality = quality;
+        let shadowMapSize = p();
+        h.shadow.mapSize.x !== shadowMapSize &&
+          (h.shadow.mapSize.set(shadowMapSize, shadowMapSize),
           h.shadow.map && (h.shadow.map.dispose(), (h.shadow.map = null)));
-        let X = ie.msaa | 0;
-        (m.samples !== X && ((m.samples = X), m.dispose()),
-          A && A.applyQuality(),
-          N.resize());
+        let X = quality.msaa | 0;
+        (m.samples !== X && ((m.samples = X), m.dispose()), A && A.applyQuality(), N.resize());
       },
       resize() {
-        let ie = Math.max(2, t.clientWidth || window.innerWidth),
-          F = Math.max(2, t.clientHeight || window.innerHeight),
-          X = Math.min(window.devicePixelRatio || 1, 2),
-          ne = i.quality.scale || 1;
+        let width = Math.max(2, t.clientWidth || window.innerWidth),
+          height = Math.max(2, t.clientHeight || window.innerHeight),
+          pixelRatio = Math.min(window.devicePixelRatio || 1, 2),
+          qualityScale = engineContext.quality.scale || 1;
         if (_) {
-          (n.setPixelRatio(X), n.setSize(ie, F, !1));
-          let re = ne * S.scale,
-            $ =
-              { low: 1e6, medium: 15e5, high: 23e5, ultra: 37e5 }[
-                i.quality.name
-              ] || 23e5,
-            ue = ie * X * F * X * re * re;
-          ue > $ && (re *= Math.sqrt($ / ue));
-          let me = Math.max(16, Math.round(ie * X * re)),
-            ee = Math.max(16, Math.round(F * X * re));
-          (m.setSize(me, ee),
-            (b.image.width !== me || b.image.height !== ee) &&
-              ((b.image.width = me),
-              (b.image.height = ee),
+          (n.setPixelRatio(pixelRatio), n.setSize(width, height, !1));
+          let renderScale = qualityScale * S.scale,
+            pixelBudget =
+              { low: 1e6, medium: 15e5, high: 23e5, ultra: 37e5 }[engineContext.quality.name] ||
+              23e5,
+            pixelCount = width * pixelRatio * height * pixelRatio * renderScale * renderScale;
+          pixelCount > pixelBudget && (renderScale *= Math.sqrt(pixelBudget / pixelCount));
+          let renderWidth = Math.max(16, Math.round(width * pixelRatio * renderScale)),
+            renderHeight = Math.max(16, Math.round(height * pixelRatio * renderScale));
+          (m.setSize(renderWidth, renderHeight),
+            (b.image.width !== renderWidth || b.image.height !== renderHeight) &&
+              ((b.image.width = renderWidth),
+              (b.image.height = renderHeight),
               (b.needsUpdate = !0)),
-            A && A.resize(me, ee),
-            N.resolution.set(me, ee));
+            A && A.resize(renderWidth, renderHeight),
+            N.resolution.set(renderWidth, renderHeight));
         } else
-          (n.setPixelRatio(X * ne),
-            n.setSize(ie, F, !1),
-            N.resolution.set(Math.round(ie * X * ne), Math.round(F * X * ne)));
-        ((a.aspect = l.aspect = ie / F),
+          (n.setPixelRatio(pixelRatio * qualityScale),
+            n.setSize(width, height, !1),
+            N.resolution.set(
+              Math.round(width * pixelRatio * qualityScale),
+              Math.round(height * pixelRatio * qualityScale),
+            ));
+        ((a.aspect = l.aspect = width / height),
           a.updateProjectionMatrix(),
           l.updateProjectionMatrix());
       },
-      frame(ie) {
-        let F = performance.now();
-        (D && z(F - D), (D = F), T++, n.info.reset(), x.update(ie));
-        let X = i.time ? i.time.t : T / 60;
-        ((u.material.uniforms.uTime.value = X),
-          (w.t += ie),
+      frame(deltaTime) {
+        let timestamp = performance.now();
+        (D && z(timestamp - D), (D = timestamp), T++, n.info.reset(), x.update(deltaTime));
+        let elapsed = engineContext.time ? engineContext.time.t : T / 60;
+        ((u.material.uniforms.uTime.value = elapsed),
+          (w.t += deltaTime),
           (w.value =
             w.t < 0.9
               ? w.power *
@@ -1902,37 +1911,36 @@ async function Hg(i) {
               : 0),
           (u.material.uniforms.uFlash.value = Math.max(0, w.value)),
           C());
-        for (let ne of H)
+        for (let prePass of H)
           try {
-            ne(n, r, a);
-          } catch (re) {
-            q("pre", "[render] pre-pass threw: " + ((re && re.stack) || re));
+            prePass(n, r, a);
+          } catch (error) {
+            q("pre", "[render] pre-pass threw: " + ((error && error.stack) || error));
           }
         if (_)
           try {
-            j(ie);
-          } catch (ne) {
+            j(deltaTime);
+          } catch (error) {
             _ = !1;
             try {
               (s.depthRange(0, 1), n.setRenderTarget(null));
             } catch {}
             (console.error(
               "[render] advanced pipeline disabled, falling back to forward rendering: " +
-                ((ne && ne.stack) || ne),
+                ((error && error.stack) || error),
             ),
               N.resize());
           }
-        (_ || G(),
-          (U = { calls: n.info.render.calls, tris: n.info.render.triangles }));
+        (_ || G(), (U = { calls: n.info.render.calls, tris: n.info.render.triangles }));
       },
       stats() {
-        let ie = n.info;
+        let info = n.info;
         return {
           calls: U.calls,
           tris: U.tris,
-          geos: ie.memory.geometries,
-          tex: ie.memory.textures,
-          programs: ie.programs ? ie.programs.length : 0,
+          geos: info.memory.geometries,
+          tex: info.memory.textures,
+          programs: info.programs ? info.programs.length : 0,
           res: [N.resolution.x, N.resolution.y],
           scale: S.scale,
           advanced: _,
@@ -1943,106 +1951,106 @@ async function Hg(i) {
     },
     Q = null;
   function K() {
-    let ie = i.level && i.level.interiorBoxes;
-    if (!ie || !ie.length) return;
-    let F = ie[0],
-      X = (F.min.x + F.max.x) / 2,
-      ne = (F.min.z + F.max.z) / 2,
-      re = F.min.y + Math.min(2.4, (F.max.y - F.min.y) * 0.4);
+    let interiorBoxes = engineContext.level && engineContext.level.interiorBoxes;
+    if (!interiorBoxes || !interiorBoxes.length) return;
+    let firstBox = interiorBoxes[0],
+      centerX = (firstBox.min.x + firstBox.max.x) / 2,
+      centerZ = (firstBox.min.z + firstBox.max.z) / 2,
+      probeY = firstBox.min.y + Math.min(2.4, (firstBox.max.y - firstBox.min.y) * 0.4);
     if (!Q) {
-      let ee = new D0(128, { type: js, generateMipmaps: !1 });
+      let cubeRenderTarget = new WebGLCubeRenderTarget(128, {
+        type: HalfFloatType,
+        generateMipmaps: !1,
+      });
       ((Q = {
-        cubeRT: ee,
-        cam: new z0(0.15, 300, ee),
-        pmrem: new ia(n),
+        cubeRT: cubeRenderTarget,
+        cam: new CubeCamera(0.15, 300, cubeRenderTarget),
+        pmrem: new PMREMGenerator(n),
         out: null,
       }),
-        Q.cam.layers.set(vf));
+        Q.cam.layers.set(FACTION_PLAYER));
     }
-    (Q.cam.position.set(X, re, ne), Q.cam.updateMatrixWorld(!0));
-    let $ = n.toneMapping;
-    ((n.toneMapping = ys),
+    (Q.cam.position.set(centerX, probeY, centerZ), Q.cam.updateMatrixWorld(!0));
+    let previousToneMapping = n.toneMapping;
+    ((n.toneMapping = NoToneMapping),
       (u.material.uniforms.uEnv.value = 1),
       (n.shadowMap.needsUpdate = !0));
     try {
       Q.cam.update(n, r);
     } finally {
       ((u.material.uniforms.uEnv.value = 0),
-        (n.toneMapping = $),
+        (n.toneMapping = previousToneMapping),
         n.setRenderTarget(null));
     }
     (Q.out && Q.out.dispose(),
       (Q.out = Q.pmrem.fromCubemap(Q.cubeRT.texture)),
       (N.interiorEnv = Q.out.texture));
-    let ue = 0,
-      me = new Set();
-    (r.traverse((ee) => {
-      let B = ee.material
-        ? Array.isArray(ee.material)
-          ? ee.material
-          : [ee.material]
+    let assignedCount = 0,
+      processedMaterials = new Set();
+    (r.traverse((object) => {
+      let materials = /** @type {any} */ (object).material
+        ? Array.isArray(/** @type {any} */ (object).material)
+          ? /** @type {any} */ (object).material
+          : [/** @type {any} */ (object).material]
         : null;
-      if (B)
-        for (let P of B)
-          !P ||
-            me.has(P) ||
-            !P.userData ||
-            P.userData.interior !== !0 ||
-            !("envMap" in P) ||
-            (me.add(P),
-            (P.envMap = N.interiorEnv),
-            P.userData.keepEnvIntensity || (P.envMapIntensity = Ky),
-            (P.needsUpdate = !0),
-            ue++);
+      if (materials)
+        for (let material of materials)
+          !material ||
+            processedMaterials.has(material) ||
+            !material.userData ||
+            material.userData.interior !== !0 ||
+            !("envMap" in material) ||
+            (processedMaterials.add(material),
+            (material.envMap = N.interiorEnv),
+            material.userData.keepEnvIntensity ||
+              (material.envMapIntensity = INTERIOR_ENVIRONMENT_INTENSITY),
+            (material.needsUpdate = !0),
+            assignedCount++);
     }),
-      ue &&
-        console.log(`[render] interior probe assigned to ${ue} material(s)`));
+      assignedCount &&
+        console.log(`[render] interior probe assigned to ${assignedCount} material(s)`));
   }
-  ((N.captureInteriorProbe = K),
-    N.resize(),
-    window.addEventListener("resize", () => N.resize()));
+  ((N.captureInteriorProbe = K), N.resize(), window.addEventListener("resize", () => N.resize()));
   try {
-    let ie = new Qt({ color: 8421504 }),
-      F = new Qe(new un(1, 1, 1), ie);
-    ((F.castShadow = F.receiveShadow = !0),
-      F.position.set(0, 0.5, -3),
-      r.add(F));
-    let X = () => {
+    let fallbackMaterial = new MeshStandardMaterial({ color: 8421504 }),
+      testMesh = new Mesh(new BoxGeometry(1, 1, 1), fallbackMaterial);
+    ((testMesh.castShadow = testMesh.receiveShadow = !0),
+      testMesh.position.set(0, 0.5, -3),
+      r.add(testMesh));
+    let selfTest = () => {
       (C(), _ ? j(0.016) : G());
     };
     try {
-      X();
-    } catch (ne) {
+      selfTest();
+    } catch (error) {
       _ &&
         ((_ = !1),
         console.error(
           "[render] advanced pipeline failed its self test, using forward fallback: " +
-            ((ne && ne.message) || ne),
+            ((error && error.message) || error),
         ));
     }
     if (o.shadow && d) {
-      (Xy(),
+      (restoreShadowChunk(),
         (d = !1),
         (o.shadow = !1),
-        (n.shadowMap.type = Eh),
+        (n.shadowMap.type = PCFSoftShadowMap),
         (h.shadow.radius = 2),
-        ie.dispose(),
-        (F.material = new Qt({ color: 8421505 })),
-        console.warn(
-          "[render] soft shadow chunk rejected by the driver, using stock PCF",
-        ));
+        fallbackMaterial.dispose(),
+        (testMesh.material = new MeshStandardMaterial({ color: 8421505 })),
+        console.warn("[render] soft shadow chunk rejected by the driver, using stock PCF"));
       try {
-        X();
+        selfTest();
       } catch {
         _ = !1;
       }
     }
     if (
       (o.sky && console.error("[render] sky shader failed to compile"),
-      r.remove(F),
-      F.geometry.dispose(),
-      ie.dispose(),
-      F.material.dispose(),
+      r.remove(testMesh),
+      testMesh.geometry.dispose(),
+      fallbackMaterial.dispose(),
+      testMesh.material.dispose(),
       !_)
     ) {
       try {
@@ -2051,28 +2059,29 @@ async function Hg(i) {
       N.resize();
     }
     T = 0;
-  } catch (ie) {
-    console.error("[render] self test threw: " + ((ie && ie.stack) || ie));
+  } catch (error) {
+    console.error("[render] self test threw: " + ((error && error.stack) || error));
   }
   return N;
 }
-function sA(i) {
-  let e = new wt();
+function buildRenderShowcase(engineContext) {
+  let e = new Group();
   e.name = "render-showcase";
   let t = (h) => (e.add(h), h),
-    n = new ls(0.42, 48, 24);
+    n = new SphereGeometry(0.42, 48, 24);
   for (let h = 0; h < 2; h++)
     for (let f = 0; f < 7; f++) {
-      let p = new Qt({
+      let p = new MeshStandardMaterial({
           color: h ? 12170408 : 8006172,
           roughness: 0.06 + f * 0.15,
           metalness: h ? 1 : 0,
         }),
-        d = new Qe(n, p);
+        d = new Mesh(n, p);
       (d.position.set(-3.6 + f * 1.2, 0.42 + h * 1.05, h * -1.1),
         (d.castShadow = d.receiveShadow = !0),
         t(d));
     }
+  /** @type {[string, number, number, number, number, number][]} */
   let s = [
     ["paint_orange", -5.2, 1.4, 1.3, 1.2, 2.2],
     ["steel_worn", 4.6, 1, 0.9, 1, 1.6],
@@ -2080,18 +2089,27 @@ function sA(i) {
     ["concrete", -2.2, 0.5, 0.5, 2.6, 3.2],
   ];
   for (let [h, f, p, d, v, g] of s) {
-    let x = Qi(Wi(p, d, v, 0.03, "bottom"), i.mats.get(h));
+    let x = createMeshWithShadows(
+      createBoxBevelGeometry(p, d, v, 0.03, "bottom"),
+      engineContext.mats.get(h),
+    );
     (x.position.set(f, 0, g), (x.rotation.y = f * 0.2), t(x));
   }
   for (let h = 0; h < 5; h++) {
-    let f = Qi(Wi(0.5, 0.5, 0.5, 0.02, "bottom"), i.mats.get("wood_pallet"));
+    let f = createMeshWithShadows(
+      createBoxBevelGeometry(0.5, 0.5, 0.5, 0.02, "bottom"),
+      engineContext.mats.get("wood_pallet"),
+    );
     (f.position.set(0.5 + h * 0.52, 0, 3.4 + (h % 2) * 0.04), t(f));
   }
   {
-    let h = Qi(Wi(0.5, 0.5, 0.5, 0.02, "bottom"), i.mats.get("wood_pallet"));
+    let h = createMeshWithShadows(
+      createBoxBevelGeometry(0.5, 0.5, 0.5, 0.02, "bottom"),
+      engineContext.mats.get("wood_pallet"),
+    );
     (h.position.set(1.3, 0.5, 3.42), (h.rotation.y = 0.3), t(h));
   }
-  let o = i.mats.get("concrete_dirty"),
+  let o = engineContext.mats.get("concrete_dirty"),
     r = 9,
     a = 7.5,
     l = [
@@ -2102,11 +2120,11 @@ function sA(i) {
       [6.3, 14],
     ];
   for (let [h, f] of l) {
-    let p = Qi($e(0.4, a, f - h, "bottom"), o);
+    let p = createMeshWithShadows(createBoxGeometry(0.4, a, f - h, "bottom"), o);
     (p.position.set(r, 0, (h + f) / 2), t(p));
   }
   {
-    let h = Qi($e(0.4, 1.2, 28, "bottom"), o);
+    let h = createMeshWithShadows(createBoxGeometry(0.4, 1.2, 28, "bottom"), o);
     (h.position.set(r, a, 0), t(h));
   }
   let c = [
@@ -2116,25 +2134,28 @@ function sA(i) {
     [-12, 4, -6, 6.6, 0.3, 6.6],
   ];
   for (let [h, f, p, d, v, g] of c) {
-    let x = Qi($e(d, v, g, "bottom"), i.mats.get("steel_dark"));
+    let x = createMeshWithShadows(
+      createBoxGeometry(d, v, g, "bottom"),
+      engineContext.mats.get("steel_dark"),
+    );
     (x.position.set(h, f, p), t(x));
   }
   {
-    let h = new Qe($e(2.4, 0.06, 0.06), i.mats.emissive(16756832, 14));
+    let h = new Mesh(createBoxGeometry(2.4, 0.06, 0.06), engineContext.mats.emissive(16756832, 14));
     (h.position.set(-12, 3.6, -6), t(h));
   }
   {
-    let h = new Qe(new ls(0.06, 12, 8), i.mats.emissive(16726560, 30));
+    let h = new Mesh(new SphereGeometry(0.06, 12, 8), engineContext.mats.emissive(16726560, 30));
     (h.position.set(4.6, 1.02, 1.6), t(h));
   }
   return (
-    i.scene.add(e),
+    engineContext.scene.add(e),
     {
       cam: [-8.5, 1.7, 4.2],
       target: [3, 1.5, 0.4],
       update: () => {
-        let h = i.render.post,
-          f = Math.round(i.camera.position.y * 1e3) % 10;
+        let h = engineContext.render.post,
+          f = Math.round(engineContext.camera.position.y * 1e3) % 10;
         ((h.damage = f === 1 ? 0.8 : 0),
           (h.lowHealth = f === 2 ? 0.85 : 0),
           (h.ads = f === 3 ? 1 : 0),
@@ -2146,14 +2167,14 @@ function sA(i) {
 }
 
 // 语义化主别名与导出
-export const createSkyDome = Hy;
-export const captureEnvironmentMap = Vy;
-export const setupDirectionalSunLight = Gy;
-export const injectSoftShadows = qy;
-export const createPostProcessingPipeline = jy;
-export const createRenderSystem = Hg;
-export const showcaseRender = sA;
+export const createSkyDome = buildSkyDome;
+export const captureEnvironmentMap = buildEnvironmentCapture;
+export const setupDirectionalSunLight = fitSunShadowCamera;
+export const injectSoftShadows = patchSoftShadows;
+export const createPostProcessingPipeline = buildPostPipeline;
+export const createRenderSystem = buildRenderSystem;
+export const showcaseRender = buildRenderShowcase;
 
-export const create = Hg;
-export const showcase = sA;
-export { Vg };
+export const create = buildRenderSystem;
+export const showcase = buildRenderShowcase;
+export { RenderModule as Vg };

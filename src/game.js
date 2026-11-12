@@ -1,26 +1,24 @@
-import * as THREE from 'three';
+import * as THREE from "three";
 
 const { Vector3 } = THREE;
 
-import {
-  Pi, Pr, Zn, sl, kn, Fo
-} from './constants.js';
+import { Pi, Pr, Zn, sl, kn, Fo } from "./constants.js";
 
 // ============================================================================
 // 1. 本地偏好设置系统 (User Settings & Local Storage Persistence)
 // ============================================================================
 
-const SETTINGS_STORAGE_KEY = 'saltline.settings.v1';
+const SETTINGS_STORAGE_KEY = "saltline.settings.v1";
 
 const DEFAULT_SETTINGS = {
-  quality: 'auto',
+  quality: "auto",
   sens: 1.0,
   invertY: false,
   volume: 0.8,
-  fov: Pi.fov
+  fov: Pi.fov,
 };
 
-const QUALITY_OPTIONS = ['low', 'medium', 'high', 'ultra'];
+const QUALITY_OPTIONS = ["low", "medium", "high", "ultra"];
 
 /**
  * 从 localStorage 读取玩家设置 (含合法性边界校验)
@@ -28,9 +26,9 @@ const QUALITY_OPTIONS = ['low', 'medium', 'high', 'ultra'];
 function loadSettings() {
   const settings = { ...DEFAULT_SETTINGS };
   try {
-    const parsed = JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) || 'null');
-    if (parsed && typeof parsed === 'object') {
-      if (parsed.quality === 'auto' || QUALITY_OPTIONS.includes(parsed.quality)) {
+    const parsed = JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) || "null");
+    if (parsed && typeof parsed === "object") {
+      if (parsed.quality === "auto" || QUALITY_OPTIONS.includes(parsed.quality)) {
         settings.quality = parsed.quality;
       }
       if (Number.isFinite(parsed.sens)) {
@@ -96,12 +94,12 @@ const TOUCH_CONTROLS_HTML = `
  * @param {object} callbacks 按钮动作回调
  */
 function createMenu(ctx, callbacks) {
-  const uiContainer = document.getElementById('ui');
+  const uiContainer = document.getElementById("ui");
   const userSettings = loadSettings();
 
-  const menuContainer = document.createElement('div');
-  menuContainer.className = 'menu';
-  menuContainer.dataset.screen = 'none';
+  const menuContainer = document.createElement("div");
+  menuContainer.className = "menu";
+  menuContainer.dataset.screen = "none";
   menuContainer.innerHTML = `
     <div class="m-veil"></div>
     <div class="m-bars"><i></i><i></i></div>
@@ -176,7 +174,7 @@ function createMenu(ctx, callbacks) {
       </div>
       <div class="panel-b" data-pane="settings">
         <div class="row"><label id="l-q">画面质量</label>
-          <div class="seg" role="group" aria-labelledby="l-q">${QUALITY_OPTIONS.map(q => `<button data-q="${q}" aria-pressed="false">${({ low: '低', medium: '中', high: '高', ultra: '极高' })[q]}</button>`).join('')}</div></div>
+          <div class="seg" role="group" aria-labelledby="l-q">${QUALITY_OPTIONS.map((q) => `<button data-q="${q}" aria-pressed="false">${{ low: "低", medium: "中", high: "高", ultra: "极高" }[q]}</button>`).join("")}</div></div>
         <div class="row"><label for="s-sens">鼠标灵敏度</label><div class="slider"><input id="s-sens" type="range" min="0.2" max="3" step="0.05"><output data-o="sens"></output></div></div>
         <div class="row"><label id="l-inv">反转垂直视角</label><button class="toggle" data-act="invert" aria-labelledby="l-inv" aria-pressed="false"><i></i><span>关闭</span></button></div>
         <div class="row"><label for="s-vol">主音量</label><div class="slider"><input id="s-vol" type="range" min="0" max="100" step="1"><output data-o="vol"></output></div></div>
@@ -197,38 +195,45 @@ function createMenu(ctx, callbacks) {
   `;
   uiContainer.appendChild(menuContainer);
 
-  const $ = sel => menuContainer.querySelector(sel);
-  const $$ = sel => [...menuContainer.querySelectorAll(sel)];
-  const panelEl = $('.panel');
-  const locationCardEl = $('.loc-card');
-  const fieldEl = name => menuContainer.querySelector(`[data-f="${name}"]`);
+  const $ = (sel) => menuContainer.querySelector(sel);
+  const $$ = (sel) => [...menuContainer.querySelectorAll(sel)];
+  const panelEl = $(".panel");
+  const locationCardEl = $(".loc-card");
+  const fieldEl = (name) => menuContainer.querySelector(`[data-f="${name}"]`);
 
-  const sliderSens = $('#s-sens');
-  const sliderVol = $('#s-vol');
-  const sliderFov = $('#s-fov');
+  const sliderSens = $("#s-sens");
+  const sliderVol = $("#s-vol");
+  const sliderFov = $("#s-fov");
 
-  let currentScreenName = 'none';
+  let currentScreenName = "none";
   let lastFocusedElement = null;
 
   /**
    * 应用设置至游戏各个子系统
    */
   function applySettings(key) {
-    if ((!key || key === 'sens') && ctx.input) {
+    if ((!key || key === "sens") && ctx.input) {
       ctx.input.sensitivity = userSettings.sens;
     }
-    if ((!key || key === 'invertY') && ctx.input) {
+    if ((!key || key === "invertY") && ctx.input) {
       ctx.input.invertY = userSettings.invertY;
     }
-    if (!key || key === 'volume') {
+    if (!key || key === "volume") {
       try {
         if (ctx.audio && ctx.audio.setVolume) ctx.audio.setVolume(userSettings.volume);
       } catch (e) {}
     }
-    if ((!key || key === 'fov') && ctx.player && ctx.player.setFov) {
+    if ((!key || key === "fov") && ctx.player && ctx.player.setFov) {
       ctx.player.setFov(userSettings.fov);
     }
-    if (key === 'quality' || (!key && userSettings.quality !== 'auto' && !ctx.params.shot && !ctx.params.q && userSettings.quality !== (ctx.quality && ctx.quality.name))) {
+    if (
+      key === "quality" ||
+      (!key &&
+        userSettings.quality !== "auto" &&
+        !ctx.params.shot &&
+        !ctx.params.q &&
+        userSettings.quality !== (ctx.quality && ctx.quality.name))
+    ) {
       const preset = Pr[userSettings.quality];
       if (preset) {
         try {
@@ -238,7 +243,7 @@ function createMenu(ctx, callbacks) {
             ctx.quality = { ...preset };
           }
         } catch (e) {
-          console.error('[game] setQuality failed', e);
+          console.error("[game] setQuality failed", e);
         }
       }
     }
@@ -248,55 +253,62 @@ function createMenu(ctx, callbacks) {
    * 刷新设置面板中 UI 控件的值
    */
   function syncSettingsUI() {
-    const activeQuality = userSettings.quality === 'auto' ? (ctx.quality && ctx.quality.name) : userSettings.quality;
-    for (const btn of $$('.seg button')) {
-      btn.setAttribute('aria-pressed', String(btn.dataset.q === activeQuality));
+    const activeQuality =
+      userSettings.quality === "auto" ? ctx.quality && ctx.quality.name : userSettings.quality;
+    for (const btn of $$(".seg button")) {
+      btn.setAttribute("aria-pressed", String(btn.dataset.q === activeQuality));
     }
     sliderSens.value = userSettings.sens;
     sliderVol.value = Math.round(userSettings.volume * 100);
     sliderFov.value = userSettings.fov;
 
-    $('[data-o="sens"]').textContent = userSettings.sens.toFixed(2) + '×';
-    $('[data-o="vol"]').textContent = Math.round(userSettings.volume * 100) + '%';
-    $('[data-o="fov"]').textContent = Math.round(userSettings.fov) + '°';
+    $('[data-o="sens"]').textContent = userSettings.sens.toFixed(2) + "×";
+    $('[data-o="vol"]').textContent = Math.round(userSettings.volume * 100) + "%";
+    $('[data-o="fov"]').textContent = Math.round(userSettings.fov) + "°";
 
     const invertBtn = $('[data-act="invert"]');
-    invertBtn.setAttribute('aria-pressed', String(userSettings.invertY));
-    invertBtn.querySelector('span').textContent = userSettings.invertY ? '开启' : '关闭';
+    invertBtn.setAttribute("aria-pressed", String(userSettings.invertY));
+    invertBtn.querySelector("span").textContent = userSettings.invertY ? "开启" : "关闭";
 
-    fieldEl('qnote').textContent = userSettings.quality === 'auto'
-      ? `已根据设备自动选择画质（${({ low: '低', medium: '中', high: '高', ultra: '极高' })[activeQuality] || '默认'}），运行不流畅时可降低画质。`
-      : '画质设置立即生效；阴影和反射需要片刻重新生成。';
+    fieldEl("qnote").textContent =
+      userSettings.quality === "auto"
+        ? `已根据设备自动选择画质（${{ low: "低", medium: "中", high: "高", ultra: "极高" }[activeQuality] || "默认"}），运行不流畅时可降低画质。`
+        : "画质设置立即生效；阴影和反射需要片刻重新生成。";
   }
 
-  sliderSens.addEventListener('input', () => {
+  sliderSens.addEventListener("input", () => {
     userSettings.sens = +sliderSens.value;
-    applySettings('sens');
+    applySettings("sens");
     syncSettingsUI();
     saveSettings(userSettings);
   });
 
-  sliderVol.addEventListener('input', () => {
+  sliderVol.addEventListener("input", () => {
     userSettings.volume = +sliderVol.value / 100;
-    applySettings('volume');
+    applySettings("volume");
     syncSettingsUI();
     saveSettings(userSettings);
   });
 
-  sliderFov.addEventListener('input', () => {
+  sliderFov.addEventListener("input", () => {
     userSettings.fov = +sliderFov.value;
-    applySettings('fov');
+    applySettings("fov");
     syncSettingsUI();
     saveSettings(userSettings);
   });
 
   // 全屏模式控制
   const fsRow = $('[data-row="fs"]');
-  const fsText = $('#fs-t');
-  const getFullscreenEl = () => document.fullscreenElement || document.webkitFullscreenElement || null;
-  const appRoot = document.getElementById('app') || document.documentElement;
+  const fsText = $("#fs-t");
+  const getFullscreenEl = () =>
+    document.fullscreenElement || document.webkitFullscreenElement || null;
+  const appRoot = document.getElementById("app") || document.documentElement;
 
-  if (!appRoot || (!appRoot.requestFullscreen && !appRoot.webkitRequestFullscreen) || document.fullscreenEnabled === false) {
+  if (
+    !appRoot ||
+    (!appRoot.requestFullscreen && !appRoot.webkitRequestFullscreen) ||
+    document.fullscreenEnabled === false
+  ) {
     fsRow.hidden = true;
   }
 
@@ -307,25 +319,28 @@ function createMenu(ctx, callbacks) {
         return;
       }
       const req = (appRoot.requestFullscreen || appRoot.webkitRequestFullscreen).call(appRoot);
-      if (req && req.catch) req.catch(() => { fsText.textContent = '当前环境不支持全屏'; });
+      if (req && req.catch)
+        req.catch(() => {
+          fsText.textContent = "当前环境不支持全屏";
+        });
     } catch (err) {
-      fsText.textContent = '当前环境不支持全屏';
+      fsText.textContent = "当前环境不支持全屏";
     }
   }
 
   const onFullscreenChange = () => {
-    fsText.textContent = getFullscreenEl() ? '退出全屏' : '进入全屏';
+    fsText.textContent = getFullscreenEl() ? "退出全屏" : "进入全屏";
   };
-  document.addEventListener('fullscreenchange', onFullscreenChange);
-  document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+  document.addEventListener("fullscreenchange", onFullscreenChange);
+  document.addEventListener("webkitfullscreenchange", onFullscreenChange);
 
   /**
    * 打开模态弹窗 (设置 / 操作说明 / 项目介绍)
    */
-  function openPanel(tabName = 'settings') {
+  function openPanel(tabName = "settings") {
     lastFocusedElement = document.activeElement;
     panelEl.hidden = false;
-    menuContainer.classList.add('panel-open');
+    menuContainer.classList.add("panel-open");
     switchTab(tabName);
     try {
       panelEl.focus({ preventScroll: true });
@@ -338,8 +353,12 @@ function createMenu(ctx, callbacks) {
   function closePanel() {
     if (panelEl.hidden) return false;
     panelEl.hidden = true;
-    menuContainer.classList.remove('panel-open');
-    if (lastFocusedElement && lastFocusedElement.focus && menuContainer.contains(lastFocusedElement)) {
+    menuContainer.classList.remove("panel-open");
+    if (
+      lastFocusedElement &&
+      lastFocusedElement.focus &&
+      menuContainer.contains(lastFocusedElement)
+    ) {
       lastFocusedElement.focus();
     } else {
       focusPrimaryButton();
@@ -348,16 +367,18 @@ function createMenu(ctx, callbacks) {
   }
 
   function switchTab(tabName) {
-    for (const tab of $$('.tab')) {
-      tab.setAttribute('aria-selected', String(tab.dataset.tab === tabName));
+    for (const tab of $$(".tab")) {
+      tab.setAttribute("aria-selected", String(tab.dataset.tab === tabName));
     }
-    for (const pane of $$('.panel-b')) {
+    for (const pane of $$(".panel-b")) {
       pane.hidden = pane.dataset.pane !== tabName;
     }
   }
 
   function focusPrimaryButton() {
-    const primaryBtn = menuContainer.querySelector(`.m-screen[data-s="${currentScreenName}"] .btn.primary`);
+    const primaryBtn = menuContainer.querySelector(
+      `.m-screen[data-s="${currentScreenName}"] .btn.primary`,
+    );
     if (primaryBtn) {
       try {
         primaryBtn.focus({ preventScroll: true });
@@ -366,15 +387,15 @@ function createMenu(ctx, callbacks) {
   }
 
   // 事件委托：按钮点击
-  menuContainer.addEventListener('click', e => {
-    const btn = e.target.closest('button');
+  menuContainer.addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
     if (!btn || !menuContainer.contains(btn)) return;
 
-    ctx.events.emit('ui:click', {});
+    ctx.events.emit("ui:click", {});
 
     if (btn.dataset.q) {
       userSettings.quality = btn.dataset.q;
-      applySettings('quality');
+      applySettings("quality");
       syncSettingsUI();
       saveSettings(userSettings);
       return;
@@ -386,37 +407,39 @@ function createMenu(ctx, callbacks) {
     }
 
     const action = btn.dataset.act;
-    if (action === 'about') openPanel('about');
-    else if (action === 'settings') openPanel('settings');
-    else if (action === 'controls') openPanel('controls');
-    else if (action === 'close-panel') closePanel();
-    else if (action === 'invert') {
+    if (action === "about") openPanel("about");
+    else if (action === "settings") openPanel("settings");
+    else if (action === "controls") openPanel("controls");
+    else if (action === "close-panel") closePanel();
+    else if (action === "invert") {
       userSettings.invertY = !userSettings.invertY;
-      applySettings('invertY');
+      applySettings("invertY");
       syncSettingsUI();
       saveSettings(userSettings);
-    } else if (action === 'fullscreen') {
+    } else if (action === "fullscreen") {
       toggleFullscreen();
     } else if (action && callbacks[action]) {
       callbacks[action](e);
     }
   });
 
-  menuContainer.addEventListener('mouseover', e => {
-    const btn = e.target.closest('button');
+  menuContainer.addEventListener("mouseover", (e) => {
+    const btn = e.target.closest("button");
     if (btn && e.relatedTarget && !btn.contains(e.relatedTarget)) {
-      ctx.events.emit('ui:hover', {});
+      ctx.events.emit("ui:hover", {});
     }
   });
 
-  menuContainer.addEventListener('keydown', e => {
-    if (e.code === 'Escape' && !panelEl.hidden) {
+  menuContainer.addEventListener("keydown", (e) => {
+    if (e.code === "Escape" && !panelEl.hidden) {
       closePanel();
       e.stopPropagation();
       e.preventDefault();
     }
-    if (e.code === 'Tab' && !panelEl.hidden) {
-      const focusable = [...panelEl.querySelectorAll('button, input')].filter(el => el.offsetParent !== null);
+    if (e.code === "Tab" && !panelEl.hidden) {
+      const focusable = [...panelEl.querySelectorAll("button, input")].filter(
+        (el) => el.offsetParent !== null,
+      );
       if (!focusable.length) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
@@ -430,9 +453,9 @@ function createMenu(ctx, callbacks) {
     }
   });
 
-  const formatSeconds = sec => {
+  const formatSeconds = (sec) => {
     sec = Math.max(0, Math.floor(sec));
-    return String(Math.floor(sec / 60)).padStart(2, '0') + ':' + String(sec % 60).padStart(2, '0');
+    return String(Math.floor(sec / 60)).padStart(2, "0") + ":" + String(sec % 60).padStart(2, "0");
   };
 
   const menuInterface = {
@@ -451,8 +474,8 @@ function createMenu(ctx, callbacks) {
         currentScreenName = screenName;
         menuContainer.dataset.screen = screenName;
         closePanel();
-        menuContainer.classList.toggle('open', screenName !== 'none');
-        if (screenName !== 'none') {
+        menuContainer.classList.toggle("open", screenName !== "none");
+        if (screenName !== "none") {
           syncSettingsUI();
           setTimeout(focusPrimaryButton, 30);
         } else if (document.activeElement && menuContainer.contains(document.activeElement)) {
@@ -461,23 +484,23 @@ function createMenu(ctx, callbacks) {
       }
     },
     locationCard(show) {
-      locationCardEl.classList.toggle('on', !!show);
+      locationCardEl.classList.toggle("on", !!show);
     },
     setLookMode(text) {
-      fieldEl('lookmode').textContent = text || '';
+      fieldEl("lookmode").textContent = text || "";
     },
     setDead({ time, relays, total }) {
-      fieldEl('dead-time').textContent = formatSeconds(time);
-      fieldEl('dead-relays').textContent = `${relays}/${total}`;
+      fieldEl("dead-time").textContent = formatSeconds(time);
+      fieldEl("dead-relays").textContent = `${relays}/${total}`;
     },
     setDebrief({ time, accuracy, kills, retries, rating }) {
-      fieldEl('time').textContent = formatSeconds(time);
-      fieldEl('acc').textContent = accuracy == null ? '—' : Math.round(accuracy * 100) + '%';
-      fieldEl('kills').textContent = String(kills);
-      fieldEl('retries').textContent = String(retries);
-      fieldEl('rating').textContent = rating;
+      fieldEl("time").textContent = formatSeconds(time);
+      fieldEl("acc").textContent = accuracy == null ? "—" : Math.round(accuracy * 100) + "%";
+      fieldEl("kills").textContent = String(kills);
+      fieldEl("retries").textContent = String(retries);
+      fieldEl("rating").textContent = rating;
     },
-    applySettings
+    applySettings,
   };
 
   syncSettingsUI();
@@ -491,37 +514,37 @@ function createMenu(ctx, callbacks) {
 const GAME_CONFIG = {
   introSeconds: 3.5,
   retryIntroSeconds: 1.3,
-  interactRange: 2.2,     // 切断中继最大交互半径 (米)
-  interactFacing: 0.45,   // 交互朝向夹角余弦值
-  cutSeconds: 2.4,        // 持续按住 E 骇入切断中继所需时间 (秒)
+  interactRange: 2.2, // 切断中继最大交互半径 (米)
+  interactFacing: 0.45, // 交互朝向夹角余弦值
+  cutSeconds: 2.4, // 持续按住 E 骇入切断中继所需时间 (秒)
   patrol: { gull: 2, hound: 1 },
   waves: [
     { gull: 3, hound: 1 }, // 破坏中继 1 后触发
     { gull: 3, hound: 2 }, // 破坏中继 2 后触发
-    { gull: 4, hound: 3 }  // 破坏中继 3 后触发
+    { gull: 4, hound: 3 }, // 破坏中继 3 后触发
   ],
-  maxAlive: 9,            // 场上同时存活敌人上限
-  spawnStagger: 0.85,     // 敌兵出怪时间间隔 (秒)
-  spawnFar: 18,           // 最小视线遮挡出怪距离 (米)
+  maxAlive: 9, // 场上同时存活敌人上限
+  spawnStagger: 0.85, // 敌兵出怪时间间隔 (秒)
+  spawnFar: 18, // 最小视线遮挡出怪距离 (米)
   pursuitEvery: 7,
   pursuitMinAlive: 4,
   pursuitExtra: 5,
   titleSpeed: 1.15,
-  titleFov: 50
+  titleFov: 50,
 };
 
-const DIRECTIONS = ['北方', '东北方', '东方', '东南方', '南方', '西南方', '西方', '西北方'];
+const DIRECTIONS = ["北方", "东北方", "东方", "东南方", "南方", "西南方", "西方", "西北方"];
 
 const RADIO_MESSAGES = {
-  intro: '几猫队员，这里是指挥中心。港区主控已封锁泊位。切断堆场、仓库、码头的三处中继。',
-  contact: '你已被发现！空中有机械飞鸥，地面有机械猎犬。消灭它们。',
+  intro: "几猫队员，这里是指挥中心。港区主控已封锁泊位。切断堆场、仓库、码头的三处中继。",
+  contact: "你已被发现！空中有机械飞鸥，地面有机械猎犬。消灭它们。",
   cut: [
-    '第一处中继已断开。敌方已察觉，机械守卫正在赶来。',
-    '第二处中继已断开。敌方正全力围攻，小心应对。'
+    "第一处中继已断开。敌方已察觉，机械守卫正在赶来。",
+    "第二处中继已断开。敌方正全力围攻，小心应对。",
   ],
-  all: '三处中继全部断开！撤离艇在码头南端的舷梯旁，快撤！',
-  low: '伤势严重！找掩体躲避，稍作恢复。',
-  done: '几猫队员已登船，港区封锁解除。干得漂亮！'
+  all: "三处中继全部断开！撤离艇在码头南端的舷梯旁，快撤！",
+  low: "伤势严重！找掩体躲避，稍作恢复。",
+  done: "几猫队员已登船，港区封锁解除。干得漂亮！",
 };
 
 // ============================================================================
@@ -534,7 +557,7 @@ const RADIO_MESSAGES = {
  */
 function createGameManager(ctx) {
   const postFx = (ctx.render && ctx.render.post) || {};
-  const defaultSaturation = typeof postFx.saturation === 'number' ? postFx.saturation : 1;
+  const defaultSaturation = typeof postFx.saturation === "number" ? postFx.saturation : 1;
   const player = ctx.player;
   const level = ctx.level;
   const hud = ctx.hud;
@@ -542,7 +565,7 @@ function createGameManager(ctx) {
 
   const safeCall = (obj, method, ...args) => {
     try {
-      if (obj && typeof obj[method] === 'function') {
+      if (obj && typeof obj[method] === "function") {
         return obj[method](...args);
       }
     } catch (err) {
@@ -552,7 +575,7 @@ function createGameManager(ctx) {
 
   const menu = createMenu(ctx, {
     deploy() {
-      safeCall(ctx.audio, 'resume');
+      safeCall(ctx.audio, "resume");
       input.requestLock();
       startRun({});
     },
@@ -560,22 +583,22 @@ function createGameManager(ctx) {
       resumeGame(true);
     },
     restart() {
-      safeCall(ctx.audio, 'resume');
+      safeCall(ctx.audio, "resume");
       input.requestLock();
       runState.retries++;
       startRun({ quick: true, keepRetries: true });
     },
     retry() {
-      safeCall(ctx.audio, 'resume');
+      safeCall(ctx.audio, "resume");
       input.requestLock();
       runState.retries++;
       startRun({ quick: true, keepRetries: true });
     },
     redeploy() {
-      safeCall(ctx.audio, 'resume');
+      safeCall(ctx.audio, "resume");
       input.requestLock();
       startRun({ quick: true });
-    }
+    },
   });
 
   menu.applySettings();
@@ -596,7 +619,7 @@ function createGameManager(ctx) {
     lowSaid: false,
     extractHint: 0,
     intensity: 0.15,
-    used: new Map()
+    used: new Map(),
   };
 
   let stateTimer = 0;
@@ -605,7 +628,7 @@ function createGameManager(ctx) {
   let introRadioSent = false;
   let pauseCooldown = 0;
   let isMouseCaptured = false;
-  let lastLookModeDesc = '';
+  let lastLookModeDesc = "";
   let lookReminderTimer = 0.8;
 
   const tempPos1 = new Vector3();
@@ -614,7 +637,7 @@ function createGameManager(ctx) {
   const getObjectives = () => (level && level.objectives) || [];
 
   const gameStateController = {
-    state: 'title',
+    state: "title",
     flow: GAME_CONFIG,
     run: runState,
     menus: menu,
@@ -630,9 +653,9 @@ function createGameManager(ctx) {
     },
     update: updateGame,
     debugCut() {
-      const targetRelay = runState.relays.find(r => !r.cut);
+      const targetRelay = runState.relays.find((r) => !r.cut);
       if (targetRelay) cutRelay(targetRelay);
-    }
+    },
   };
 
   function setGameState(newState) {
@@ -640,7 +663,7 @@ function createGameManager(ctx) {
     if (newState !== prevState) {
       gameStateController.state = newState;
       stateTimer = 0;
-      ctx.events.emit('game:state', { state: newState, prev: prevState });
+      ctx.events.emit("game:state", { state: newState, prev: prevState });
     }
   }
 
@@ -649,18 +672,24 @@ function createGameManager(ctx) {
     pos: [],
     look: [],
     len: 1,
-    t: 0
+    t: 0,
   };
 
   function initCinematicPath() {
     const rawPath = (level && level.cinematicPath) || [];
-    cinematicSpline.pos = rawPath.map(p => new Vector3(...p.pos));
-    cinematicSpline.look = rawPath.map(p => new Vector3(...p.look));
+    cinematicSpline.pos = rawPath.map((p) => new Vector3(...p.pos));
+    cinematicSpline.look = rawPath.map((p) => new Vector3(...p.look));
 
     if (cinematicSpline.pos.length < 2) {
       const pStart = (level && level.playerStart && level.playerStart.pos) || new Vector3();
-      cinematicSpline.pos = [new Vector3(pStart.x, 2.2, pStart.z), new Vector3(pStart.x + 8, 2, pStart.z)];
-      cinematicSpline.look = [new Vector3(pStart.x + 30, 2.5, pStart.z - 2), new Vector3(pStart.x + 40, 3, pStart.z - 2)];
+      cinematicSpline.pos = [
+        new Vector3(pStart.x, 2.2, pStart.z),
+        new Vector3(pStart.x + 8, 2, pStart.z),
+      ];
+      cinematicSpline.look = [
+        new Vector3(pStart.x + 30, 2.5, pStart.z - 2),
+        new Vector3(pStart.x + 40, 3, pStart.z - 2),
+      ];
     }
 
     let totalDist = 0;
@@ -686,9 +715,17 @@ function createGameManager(ctx) {
     const t3 = t2 * t;
 
     const interp = (v0, v1, v2, v3) =>
-      0.5 * (2 * v1 + (-v0 + v2) * t + (2 * v0 - 5 * v1 + 4 * v2 - v3) * t2 + (-v0 + 3 * v1 - 3 * v2 + v3) * t3);
+      0.5 *
+      (2 * v1 +
+        (-v0 + v2) * t +
+        (2 * v0 - 5 * v1 + 4 * v2 - v3) * t2 +
+        (-v0 + 3 * v1 - 3 * v2 + v3) * t3);
 
-    outVec.set(interp(p0.x, p1.x, p2.x, p3.x), interp(p0.y, p1.y, p2.y, p3.y), interp(p0.z, p1.z, p2.z, p3.z));
+    outVec.set(
+      interp(p0.x, p1.x, p2.x, p3.x),
+      interp(p0.y, p1.y, p2.y, p3.y),
+      interp(p0.z, p1.z, p2.z, p3.z),
+    );
     return outVec;
   }
 
@@ -726,17 +763,20 @@ function createGameManager(ctx) {
       cam.updateProjectionMatrix();
     }
 
-    postFx.fade = Math.max(1 - sl(0, 1.8, cinematicSpline.t), sl(cycleDuration - 1.6, cycleDuration, cinematicSpline.t));
+    postFx.fade = Math.max(
+      1 - sl(0, 1.8, cinematicSpline.t),
+      sl(cycleDuration - 1.6, cycleDuration, cinematicSpline.t),
+    );
   }
 
   /**
    * 重置单局所有游戏实体、状态与中继站
    */
   function resetRunState() {
-    safeCall(ctx.enemies, 'clear');
-    safeCall(ctx.fx, 'clear');
-    safeCall(ctx.combat, 'reset');
-    safeCall(ctx.weapon, 'reset');
+    safeCall(ctx.enemies, "clear");
+    safeCall(ctx.fx, "clear");
+    safeCall(ctx.combat, "reset");
+    safeCall(ctx.weapon, "reset");
 
     runState.time = 0;
     runState.cut = 0;
@@ -752,15 +792,18 @@ function createGameManager(ctx) {
     runState.used.clear();
 
     runState.relays = getObjectives().map((obj, idx) => {
-      const matchLetter = (/([a-z0-9])$/i.exec(String(obj.id || '')) || [0, String.fromCharCode(65 + idx)])[1].toUpperCase();
-      setRelayObjectState(obj, 'live');
+      const matchLetter = (/([a-z0-9])$/i.exec(String(obj.id || "")) || [
+        0,
+        String.fromCharCode(65 + idx),
+      ])[1].toUpperCase();
+      setRelayObjectState(obj, "live");
       return {
         o: obj,
-        id: obj.id || 'relay_' + idx,
+        id: obj.id || "relay_" + idx,
         short: matchLetter,
         t: 0,
         cut: false,
-        cutting: false
+        cutting: false,
       };
     });
 
@@ -778,33 +821,33 @@ function createGameManager(ctx) {
   function setRelayObjectState(relayObj, stateName) {
     try {
       const ud = relayObj && relayObj.object && relayObj.object.userData;
-      if (ud && typeof ud.setState === 'function') {
+      if (ud && typeof ud.setState === "function") {
         ud.setState(stateName);
       }
     } catch (err) {
-      console.error('[game] relay setState threw', err);
+      console.error("[game] relay setState threw", err);
     }
   }
 
   function syncHudMarkers() {
     if (!hud.setMarkers) return;
     const markers = runState.relays
-      .filter(r => !r.cut)
-      .map(r => ({
+      .filter((r) => !r.cut)
+      .map((r) => ({
         id: r.id,
         short: r.short,
-        label: r.o.label || '中继 ' + r.short,
+        label: r.o.label || "中继 " + r.short,
         pos: r.o.pos,
-        kind: 'relay'
+        kind: "relay",
       }));
 
     if (runState.allCut && level.extraction) {
       markers.push({
-        id: 'extract',
-        short: '撤离',
-        label: '撤离艇',
+        id: "extract",
+        short: "撤离",
+        label: "撤离艇",
         pos: level.extraction.pos,
-        kind: 'extract'
+        kind: "extract",
       });
     }
 
@@ -816,11 +859,11 @@ function createGameManager(ctx) {
    */
   function startRun({ skipIntro = false, quick = false, keepRetries = false } = {}) {
     if (!keepRetries) runState.retries = 0;
-    menu.show('none');
+    menu.show("none");
     menu.locationCard(false);
-    safeCall(ctx.audio, 'setPaused', false);
+    safeCall(ctx.audio, "setPaused", false);
     resetRunState();
-    safeCall(ctx.weapon, 'setVisible', true);
+    safeCall(ctx.weapon, "setVisible", true);
     isMouseCaptured = false;
 
     if (skipIntro) {
@@ -836,8 +879,8 @@ function createGameManager(ctx) {
     if (input.setGameplay) input.setGameplay(false);
     hud.show(false);
     postFx.fade = 1;
-    safeCall(ctx.audio, 'setIntensity', 0.15);
-    setGameState('intro');
+    safeCall(ctx.audio, "setIntensity", 0.15);
+    setGameState("intro");
   }
 
   function enterPlayingState() {
@@ -845,31 +888,34 @@ function createGameManager(ctx) {
     hud.show(true);
     if (input.setGameplay) input.setGameplay(true);
     hud.setObjective(getObjectiveText());
-    setGameState('playing');
+    setGameState("playing");
     syncMouseLookNotice(true);
   }
 
   function getObjectiveText() {
-    if (runState.allCut) return '前往撤离艇';
+    if (runState.allCut) return "前往撤离艇";
     const remaining = runState.relays.length - runState.cut;
     return runState.cut === 0
-      ? '切断三处上行中继'
+      ? "切断三处上行中继"
       : remaining === 1
-        ? '切断最后一处中继'
+        ? "切断最后一处中继"
         : `切断剩余 ${remaining} 处中继`;
   }
 
   function syncMouseLookNotice(force) {
-    const desc = input.describeMode ? input.describeMode() : '';
+    const desc = input.describeMode ? input.describeMode() : "";
     menu.setLookMode(desc);
     if (!force && desc === lastLookModeDesc) return;
     lastLookModeDesc = desc;
 
-    if (gameStateController.state === 'playing') {
-      if (input.mode === 'drag' || (input.mode === 'lock' && !input.locked && !ctx.params.shot && !ctx.params.autostart)) {
-        hud.message(desc, input.mode === 'drag' ? 7 : 4);
+    if (gameStateController.state === "playing") {
+      if (
+        input.mode === "drag" ||
+        (input.mode === "lock" && !input.locked && !ctx.params.shot && !ctx.params.autostart)
+      ) {
+        hud.message(desc, input.mode === "drag" ? 7 : 4);
       } else if (input.locked) {
-        hud.message('', 0);
+        hud.message("", 0);
       }
     }
   }
@@ -878,68 +924,77 @@ function createGameManager(ctx) {
     input.onModeChange(() => syncMouseLookNotice(false));
   }
 
-  ctx.events.on('input:lock', e => {
+  ctx.events.on("input:lock", (e) => {
     if (e.locked) {
       isMouseCaptured = true;
       syncMouseLookNotice(false);
       return;
     }
-    if (gameStateController.state === 'playing' && isMouseCaptured) {
+    if (gameStateController.state === "playing" && isMouseCaptured) {
       pauseGame();
     }
     isMouseCaptured = false;
   });
 
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden && gameStateController.state === 'playing') {
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden && gameStateController.state === "playing") {
       pauseGame();
     }
   });
 
-  addEventListener('keydown', e => {
-    if (gameStateController.state !== 'title' || menu.panelOpen) return;
-    if (e.code !== 'Enter' && e.code !== 'NumpadEnter') return;
-    if (e.target && e.target.tagName === 'BUTTON') return;
-    safeCall(ctx.audio, 'resume');
+  addEventListener("keydown", (e) => {
+    if (gameStateController.state !== "title" || menu.panelOpen) return;
+    if (e.code !== "Enter" && e.code !== "NumpadEnter") return;
+    if (e.target && e.target.tagName === "BUTTON") return;
+    safeCall(ctx.audio, "resume");
     input.requestLock();
     startRun({});
   });
 
   function pauseGame() {
-    if (gameStateController.state === 'playing') {
+    if (gameStateController.state === "playing") {
       if (input.setGameplay) input.setGameplay(false);
       input.exitLock();
-      safeCall(ctx.audio, 'setPaused', true);
-      menu.setLookMode(input.mode === 'drag' ? input.describeMode() : input.touch ? '' : '继续游戏后将重新捕获鼠标。');
+      safeCall(ctx.audio, "setPaused", true);
+      menu.setLookMode(
+        input.mode === "drag"
+          ? input.describeMode()
+          : input.touch
+            ? ""
+            : "继续游戏后将重新捕获鼠标。",
+      );
       hud.show(false);
-      menu.show('paused');
+      menu.show("paused");
       pauseCooldown = 0.35;
-      setGameState('paused');
+      setGameState("paused");
     }
   }
 
   function resumeGame(fromUserAction) {
-    if (gameStateController.state === 'paused') {
-      menu.show('none');
-      safeCall(ctx.audio, 'setPaused', false);
+    if (gameStateController.state === "paused") {
+      menu.show("none");
+      safeCall(ctx.audio, "setPaused", false);
       hud.show(true);
       if (input.setGameplay) input.setGameplay(true);
       isMouseCaptured = false;
       input.requestLock();
-      setGameState('playing');
+      setGameState("playing");
       setTimeout(() => syncMouseLookNotice(true), 700);
     }
   }
 
   // 敌军出怪点检索
   function getSpawns(type) {
-    const requiredCategory = type === 'gull' ? 'air' : 'ground';
+    const requiredCategory = type === "gull" ? "air" : "ground";
     const allSpawns = (level && level.enemySpawns) || [];
-    const matched = allSpawns.filter(sp => sp.type === requiredCategory);
+    const matched = allSpawns.filter((sp) => sp.type === requiredCategory);
     return matched.length ? matched : allSpawns;
   }
 
-  function pickSpawnPosition(type, { minDist = GAME_CONFIG.spawnFar, from = player.pos, preferHidden = true } = {}) {
+  function pickSpawnPosition(
+    type,
+    { minDist = GAME_CONFIG.spawnFar, from = player.pos, preferHidden = true } = {},
+  ) {
     const candidateSpawns = getSpawns(type);
     let bestSpawn = null;
     let highestScore = -1e9;
@@ -947,11 +1002,12 @@ function createGameManager(ctx) {
     for (const sp of candidateSpawns) {
       const dist = Math.hypot(sp.pos.x - from.x, sp.pos.z - from.z);
       let score = ctx.rng() * 1.5;
-      score += dist >= minDist ? 2 + Math.min(1, (dist - minDist) / 30) * 0.5 : -(minDist - dist) / 4;
+      score +=
+        dist >= minDist ? 2 + Math.min(1, (dist - minDist) / 30) * 0.5 : -(minDist - dist) / 4;
 
       if (preferHidden) {
         tempPos1.copy(sp.pos);
-        tempPos1.y += type === 'gull' ? 0 : 1;
+        tempPos1.y += type === "gull" ? 0 : 1;
         let hasLineOfSight = true;
         try {
           hasLineOfSight = ctx.physics.lineOfSight(tempPos1, player.eye);
@@ -977,10 +1033,11 @@ function createGameManager(ctx) {
 
       const jitterX = (ctx.rng() - 0.5) * 2.4;
       const jitterZ = (ctx.rng() - 0.5) * 2.4;
-      let isWalkable = type === 'gull';
+      let isWalkable = type === "gull";
 
       try {
-        if (!isWalkable) isWalkable = ctx.physics.nav.isWalkable(finalPos.x + jitterX, finalPos.z + jitterZ);
+        if (!isWalkable)
+          isWalkable = ctx.physics.nav.isWalkable(finalPos.x + jitterX, finalPos.z + jitterZ);
       } catch (e) {
         isWalkable = false;
       }
@@ -991,10 +1048,14 @@ function createGameManager(ctx) {
       }
     } else {
       const angle = ctx.rng() * Math.PI * 2;
-      finalPos.set(Zn(from.x + Math.cos(angle) * 26, -34, 26), 0, Zn(from.z + Math.sin(angle) * 26, -26, 24));
+      finalPos.set(
+        Zn(from.x + Math.cos(angle) * 26, -34, 26),
+        0,
+        Zn(from.z + Math.sin(angle) * 26, -26, 24),
+      );
     }
 
-    if (type === 'gull' && finalPos.y < 2.5) {
+    if (type === "gull" && finalPos.y < 2.5) {
       finalPos.y = 6 + ctx.rng() * 3;
     }
 
@@ -1005,19 +1066,23 @@ function createGameManager(ctx) {
     try {
       return ctx.enemies.spawn(type, pos, options);
     } catch (err) {
-      console.error('[game] enemies.spawn threw', err);
+      console.error("[game] enemies.spawn threw", err);
       return null;
     }
   }
 
   function spawnInitialPatrols() {
     const origin = (level.playerStart && level.playerStart.pos) || player.pos;
-    for (const type of ['gull', 'hound']) {
+    for (const type of ["gull", "hound"]) {
       const count = GAME_CONFIG.patrol[type];
       for (let i = 0; i < count; i++) {
-        spawnEnemyUnit(type, pickSpawnPosition(type, { minDist: 32, from: origin, preferHidden: true }), {
-          state: 'patrol'
-        });
+        spawnEnemyUnit(
+          type,
+          pickSpawnPosition(type, { minDist: 32, from: origin, preferHidden: true }),
+          {
+            state: "patrol",
+          },
+        );
       }
     }
   }
@@ -1026,8 +1091,9 @@ function createGameManager(ctx) {
     const waveDef = GAME_CONFIG.waves[Math.min(waveIndex, GAME_CONFIG.waves.length - 1)];
     const units = [];
 
-    for (let i = 0; i < waveDef.gull; i++) units.push('gull');
-    for (let i = 0; i < waveDef.hound; i++) units.splice(Math.min(units.length, 1 + i * 2), 0, 'hound');
+    for (let i = 0; i < waveDef.gull; i++) units.push("gull");
+    for (let i = 0; i < waveDef.hound; i++)
+      units.splice(Math.min(units.length, 1 + i * 2), 0, "hound");
 
     let sumDeltaX = 0;
     let sumDeltaZ = 0;
@@ -1039,15 +1105,15 @@ function createGameManager(ctx) {
       runState.queue.push({
         type: unitType,
         pos,
-        at: runState.time + 1.6 + idx * GAME_CONFIG.spawnStagger
+        at: runState.time + 1.6 + idx * GAME_CONFIG.spawnStagger,
       });
     });
 
     runState.waveHot = 30;
-    const avgBearingDeg = (Math.atan2(sumDeltaX, -sumDeltaZ) * 180 / Math.PI + 360) % 360;
+    const avgBearingDeg = ((Math.atan2(sumDeltaX, -sumDeltaZ) * 180) / Math.PI + 360) % 360;
     const directionName = DIRECTIONS[Math.round(avgBearingDeg / 45) % 8];
     if (hud.warning) {
-      hud.warning('发现敌情 · ' + directionName, 3.4);
+      hud.warning("发现敌情 · " + directionName, 3.4);
     }
   }
 
@@ -1062,7 +1128,10 @@ function createGameManager(ctx) {
         continue;
       }
 
-      if (!spawnEnemyUnit(entry.type, entry.pos, { state: 'alert', target: player.pos }) && !ctx.enemies.stub) {
+      if (
+        !spawnEnemyUnit(entry.type, entry.pos, { state: "alert", target: player.pos }) &&
+        !ctx.enemies.stub
+      ) {
         entry.tries = (entry.tries || 0) + 1;
         if (entry.tries < 6) {
           entry.at = runState.time + 1.5;
@@ -1071,29 +1140,40 @@ function createGameManager(ctx) {
       }
 
       runState.queue.splice(i, 1);
-      safeCall(ctx.enemies, 'alert', player.pos, 60);
+      safeCall(ctx.enemies, "alert", player.pos, 60);
       break;
     }
 
     // 全中继破坏后的持续追击波次
     if (runState.allCut) {
       runState.pursuitT -= dt;
-      if (runState.pursuitT <= 0 && runState.pursuitLeft > 0 && !runState.queue.length && aliveCount < GAME_CONFIG.pursuitMinAlive) {
+      if (
+        runState.pursuitT <= 0 &&
+        runState.pursuitLeft > 0 &&
+        !runState.queue.length &&
+        aliveCount < GAME_CONFIG.pursuitMinAlive
+      ) {
         runState.pursuitT = GAME_CONFIG.pursuitEvery;
         runState.pursuitLeft--;
-        const nextType = ctx.rng() < 0.6 ? 'gull' : 'hound';
-        runState.queue.push({ type: nextType, pos: pickSpawnPosition(nextType), at: runState.time + 0.5 });
+        const nextType = ctx.rng() < 0.6 ? "gull" : "hound";
+        runState.queue.push({
+          type: nextType,
+          pos: pickSpawnPosition(nextType),
+          at: runState.time + 0.5,
+        });
       }
       if (runState.pursuitT <= 0) {
         runState.pursuitT = 4;
-        safeCall(ctx.enemies, 'alert', player.pos, 90);
+        safeCall(ctx.enemies, "alert", player.pos, 90);
       }
     }
   }
 
   function getAliveEnemiesCount() {
     try {
-      return ctx.enemies.aliveCount ? ctx.enemies.aliveCount() : ctx.enemies.list.filter(e => e.alive).length;
+      return ctx.enemies.aliveCount
+        ? ctx.enemies.aliveCount()
+        : ctx.enemies.list.filter((e) => e.alive).length;
     } catch (e) {
       return 0;
     }
@@ -1103,27 +1183,32 @@ function createGameManager(ctx) {
     const list = (ctx.enemies && ctx.enemies.list) || [];
     for (let i = 0; i < list.length; i++) {
       const enemy = list[i];
-      if (enemy && enemy.alive && enemy.pos && Math.hypot(enemy.pos.x - player.pos.x, enemy.pos.z - player.pos.z) < distThreshold) {
+      if (
+        enemy &&
+        enemy.alive &&
+        enemy.pos &&
+        Math.hypot(enemy.pos.x - player.pos.x, enemy.pos.z - player.pos.z) < distThreshold
+      ) {
         return true;
       }
     }
     return false;
   }
 
-  ctx.events.on('enemy:alert', () => {
+  ctx.events.on("enemy:alert", () => {
     runState.alertT = 10;
-    if (gameStateController.state === 'playing' && !runState.contactSaid) {
+    if (gameStateController.state === "playing" && !runState.contactSaid) {
       runState.contactSaid = true;
       if (hud.radio) hud.radio(RADIO_MESSAGES.contact, 3.2);
     }
   });
 
-  ctx.events.on('player:hit', () => {
+  ctx.events.on("player:hit", () => {
     runState.alertT = Math.max(runState.alertT, 8);
   });
 
-  ctx.events.on('player:rescued', () => {
-    if (gameStateController.state === 'playing') hud.message('已从水中获救', 2.5);
+  ctx.events.on("player:rescued", () => {
+    if (gameStateController.state === "playing") hud.message("已从水中获救", 2.5);
   });
 
   // 寻找玩家正前方可交互的未切断中继站
@@ -1141,7 +1226,8 @@ function createGameManager(ctx) {
       if (Math.abs((relay.o.pos.y || 0) - player.pos.y) > 2.5) continue;
 
       if (dist > 0.9) {
-        const forwardDot = (dx * player.forward.x + dz * player.forward.z) /
+        const forwardDot =
+          (dx * player.forward.x + dz * player.forward.z) /
           (dist * Math.max(0.2, Math.hypot(player.forward.x, player.forward.z)));
         if (forwardDot < GAME_CONFIG.interactFacing) continue;
       }
@@ -1160,13 +1246,13 @@ function createGameManager(ctx) {
     for (const relay of runState.relays) {
       if (relay.cut) continue;
 
-      if (relay === targetRelay && input.down('interact')) {
+      if (relay === targetRelay && input.down("interact")) {
         if (!relay.cutting) {
           relay.cutting = true;
-          setRelayObjectState(relay.o, 'cutting');
+          setRelayObjectState(relay.o, "cutting");
         }
         relay.t += dt / GAME_CONFIG.cutSeconds;
-        ctx.events.emit('objective:progress', { id: relay.id, t: Math.min(1, relay.t) });
+        ctx.events.emit("objective:progress", { id: relay.id, t: Math.min(1, relay.t) });
 
         if (relay.t >= 1) {
           cutRelay(relay);
@@ -1175,14 +1261,14 @@ function createGameManager(ctx) {
         relay.t = Math.max(0, relay.t - dt * 1.6);
         if (relay.cutting) {
           relay.cutting = false;
-          setRelayObjectState(relay.o, 'live');
-          ctx.events.emit('objective:progress', { id: relay.id, t: 0 });
+          setRelayObjectState(relay.o, "live");
+          ctx.events.emit("objective:progress", { id: relay.id, t: 0 });
         }
       }
     }
 
     if (targetRelay && !targetRelay.cut) {
-      if (hud.setPrompt) hud.setPrompt('切断中继 ' + targetRelay.short, Fo(targetRelay.t));
+      if (hud.setPrompt) hud.setPrompt("切断中继 " + targetRelay.short, Fo(targetRelay.t));
     } else {
       if (hud.setPrompt) hud.setPrompt(null);
     }
@@ -1191,13 +1277,14 @@ function createGameManager(ctx) {
     const evac = level.extraction;
     if (evac && evac.pos) {
       const evacDist = Math.hypot(evac.pos.x - player.pos.x, evac.pos.z - player.pos.z);
-      const isInsideEvacZone = evacDist < (evac.radius || 2.5) && Math.abs(evac.pos.y - player.pos.y) < 3.5;
+      const isInsideEvacZone =
+        evacDist < (evac.radius || 2.5) && Math.abs(evac.pos.y - player.pos.y) < 3.5;
 
       if (isInsideEvacZone && runState.allCut && player.alive) {
         completeMission();
       } else if (isInsideEvacZone && !runState.allCut && runState.extractHint <= 0) {
         runState.extractHint = 8;
-        hud.message('中继尚未断开，撤离艇无法在火力下接应', 3.5);
+        hud.message("中继尚未断开，撤离艇无法在火力下接应", 3.5);
       }
       runState.extractHint = Math.max(0, runState.extractHint - dt);
     }
@@ -1208,10 +1295,10 @@ function createGameManager(ctx) {
     relay.cutting = false;
     relay.t = 1;
     runState.cut++;
-    setRelayObjectState(relay.o, 'cut');
+    setRelayObjectState(relay.o, "cut");
 
     const totalRelays = runState.relays.length;
-    ctx.events.emit('objective:done', { id: relay.id, index: runState.cut, total: totalRelays });
+    ctx.events.emit("objective:done", { id: relay.id, index: runState.cut, total: totalRelays });
     if (hud.setRelays) hud.setRelays(runState.cut, totalRelays);
     if (hud.setPrompt) hud.setPrompt(null);
     player.addShake(0.18);
@@ -1222,7 +1309,7 @@ function createGameManager(ctx) {
       runState.allCut = true;
       runState.pursuitLeft = GAME_CONFIG.pursuitExtra;
       runState.pursuitT = 12;
-      ctx.events.emit('objective:all', {});
+      ctx.events.emit("objective:all", {});
       if (hud.radio) hud.radio(RADIO_MESSAGES.all, 4.5);
     } else {
       const radioIdx = Math.min(runState.cut - 1, RADIO_MESSAGES.cut.length - 1);
@@ -1233,15 +1320,15 @@ function createGameManager(ctx) {
     syncHudMarkers();
   }
 
-  ctx.events.on('player:dead', () => {
-    if (gameStateController.state !== 'playing' && gameStateController.state !== 'paused') return;
+  ctx.events.on("player:dead", () => {
+    if (gameStateController.state !== "playing" && gameStateController.state !== "paused") return;
     if (input.setGameplay) input.setGameplay(false);
     input.exitLock();
     if (hud.setPrompt) hud.setPrompt(null);
     hud.show(false);
     if (hud.clearRadio) hud.clearRadio();
     menu.setDead({ time: runState.time, relays: runState.cut, total: runState.relays.length });
-    setGameState('dead');
+    setGameState("dead");
   });
 
   function completeMission() {
@@ -1251,7 +1338,7 @@ function createGameManager(ctx) {
     input.exitLock();
     if (hud.setPrompt) hud.setPrompt(null);
     hud.show(false);
-    ctx.events.emit('extraction:reached', {});
+    ctx.events.emit("extraction:reached", {});
     if (hud.clearRadio) hud.clearRadio();
     if (hud.radio) hud.radio(RADIO_MESSAGES.done, 2.2);
 
@@ -1263,16 +1350,18 @@ function createGameManager(ctx) {
     const accScore = accuracy >= 0.5 ? 2 : accuracy >= 0.3 ? 1 : 0;
     const retryScore = runState.retries === 0 ? 1 : 0;
     const totalScore = timeScore + accScore + retryScore;
-    const ratingTitle = ['险象环生', '火力全开', '稳扎稳打', '干净利落', '精准果断', '完美突击'][totalScore];
+    const ratingTitle = ["险象环生", "火力全开", "稳扎稳打", "干净利落", "精准果断", "完美突击"][
+      totalScore
+    ];
 
     menu.setDebrief({
       time: runState.time,
       accuracy,
       kills: stats.kills || 0,
       retries: runState.retries,
-      rating: ratingTitle
+      rating: ratingTitle,
     });
-    setGameState('complete');
+    setGameState("complete");
   }
 
   /**
@@ -1282,11 +1371,11 @@ function createGameManager(ctx) {
     stateTimer += dt;
 
     switch (gameStateController.state) {
-      case 'title':
+      case "title":
         updateTitleCinematic(dt);
         return false;
 
-      case 'intro':
+      case "intro":
         postFx.fade = 1 - sl(0.25, Math.min(introDuration, 2.6), stateTimer);
         if (!locCardShown && stateTimer > 0.5) {
           locCardShown = true;
@@ -1296,7 +1385,7 @@ function createGameManager(ctx) {
           introRadioSent = true;
           if (hud.radio) hud.radio(RADIO_MESSAGES.intro, 4.2);
         }
-        if (stateTimer > introDuration - 0.6 && !hud.root?.classList.contains('on')) {
+        if (stateTimer > introDuration - 0.6 && !hud.root?.classList.contains("on")) {
           hud.show(true);
           hud.setObjective(getObjectiveText());
         }
@@ -1307,40 +1396,52 @@ function createGameManager(ctx) {
         }
         return true;
 
-      case 'playing': {
+      case "playing": {
         runState.time += dt;
         postFx.fade = kn(postFx.fade || 0, 0, 6, dt);
         if (pauseCooldown > 0) pauseCooldown -= dt;
 
-        if (input.pressed('pause')) {
+        if (input.pressed("pause")) {
           pauseGame();
           return false;
         }
 
         updateInteractionAndExtraction(dt);
-        if (gameStateController.state !== 'playing') return true;
+        if (gameStateController.state !== "playing") return true;
 
         processSpawnQueue(dt);
         runState.alertT = Math.max(0, runState.alertT - dt);
         runState.waveHot = Math.max(0, runState.waveHot - dt);
 
         const alive = getAliveEnemiesCount();
-        if (runState.waveHot > 0 && alive === 0 && !runState.queue.length && runState.waveHot < 24) {
+        if (
+          runState.waveHot > 0 &&
+          alive === 0 &&
+          !runState.queue.length &&
+          runState.waveHot < 24
+        ) {
           runState.waveHot = 0;
         }
 
-        const targetIntensity = (runState.allCut || runState.queue.length || (runState.waveHot > 0 && alive > 0))
-          ? 1.0
-          : (runState.alertT > 0 || (alive > 0 && hasEnemyNear(26)))
-            ? 0.6
-            : 0.15;
+        const targetIntensity =
+          runState.allCut || runState.queue.length || (runState.waveHot > 0 && alive > 0)
+            ? 1.0
+            : runState.alertT > 0 || (alive > 0 && hasEnemyNear(26))
+              ? 0.6
+              : 0.15;
 
         if (targetIntensity !== runState.intensity) {
           runState.intensity = targetIntensity;
-          safeCall(ctx.audio, 'setIntensity', targetIntensity);
+          safeCall(ctx.audio, "setIntensity", targetIntensity);
         }
 
-        if (input.mode === 'lock' && !input.locked && !input.touch && !ctx.params.shot && !ctx.params.autostart) {
+        if (
+          input.mode === "lock" &&
+          !input.locked &&
+          !input.touch &&
+          !ctx.params.shot &&
+          !ctx.params.autostart
+        ) {
           lookReminderTimer -= dt;
           if (lookReminderTimer <= 0) {
             lookReminderTimer = 2.0;
@@ -1357,29 +1458,29 @@ function createGameManager(ctx) {
         return true;
       }
 
-      case 'paused':
+      case "paused":
         if (pauseCooldown > 0) {
           pauseCooldown -= dt;
-        } else if (input.pressed('pause')) {
+        } else if (input.pressed("pause")) {
           if (!menu.closePanel()) resumeGame(false);
         }
         return false;
 
-      case 'dead':
+      case "dead":
         postFx.saturation = kn(postFx.saturation ?? 1, 0.12, 2.2, dt);
         postFx.fade = kn(postFx.fade || 0, 0.55, 1.4, dt);
-        if (stateTimer > 1.5 && menu.screen !== 'dead') {
-          menu.show('dead');
-          safeCall(ctx.audio, 'setIntensity', 0.15);
+        if (stateTimer > 1.5 && menu.screen !== "dead") {
+          menu.show("dead");
+          safeCall(ctx.audio, "setIntensity", 0.15);
         }
         return true;
 
-      case 'complete':
+      case "complete":
         postFx.fade = kn(postFx.fade || 0, 0.72, 0.9, dt);
         postFx.saturation = kn(postFx.saturation ?? 1, defaultSaturation * 0.7, 1, dt);
-        if (stateTimer > 3.3 && menu.screen !== 'complete') {
-          menu.show('complete');
-          safeCall(ctx.audio, 'setIntensity', 0.15);
+        if (stateTimer > 3.3 && menu.screen !== "complete") {
+          menu.show("complete");
+          safeCall(ctx.audio, "setIntensity", 0.15);
         }
         return true;
     }
@@ -1390,22 +1491,16 @@ function createGameManager(ctx) {
   initCinematicPath();
   player.enabled = false;
   hud.show(false);
-  safeCall(ctx.weapon, 'setVisible', false);
+  safeCall(ctx.weapon, "setVisible", false);
   if (input.setGameplay) input.setGameplay(false);
-  safeCall(ctx.audio, 'setIntensity', 0.15);
+  safeCall(ctx.audio, "setIntensity", 0.15);
 
   if (!ctx.params.shot && !ctx.params.autostart) {
-    menu.show('title');
+    menu.show("title");
   }
 
   return gameStateController;
 }
 
 export const create = createGameManager;
-export {
-  createGameManager as mM,
-  GAME_CONFIG,
-  DIRECTIONS,
-  RADIO_MESSAGES,
-  createMenu as pM
-};
+export { createGameManager as mM, GAME_CONFIG, DIRECTIONS, RADIO_MESSAGES, createMenu as pM };

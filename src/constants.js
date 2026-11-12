@@ -5,7 +5,7 @@
  * ============================================================================
  */
 
-import * as THREE from 'three';
+import * as THREE from "three";
 
 // ============================================================================
 // 一、 场景空间范围与环境光照 (Scene Bounds & Environment)
@@ -16,20 +16,20 @@ export const SCENE_BOUNDS = {
   max: new THREE.Vector3(40, 30, 30),
   groundY: 0,
   seaY: -1.6,
-  quayX: 30
+  quayX: 30,
 };
 
 export const SUN_CONFIG = {
   dir: new THREE.Vector3(0.916, 0.225, 0.331).normalize(),
   color: new THREE.Color(1.0, 0.72, 0.42),
-  intensity: 9.0
+  intensity: 9.0,
 };
 
 export const SKY_CONFIG = {
   zenith: new THREE.Color(0.055, 0.085, 0.13),
   horizon: new THREE.Color(0.95, 0.55, 0.28),
   horizonAway: new THREE.Color(0.16, 0.22, 0.3),
-  fog: new THREE.Color(0.42, 0.47, 0.52)
+  fog: new THREE.Color(0.42, 0.47, 0.52),
 };
 
 export const PLAYER_CONFIG = {
@@ -38,12 +38,12 @@ export const PLAYER_CONFIG = {
   radius: 0.32,
   height: 1.8,
   fov: 74,
-  viewFov: 54
+  viewFov: 54,
 };
 
 // 阵营常量 (Factions)
 export const FACTION_PLAYER = 0;
-export const FACTION_ENEMY  = 1;
+export const FACTION_ENEMY = 1;
 
 // ============================================================================
 // 二、 画质分级预设与自适应探测 (Quality Presets & Auto-detection)
@@ -51,7 +51,7 @@ export const FACTION_ENEMY  = 1;
 
 export const QUALITY_PRESETS = {
   test: {
-    name: 'test',
+    name: "test",
     scale: 1.0,
     msaa: 0,
     shadow: 1024,
@@ -61,10 +61,10 @@ export const QUALITY_PRESETS = {
     planar: 0.5,
     bloom: true,
     motionBlur: false,
-    rain: 0.4
+    rain: 0.4,
   },
   low: {
-    name: 'low',
+    name: "low",
     scale: 0.7,
     msaa: 0,
     shadow: 2048,
@@ -74,10 +74,10 @@ export const QUALITY_PRESETS = {
     planar: 0,
     bloom: true,
     motionBlur: false,
-    rain: 0.5
+    rain: 0.5,
   },
   medium: {
-    name: 'medium',
+    name: "medium",
     scale: 0.85,
     msaa: 2,
     shadow: 2048,
@@ -87,10 +87,10 @@ export const QUALITY_PRESETS = {
     planar: 0.5,
     bloom: true,
     motionBlur: false,
-    rain: 0.8
+    rain: 0.8,
   },
   high: {
-    name: 'high',
+    name: "high",
     scale: 1.0,
     msaa: 4,
     shadow: 4096,
@@ -100,10 +100,10 @@ export const QUALITY_PRESETS = {
     planar: 0.5,
     bloom: true,
     motionBlur: true,
-    rain: 1.0
+    rain: 1.0,
   },
   ultra: {
-    name: 'ultra',
+    name: "ultra",
     scale: 1.0,
     msaa: 4,
     shadow: 4096,
@@ -113,8 +113,8 @@ export const QUALITY_PRESETS = {
     planar: 1.0,
     bloom: true,
     motionBlur: true,
-    rain: 1.0
-  }
+    rain: 1.0,
+  },
 };
 
 /**
@@ -126,26 +126,32 @@ export function detectQualityPreset(preferredName) {
   }
 
   // 移动端降级保护
-  if (/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent) ||
-      (navigator.maxTouchPoints > 1 && Math.min(screen.width, screen.height) < 900)) {
+  if (
+    /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent) ||
+    (navigator.maxTouchPoints > 1 && Math.min(screen.width, screen.height) < 900)
+  ) {
     return { ...QUALITY_PRESETS.low };
   }
 
-  let glRendererStr = '';
+  let glRendererStr = "";
   try {
-    const canvas = document.createElement('canvas');
-    const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+    const canvas = document.createElement("canvas");
+    const gl = canvas.getContext("webgl2") || canvas.getContext("webgl");
     if (gl) {
-      const dbgInfo = gl.getExtension('WEBGL_debug_renderer_info');
-      glRendererStr = String(dbgInfo ? gl.getParameter(dbgInfo.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
-      const loseCtx = gl.getExtension('WEBGL_lose_context');
+      const dbgInfo = gl.getExtension("WEBGL_debug_renderer_info");
+      glRendererStr = String(
+        dbgInfo ? gl.getParameter(dbgInfo.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER),
+      );
+      const loseCtx = gl.getExtension("WEBGL_lose_context");
       if (loseCtx) loseCtx.loseContext();
     }
   } catch {}
 
   // 软件渲染器或入门核显限制在中画质，独立显卡使用高画质
-  if (/SwiftShader|llvmpipe|Software|Mali|Adreno|PowerVR/i.test(glRendererStr) ||
-      (/Intel/i.test(glRendererStr) && !/Arc/i.test(glRendererStr))) {
+  if (
+    /SwiftShader|llvmpipe|Software|Mali|Adreno|PowerVR/i.test(glRendererStr) ||
+    (/Intel/i.test(glRendererStr) && !/Arc/i.test(glRendererStr))
+  ) {
     return { ...QUALITY_PRESETS.medium };
   }
 
@@ -187,7 +193,7 @@ export function createEventBus() {
           }
         }
       }
-    }
+    },
   };
 }
 
@@ -205,10 +211,10 @@ export function createSeededRandom(seed = 1337) {
   };
 
   rnd.range = (min, max) => min + (max - min) * rnd();
-  rnd.int   = (min, max) => Math.floor(min + (max - min + 1) * rnd());
-  rnd.pick  = (arr) => arr[Math.floor(rnd() * arr.length)];
-  rnd.sign  = () => (rnd() < 0.5 ? -1 : 1);
-  rnd.fork  = () => createSeededRandom(Math.floor(rnd() * 4294967296));
+  rnd.int = (min, max) => Math.floor(min + (max - min + 1) * rnd());
+  rnd.pick = (arr) => arr[Math.floor(rnd() * arr.length)];
+  rnd.sign = () => (rnd() < 0.5 ? -1 : 1);
+  rnd.fork = () => createSeededRandom(Math.floor(rnd() * 4294967296));
 
   return rnd;
 }
@@ -218,13 +224,14 @@ export function createSeededRandom(seed = 1337) {
 // ============================================================================
 
 export const clamp = (val, min, max) => Math.min(max, Math.max(min, val));
-export const lerp  = (a, b, t) => a + (b - a) * t;
+export const lerp = (a, b, t) => a + (b - a) * t;
 export const saturate = (x) => Math.min(1, Math.max(0, x));
 export const smoothstep = (edge0, edge1, x) => {
   const t = saturate((x - edge0) / (edge1 - edge0));
   return t * t * (3 - 2 * t);
 };
-export const damp = (current, target, lambda, dt) => target + (current - target) * Math.exp(-lambda * dt);
+export const damp = (current, target, lambda, dt) =>
+  target + (current - target) * Math.exp(-lambda * dt);
 export const noop = () => {};
 
 // ============================================================================
@@ -236,11 +243,11 @@ export const STUBS = {
     stub: true,
     update: noop,
     wetnessAt: () => 0.5,
-    isPuddle: () => false
+    isPuddle: () => false,
   }),
   backdrop: () => ({
     stub: true,
-    update: noop
+    update: noop,
   }),
   fx: () => ({
     stub: true,
@@ -257,7 +264,7 @@ export const STUBS = {
     dust: noop,
     clear: noop,
     splash: noop,
-    addEmitter: () => ({ stop: noop, setPos: noop })
+    addEmitter: () => ({ stop: noop, setPos: noop }),
   }),
   audio: () => {
     const handle = { setPos: noop, setGain: noop, setPitch: noop, stop: noop };
@@ -270,7 +277,7 @@ export const STUBS = {
       setIntensity: noop,
       setInterior: noop,
       setVolume: noop,
-      setPaused: noop
+      setPaused: noop,
     };
   },
   weapon: () => ({
@@ -281,10 +288,10 @@ export const STUBS = {
     ammo: 30,
     magSize: 30,
     reserve: 120,
-    state: 'idle',
-    name: 'KR-7',
+    state: "idle",
+    name: "KR-7",
     ads: 0,
-    spread: 0.01
+    spread: 0.01,
   }),
   enemies: () => ({
     stub: true,
@@ -294,7 +301,7 @@ export const STUBS = {
     raycast: () => null,
     aliveCount: () => 0,
     clear: noop,
-    alert: noop
+    alert: noop,
   }),
   hud: () => ({
     stub: true,
@@ -302,7 +309,7 @@ export const STUBS = {
     show: noop,
     setObjective: noop,
     message: noop,
-    hitmarker: noop
+    hitmarker: noop,
   }),
   mats: () => {
     const cache = new Map();
@@ -314,16 +321,23 @@ export const STUBS = {
         }
         return cache.get(name);
       },
-      emissive: (color = 0xffffff, intensity = 4) => new THREE.MeshBasicMaterial({
-        color: new THREE.Color(color).multiplyScalar(intensity)
-      }),
+      emissive: (color = 0xffffff, intensity = 4) =>
+        new THREE.MeshBasicMaterial({
+          color: new THREE.Color(color).multiplyScalar(intensity),
+        }),
       names: [],
-      decal: () => ({ material: new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 }), aspect: 1 }),
-      label: () => ({ material: new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 }), aspect: 4 }),
+      decal: () => ({
+        material: new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 }),
+        aspect: 1,
+      }),
+      label: () => ({
+        material: new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 }),
+        aspect: 4,
+      }),
       uniforms: { wet: { value: 1 } },
-      update: noop
+      update: noop,
     };
-  }
+  },
 };
 
 // ============================================================================
@@ -347,5 +361,5 @@ export {
   smoothstep as sl,
   damp as kn,
   noop as Wt,
-  STUBS as dr
+  STUBS as dr,
 };

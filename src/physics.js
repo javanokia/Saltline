@@ -3,39 +3,39 @@
  * 3A-GAME Physics & Navigation System (physics.js)
  * 物理碰撞检测与 A* 网格导航寻路系统
  * ============================================================================
- * 
+ *
  * 核心功能：
  * 1. 轴对齐包围盒 (AABB Slab-Method Raycaster)：
  *    - 极速 Slab 算法，支持光线与海量静态集装箱/建筑物的相交测试与表面材质反射法线计算。
  *    - 支持水面、地面、码头边缘物理判定。
- * 
+ *
  * 2. 扫掠胶囊体角色控制器 (Swept-Capsule Character Controller)：
  *    - 支持 0.42m 台阶自动跨越步进 (Stair Step-up)。
  *    - 连续子步迭代 (Sub-stepping) 与滑动摩擦解算，彻底杜绝高速穿墙。
  *    - 天花板碰撞阻挡与多层地面吸附 (Ground Snapping)。
- * 
+ *
  * 3. 2D 栅格化导航网格与 A* 寻路 (A* NavGrid & String-Pulling)：
  *    - 0.5m 均匀栅格，带 0.5m 障碍物外扩膨胀 (Obstacle Dilation)。
  *    - 基于二叉最小堆 (Binary Min-Heap) 优化的 A* 最短路径搜索。
  *    - 视线可见性拉直平滑 (Raycast String-Pulling Shortcut)，消除锯齿折线走位。
  */
 
-import * as THREE from 'three';
-import { oi as SCENE_BOUNDS } from './constants.js';
+import * as THREE from "three";
+import { oi as SCENE_BOUNDS } from "./constants.js";
 
 // ============================================================================
 // 一、 物理常量与网格规格 (Constants & Grid Config)
 // ============================================================================
 
-export const STEP_UP_HEIGHT     = 0.42; // 最大台阶跨越高度 (米)
-export const NAV_CELL_SIZE      = 0.5;  // 导航网格单元尺寸 (米)
-export const NAV_MIN_X          = -40;  // 导航范围 X 轴下界
-export const NAV_MAX_X          = 31;   // 导航范围 X 轴上界
-export const NAV_MIN_Z          = -32;  // 导航范围 Z 轴下界
-export const NAV_MAX_Z          = 30;   // 导航范围 Z 轴上界
-export const OBSTACLE_DILATION  = 0.5;  // 障碍物碰撞半径外扩膨胀
+export const STEP_UP_HEIGHT = 0.42; // 最大台阶跨越高度 (米)
+export const NAV_CELL_SIZE = 0.5; // 导航网格单元尺寸 (米)
+export const NAV_MIN_X = -40; // 导航范围 X 轴下界
+export const NAV_MAX_X = 31; // 导航范围 X 轴上界
+export const NAV_MIN_Z = -32; // 导航范围 Z 轴下界
+export const NAV_MAX_Z = 30; // 导航范围 Z 轴上界
+export const OBSTACLE_DILATION = 0.5; // 障碍物碰撞半径外扩膨胀
 
-export const NAV_GRID_WIDTH  = Math.round((NAV_MAX_X - NAV_MIN_X) / NAV_CELL_SIZE); // 142 列
+export const NAV_GRID_WIDTH = Math.round((NAV_MAX_X - NAV_MIN_X) / NAV_CELL_SIZE); // 142 列
 export const NAV_GRID_HEIGHT = Math.round((NAV_MAX_Z - NAV_MIN_Z) / NAV_CELL_SIZE); // 124 行
 
 /**
@@ -69,18 +69,18 @@ export function createPhysicsSystem(engineCtx) {
       min: new THREE.Vector3(
         Math.min(minV.x, maxV.x),
         Math.min(minV.y, maxV.y),
-        Math.min(minV.z, maxV.z)
+        Math.min(minV.z, maxV.z),
       ),
       max: new THREE.Vector3(
         Math.max(minV.x, maxV.x),
         Math.max(minV.y, maxV.y),
-        Math.max(minV.z, maxV.z)
+        Math.max(minV.z, maxV.z),
       ),
-      surface: options.surface || 'concrete',
-      tag: options.tag || '',
+      surface: options.surface || "concrete",
+      tag: options.tag || "",
       noNav: Boolean(options.noNav),
       bulletOnly: Boolean(options.bulletOnly),
-      playerOnly: Boolean(options.playerOnly)
+      playerOnly: Boolean(options.playerOnly),
     };
 
     boxes.push(box);
@@ -107,8 +107,12 @@ export function createPhysicsSystem(engineCtx) {
     let hitSign = 0;
     let groundType = 0; // 0: None/Box, 1: Ground/Quay, 2: Sea
 
-    const ox = origin.x, oy = origin.y, oz = origin.z;
-    const dx = dir.x, dy = dir.y, dz = dir.z;
+    const ox = origin.x,
+      oy = origin.y,
+      oz = origin.z;
+    const dx = dir.x,
+      dy = dir.y,
+      dz = dir.z;
 
     // 检查是否射向地面或海面
     if (dy < -1e-6) {
@@ -149,7 +153,9 @@ export function createPhysicsSystem(engineCtx) {
         t2 = (box.max.x - ox) * invDx;
         let sign = -1;
         if (t1 > t2) {
-          const tmp = t1; t1 = t2; t2 = tmp;
+          const tmp = t1;
+          t1 = t2;
+          t2 = tmp;
           sign = 1;
         }
         if (t1 > tMin) {
@@ -169,7 +175,9 @@ export function createPhysicsSystem(engineCtx) {
         t2 = (box.max.y - oy) * invDy;
         let sign = -1;
         if (t1 > t2) {
-          const tmp = t1; t1 = t2; t2 = tmp;
+          const tmp = t1;
+          t1 = t2;
+          t2 = tmp;
           sign = 1;
         }
         if (t1 > tMin) {
@@ -189,7 +197,9 @@ export function createPhysicsSystem(engineCtx) {
         t2 = (box.max.z - oz) * invDz;
         let sign = -1;
         if (t1 > t2) {
-          const tmp = t1; t1 = t2; t2 = tmp;
+          const tmp = t1;
+          t1 = t2;
+          t2 = tmp;
           sign = 1;
         }
         if (t1 > tMin) {
@@ -214,12 +224,16 @@ export function createPhysicsSystem(engineCtx) {
 
     if (!hitBox && !groundType) return null;
 
-    const hitPoint = new THREE.Vector3(ox + dx * closestDist, oy + dy * closestDist, oz + dz * closestDist);
+    const hitPoint = new THREE.Vector3(
+      ox + dx * closestDist,
+      oy + dy * closestDist,
+      oz + dz * closestDist,
+    );
 
     if (groundType) {
-      let surf = 'concrete';
+      let surf = "concrete";
       if (groundType === 2) {
-        surf = 'water';
+        surf = "water";
       } else if (engineCtx.level && engineCtx.level.groundSurfaceAt) {
         surf = engineCtx.level.groundSurfaceAt(hitPoint.x, hitPoint.z);
       }
@@ -228,7 +242,7 @@ export function createPhysicsSystem(engineCtx) {
         point: hitPoint,
         normal: new THREE.Vector3(0, 1, 0),
         surface: surf,
-        box: null
+        box: null,
       };
     }
 
@@ -240,7 +254,7 @@ export function createPhysicsSystem(engineCtx) {
       point: hitPoint,
       normal: hitNormal,
       surface: hitBox.surface,
-      box: hitBox
+      box: hitBox,
     };
   }
 
@@ -274,7 +288,7 @@ export function createPhysicsSystem(engineCtx) {
       onGround: false,
       hitWall: false,
       hitCeil: false,
-      surface: 'concrete'
+      surface: "concrete",
     };
 
     const deltaX = vel.x * dt;
@@ -293,7 +307,10 @@ export function createPhysicsSystem(engineCtx) {
         for (let i = 0; i < boxes.length; i++) {
           const box = boxes[i];
           if (box.bulletOnly) continue;
-          if (box.max.y <= pos.y + (stepUp ? STEP_UP_HEIGHT : 0.08) || box.min.y >= pos.y + height) {
+          if (
+            box.max.y <= pos.y + (stepUp ? STEP_UP_HEIGHT : 0.08) ||
+            box.min.y >= pos.y + height
+          ) {
             continue;
           }
 
@@ -319,10 +336,10 @@ export function createPhysicsSystem(engineCtx) {
               }
             } else {
               // 陷入包围盒内部，沿最小距离面弹出
-              const dLeft   = pos.x - box.min.x;
-              const dRight  = box.max.x - pos.x;
-              const dNear   = pos.z - box.min.z;
-              const dFar    = box.max.z - pos.z;
+              const dLeft = pos.x - box.min.x;
+              const dRight = box.max.x - pos.x;
+              const dNear = pos.z - box.min.z;
+              const dFar = box.max.z - pos.z;
               const minPen = Math.min(dLeft, dRight, dNear, dFar);
 
               if (minPen === dLeft) {
@@ -358,8 +375,12 @@ export function createPhysicsSystem(engineCtx) {
     for (let i = 0; i < boxes.length; i++) {
       const box = boxes[i];
       if (box.bulletOnly) continue;
-      if (pos.x + probeRadius < box.min.x || pos.x - probeRadius > box.max.x ||
-          pos.z + probeRadius < box.min.z || pos.z - probeRadius > box.max.z) {
+      if (
+        pos.x + probeRadius < box.min.x ||
+        pos.x - probeRadius > box.max.x ||
+        pos.z + probeRadius < box.min.z ||
+        pos.z - probeRadius > box.max.z
+      ) {
         continue;
       }
 
@@ -389,10 +410,11 @@ export function createPhysicsSystem(engineCtx) {
     }
 
     if (result.onGround) {
-      result.surface = floorSurface || (
-        engineCtx.level && engineCtx.level.groundSurfaceAt ?
-        engineCtx.level.groundSurfaceAt(pos.x, pos.z) : 'concrete'
-      );
+      result.surface =
+        floorSurface ||
+        (engineCtx.level && engineCtx.level.groundSurfaceAt
+          ? engineCtx.level.groundSurfaceAt(pos.x, pos.z)
+          : "concrete");
     }
 
     return result;
@@ -415,10 +437,22 @@ export function createPhysicsSystem(engineCtx) {
         continue;
       }
 
-      const colMin = Math.max(0, Math.floor((box.min.x - OBSTACLE_DILATION - NAV_MIN_X) / NAV_CELL_SIZE));
-      const colMax = Math.min(NAV_GRID_WIDTH - 1, Math.floor((box.max.x + OBSTACLE_DILATION - NAV_MIN_X) / NAV_CELL_SIZE));
-      const rowMin = Math.max(0, Math.floor((box.min.z - OBSTACLE_DILATION - NAV_MIN_Z) / NAV_CELL_SIZE));
-      const rowMax = Math.min(NAV_GRID_HEIGHT - 1, Math.floor((box.max.z + OBSTACLE_DILATION - NAV_MIN_Z) / NAV_CELL_SIZE));
+      const colMin = Math.max(
+        0,
+        Math.floor((box.min.x - OBSTACLE_DILATION - NAV_MIN_X) / NAV_CELL_SIZE),
+      );
+      const colMax = Math.min(
+        NAV_GRID_WIDTH - 1,
+        Math.floor((box.max.x + OBSTACLE_DILATION - NAV_MIN_X) / NAV_CELL_SIZE),
+      );
+      const rowMin = Math.max(
+        0,
+        Math.floor((box.min.z - OBSTACLE_DILATION - NAV_MIN_Z) / NAV_CELL_SIZE),
+      );
+      const rowMax = Math.min(
+        NAV_GRID_HEIGHT - 1,
+        Math.floor((box.max.z + OBSTACLE_DILATION - NAV_MIN_Z) / NAV_CELL_SIZE),
+      );
 
       for (let r = rowMin; r <= rowMax; r++) {
         for (let c = colMin; c <= colMax; c++) {
@@ -431,8 +465,13 @@ export function createPhysicsSystem(engineCtx) {
     for (let r = 0; r < NAV_GRID_HEIGHT; r++) {
       for (let c = 0; c < NAV_GRID_WIDTH; c++) {
         const worldX = NAV_MIN_X + (c + 0.5) * NAV_CELL_SIZE;
-        if (worldX > SCENE_BOUNDS.quayX - OBSTACLE_DILATION ||
-            c === 0 || r === 0 || c === NAV_GRID_WIDTH - 1 || r === NAV_GRID_HEIGHT - 1) {
+        if (
+          worldX > SCENE_BOUNDS.quayX - OBSTACLE_DILATION ||
+          c === 0 ||
+          r === 0 ||
+          c === NAV_GRID_WIDTH - 1 ||
+          r === NAV_GRID_HEIGHT - 1
+        ) {
           blockedGrid[r * NAV_GRID_WIDTH + c] = 1;
         }
       }
@@ -452,7 +491,7 @@ export function createPhysicsSystem(engineCtx) {
     return new THREE.Vector3(
       NAV_MIN_X + (col + 0.5) * NAV_CELL_SIZE,
       0,
-      NAV_MIN_Z + (row + 0.5) * NAV_CELL_SIZE
+      NAV_MIN_Z + (row + 0.5) * NAV_CELL_SIZE,
     );
   }
 
@@ -509,8 +548,10 @@ export function createPhysicsSystem(engineCtx) {
 
       const e2 = 2 * err;
       if (e2 > -dr && e2 < dc) {
-        if (blockedGrid[r1 * NAV_GRID_WIDTH + c1 + stepC] ||
-            blockedGrid[(r1 + stepR) * NAV_GRID_WIDTH + c1]) {
+        if (
+          blockedGrid[r1 * NAV_GRID_WIDTH + c1 + stepC] ||
+          blockedGrid[(r1 + stepR) * NAV_GRID_WIDTH + c1]
+        ) {
           return false;
         }
         err += dc - dr;
@@ -528,9 +569,9 @@ export function createPhysicsSystem(engineCtx) {
   }
 
   // A* 算法内部缓冲与二叉最小堆
-  const gCostBuf  = new Float32Array(NAV_GRID_WIDTH * NAV_GRID_HEIGHT);
+  const gCostBuf = new Float32Array(NAV_GRID_WIDTH * NAV_GRID_HEIGHT);
   const parentBuf = new Int32Array(NAV_GRID_WIDTH * NAV_GRID_HEIGHT);
-  const openTag   = new Uint32Array(NAV_GRID_WIDTH * NAV_GRID_HEIGHT);
+  const openTag = new Uint32Array(NAV_GRID_WIDTH * NAV_GRID_HEIGHT);
   const closedTag = new Uint32Array(NAV_GRID_WIDTH * NAV_GRID_HEIGHT);
   let searchEpoch = 0;
   const heapIdx = [];
@@ -615,11 +656,15 @@ export function createPhysicsSystem(engineCtx) {
           const neighbor = nr * NAV_GRID_WIDTH + nc;
           if (blockedGrid[neighbor] || closedTag[neighbor] === searchEpoch) continue;
           // 防止斜穿墙角
-          if (dc && dr && (blockedGrid[rr * NAV_GRID_WIDTH + nc] || blockedGrid[nr * NAV_GRID_WIDTH + cc])) {
+          if (
+            dc &&
+            dr &&
+            (blockedGrid[rr * NAV_GRID_WIDTH + nc] || blockedGrid[nr * NAV_GRID_WIDTH + cc])
+          ) {
             continue;
           }
 
-          const moveCost = (dc && dr) ? 1.4142 : 1.0;
+          const moveCost = dc && dr ? 1.4142 : 1.0;
           const tentativeG = gCostBuf[curr] + moveCost;
 
           if (openTag[neighbor] !== searchEpoch || tentativeG < gCostBuf[neighbor]) {
@@ -697,7 +742,9 @@ export function createPhysicsSystem(engineCtx) {
         }
       }
       const fallback = findNearestWalkableCell(centerPos.x, centerPos.z);
-      return fallback >= 0 ? cellIndexToWorld(fallback) : new THREE.Vector3(centerPos.x, 0, centerPos.z);
+      return fallback >= 0
+        ? cellIndexToWorld(fallback)
+        : new THREE.Vector3(centerPos.x, 0, centerPos.z);
     },
 
     clearLine(posA, posB) {
@@ -715,16 +762,16 @@ export function createPhysicsSystem(engineCtx) {
         h: NAV_GRID_HEIGHT,
         minX: NAV_MIN_X,
         minZ: NAV_MIN_Z,
-        cell: NAV_CELL_SIZE
+        cell: NAV_CELL_SIZE,
       };
-    }
+    },
   };
 
   const physicsSystem = {
     boxes,
     bounds: {
       min: SCENE_BOUNDS.min.clone(),
-      max: SCENE_BOUNDS.max.clone()
+      max: SCENE_BOUNDS.max.clone(),
     },
     addBox,
     removeBox,
@@ -735,7 +782,7 @@ export function createPhysicsSystem(engineCtx) {
     lineOfSight,
     groundHeight,
     moveCapsule,
-    nav: navAPI
+    nav: navAPI,
   };
 
   return physicsSystem;

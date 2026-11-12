@@ -40,6 +40,7 @@ import * as weapon from "./weapon.js";
 import * as enemies from "./enemies.js";
 import * as hud from "./hud.js";
 import * as game from "./game.js";
+import * as debug from "./debug.js";
 
 // 子系统别名与兼容导出对象提取
 const materialModule = materials.qg || materials;
@@ -236,8 +237,7 @@ function createBenchmarkHUD(engineCtx) {
   engineCtx.bench = {
     frame(dt) {
       elapsedTime += dt;
-      const progress =
-        ((elapsedTime / loopDuration) % 1) * (cinematicPath.length - 1);
+      const progress = ((elapsedTime / loopDuration) % 1) * (cinematicPath.length - 1);
       const segIndex = Math.min(cinematicPath.length - 2, Math.floor(progress));
       const segFraction = progress - segIndex;
       const smoothFraction = segFraction * segFraction * (3 - 2 * segFraction);
@@ -259,12 +259,8 @@ function createBenchmarkHUD(engineCtx) {
         const avg = sorted.reduce((sum, v) => sum + v, 0) / sorted.length;
         const p99 = sorted[Math.floor(sorted.length * 0.99)];
         const median = sorted[sorted.length >> 1];
-        const renderStats = engineCtx.render.stats
-          ? engineCtx.render.stats()
-          : {};
-        const drawBufSize = engineCtx.renderer.getDrawingBufferSize(
-          new THREE.Vector2(),
-        );
+        const renderStats = engineCtx.render.stats ? engineCtx.render.stats() : {};
+        const drawBufSize = engineCtx.renderer.getDrawingBufferSize(new THREE.Vector2());
 
         hudEl.textContent = [
           `几猫性能测试  t=${elapsedTime.toFixed(0)}s`,
@@ -307,8 +303,7 @@ export async function bootstrapEngine() {
   window.__G = engineCtx;
 
   // 3. 检查是否进入独立沙盒陈列室 (Showcase)
-  const showcaseMode =
-    urlParams.show && SHOWCASE_MODULES[urlParams.show] ? urlParams.show : null;
+  const showcaseMode = urlParams.show && SHOWCASE_MODULES[urlParams.show] ? urlParams.show : null;
   engineCtx.showcase = showcaseMode;
 
   // 相机手动校准闭包
@@ -411,9 +406,7 @@ export async function bootstrapEngine() {
     try {
       scInfo = await SHOWCASE_MODULES[showcaseMode].showcase(engineCtx);
     } catch (err) {
-      showFatalError(
-        `showcase "${showcaseMode}" threw: ${(err && err.stack) || err}`,
-      );
+      showFatalError(`showcase "${showcaseMode}" threw: ${(err && err.stack) || err}`);
     }
     engineCtx.showcaseInfo = scInfo || {};
     if (scInfo && scInfo.cam) {
@@ -498,6 +491,9 @@ export async function bootstrapEngine() {
     createBenchmarkHUD(engineCtx);
   }
 
+  // 挂载开发者可视化调试套件 (Debug Suite)
+  engineCtx.debug = debug.create(engineCtx);
+
   await updateBootProgress("准备就绪", 1.0);
   bootOverlayEl?.classList.add("done");
   setTimeout(() => {
@@ -531,6 +527,7 @@ export async function bootstrapEngine() {
     // 平滑帧时间计算 FPS
     currentFps = currentFps ? currentFps * 0.95 + rawDt * 0.05 : rawDt;
     let dt = Math.min(rawDt, 0.05);
+    if (engineCtx.time.scale !== undefined) dt *= engineCtx.time.scale;
     if (urlParams.dt) dt = +urlParams.dt;
 
     engineCtx.time.dt = dt;
@@ -583,8 +580,7 @@ export async function bootstrapEngine() {
         camPos.z < box.max.z &&
         camPos.y < box.max.y;
       indoorTransition +=
-        ((isInside ? 0.3 : 1.0) - indoorTransition) *
-        Math.min(1, dt * (isInside ? 0.25 : 0.6));
+        ((isInside ? 0.3 : 1.0) - indoorTransition) * Math.min(1, dt * (isInside ? 0.25 : 0.6));
       try {
         engineCtx.weapon.setWetness(indoorTransition);
       } catch {}
@@ -600,6 +596,7 @@ export async function bootstrapEngine() {
     }
     updateSubsystem("audio", dt);
     updateSubsystem("hud", dt);
+    updateSubsystem("debug", dt);
 
     // 5. 调试相机位置强制锁定
     if (forcedShotCamera) {

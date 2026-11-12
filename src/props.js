@@ -12,16 +12,11 @@
  * 6. 统一物理碰撞网格装配：为所有道具自动输出 AABB 物理包围盒、地面物理表面属性（metal, concrete, wood, rubber, dirt）。
  */
 
-import * as THREE from 'three';
+import * as THREE from "three";
 
-import {
-  oi, Mn, en, Pi, vf, zc, Pr, zy, Dy, il,
-  Zn, bi, Fo, sl, kn, Wt, dr
-} from './constants.js';
+import { oi, Mn, en, Pi, vf, zc, Pr, zy, Dy, il, Zn, bi, Fo, sl, kn, Wt, dr } from "./constants.js";
 
-import {
-  sa, Ly, oa, $e, Wi, ot, Fn, ky, Fy, Uy, Ny, Fg, Dc, Lc, Ii, By, Qi
-} from './geo.js';
+import { sa, Ly, oa, $e, Wi, ot, Fn, ky, Fy, Uy, Ny, Fg, Dc, Lc, Ii, By, Qi } from "./geo.js";
 
 // ============================================================================
 // 一、 标准工业道具尺寸与物理属性配置表 (Standard Prop Specifications Table)
@@ -33,48 +28,48 @@ import {
  */
 export const PROP_SIZES = {
   // ISO 集装箱系列 (Shipping Containers)
-  container20:      [6.06,  2.59, 2.44,  "paint_red",       "metal"],
-  container40:      [12.19, 2.59, 2.44,  "paint_blue",      "metal"],
-  container40hc:    [12.19, 2.90, 2.44,  "paint_green",     "metal"],
+  container20: [6.06, 2.59, 2.44, "paint_red", "metal"],
+  container40: [12.19, 2.59, 2.44, "paint_blue", "metal"],
+  container40hc: [12.19, 2.9, 2.44, "paint_green", "metal"],
 
   // 港区重工业基础设施 (Port Infrastructure)
-  jersey_barrier:   [3.00,  0.81, 0.60,  "concrete",        "concrete"],
-  light_mast:       [0.50,  14.0, 0.50,  "steel_galv",      "metal"],
-  fence_panel:      [3.00,  2.40, 0.08,  "chainlink",       "metal"],
-  guard_booth:      [2.60,  2.70, 2.20,  "paint_white",     "metal"],
-  gate_arm:         [5.00,  1.10, 0.30,  "hazard_stripes",  "metal"],
-  bollard_mooring:  [0.70,  0.60, 0.70,  "steel_dark",      "metal"],
-  bollard_post:     [0.17,  1.00, 0.17,  "paint_yellow",    "metal"],
-  sign_post:        [0.60,  2.40, 0.08,  "paint_white",     "metal"],
-  floodlight_stand: [1.00,  2.20, 1.00,  "paint_yellow",    "metal"],
-  stairs_metal:     [3.00,  2.60, 1.00,  "diamond_plate",   "metal"],
-  catwalk:          [3.00,  1.10, 1.20,  "diamond_plate",   "metal"],
-  shelf_rack:       [2.70,  4.20, 1.10,  "paint_orange",    "metal"],
-  reefer_unit:      [0.50,  2.30, 2.30,  "paint_white",     "metal"],
-  relay_node:       [1.20,  2.40, 0.80,  "paint_grey",      "metal"],
+  jersey_barrier: [3.0, 0.81, 0.6, "concrete", "concrete"],
+  light_mast: [0.5, 14.0, 0.5, "steel_galv", "metal"],
+  fence_panel: [3.0, 2.4, 0.08, "chainlink", "metal"],
+  guard_booth: [2.6, 2.7, 2.2, "paint_white", "metal"],
+  gate_arm: [5.0, 1.1, 0.3, "hazard_stripes", "metal"],
+  bollard_mooring: [0.7, 0.6, 0.7, "steel_dark", "metal"],
+  bollard_post: [0.17, 1.0, 0.17, "paint_yellow", "metal"],
+  sign_post: [0.6, 2.4, 0.08, "paint_white", "metal"],
+  floodlight_stand: [1.0, 2.2, 1.0, "paint_yellow", "metal"],
+  stairs_metal: [3.0, 2.6, 1.0, "diamond_plate", "metal"],
+  catwalk: [3.0, 1.1, 1.2, "diamond_plate", "metal"],
+  shelf_rack: [2.7, 4.2, 1.1, "paint_orange", "metal"],
+  reefer_unit: [0.5, 2.3, 2.3, "paint_white", "metal"],
+  relay_node: [1.2, 2.4, 0.8, "paint_grey", "metal"],
 
   // 仓储物流与货物 (Logistics & Cargo)
-  barrel:           [0.60,  0.90, 0.60,  "paint_blue",      "metal"],
-  pallet:           [1.20,  0.144,1.00,  "wood_pallet",     "wood"],
-  pallet_stack:     [1.20,  1.15, 1.00,  "wood_pallet",     "wood"],
-  crate_wood:       [1.10,  1.00, 0.90,  "wood_pallet",     "wood"],
-  crate_stack:      [1.20,  1.90, 1.00,  "wood_pallet",     "wood"],
-  ibc_tote:         [1.20,  1.16, 1.00,  "plastic_grey",    "metal"],
-  cable_reel:       [1.30,  1.30, 0.80,  "wood_dark",       "wood"],
-  tire_stack:       [0.80,  1.00, 0.80,  "tire",            "rubber"],
-  jerry_can:        [0.35,  0.47, 0.17,  "paint_green",     "metal"],
-  traffic_cone:     [0.36,  0.70, 0.36,  "plastic_red",     "rubber"],
-  gas_cylinders:    [0.90,  1.60, 0.50,  "steel_dark",      "metal"],
-  pipe_stack:       [6.00,  0.90, 1.20,  "steel_rust",      "metal"],
-  tarp_cargo:       [2.40,  1.50, 1.40,  "tarp",            "dirt"],
-  sandbags:         [2.00,  0.90, 0.60,  "tarp",            "dirt"],
-  cardboard_boxes:  [1.00,  0.80, 0.80,  "cardboard",       "wood"],
+  barrel: [0.6, 0.9, 0.6, "paint_blue", "metal"],
+  pallet: [1.2, 0.144, 1.0, "wood_pallet", "wood"],
+  pallet_stack: [1.2, 1.15, 1.0, "wood_pallet", "wood"],
+  crate_wood: [1.1, 1.0, 0.9, "wood_pallet", "wood"],
+  crate_stack: [1.2, 1.9, 1.0, "wood_pallet", "wood"],
+  ibc_tote: [1.2, 1.16, 1.0, "plastic_grey", "metal"],
+  cable_reel: [1.3, 1.3, 0.8, "wood_dark", "wood"],
+  tire_stack: [0.8, 1.0, 0.8, "tire", "rubber"],
+  jerry_can: [0.35, 0.47, 0.17, "paint_green", "metal"],
+  traffic_cone: [0.36, 0.7, 0.36, "plastic_red", "rubber"],
+  gas_cylinders: [0.9, 1.6, 0.5, "steel_dark", "metal"],
+  pipe_stack: [6.0, 0.9, 1.2, "steel_rust", "metal"],
+  tarp_cargo: [2.4, 1.5, 1.4, "tarp", "dirt"],
+  sandbags: [2.0, 0.9, 0.6, "tarp", "dirt"],
+  cardboard_boxes: [1.0, 0.8, 0.8, "cardboard", "wood"],
 
   // 重型设备与车辆 (Machinery & Vehicles)
-  forklift:         [3.40,  2.20, 1.25,  "paint_yellow",    "metal"],
-  generator:        [2.20,  1.40, 1.00,  "paint_yellow",    "metal"],
-  dumpster:         [1.90,  1.35, 1.10,  "paint_green",     "metal"],
-  toolbox_cart:     [0.90,  0.95, 0.50,  "plastic_red",     "metal"]
+  forklift: [3.4, 2.2, 1.25, "paint_yellow", "metal"],
+  generator: [2.2, 1.4, 1.0, "paint_yellow", "metal"],
+  dumpster: [1.9, 1.35, 1.1, "paint_green", "metal"],
+  toolbox_cart: [0.9, 0.95, 0.5, "plastic_red", "metal"],
 };
 
 // 内部道具构建器注册表 (Internal Registry)
@@ -106,7 +101,7 @@ const smoothstepHermite = (edge0, edge1, x) => {
 const lerpVec3 = (a, b, t) => [
   a[0] + (b[0] - a[0]) * t,
   a[1] + (b[1] - a[1]) * t,
-  a[2] + (b[2] - a[2]) * t
+  a[2] + (b[2] - a[2]) * t,
 ];
 
 /**
@@ -174,14 +169,14 @@ function sampleSimplexNoise3D(x, y = 0, z = 0) {
     mix(
       mix(hash3D(ix, iy, iz), hash3D(ix + 1, iy, iz), fx),
       mix(hash3D(ix, iy + 1, iz), hash3D(ix + 1, iy + 1, iz), fx),
-      fy
+      fy,
     ),
     mix(
       mix(hash3D(ix, iy, iz + 1), hash3D(ix + 1, iy, iz + 1), fx),
       mix(hash3D(ix, iy + 1, iz + 1), hash3D(ix + 1, iy + 1, iz + 1), fx),
-      fy
+      fy,
     ),
-    fz
+    fz,
   );
 }
 
@@ -197,8 +192,11 @@ function sampleSimplexNoise3D(x, y = 0, z = 0) {
  * @param {number} bevel 倒角半径
  * @param {string} origin 原点对齐方式 ('center' | 'bottom')
  */
-function createBeveledBoxGeometry(width, height, depth, bevel = 0.01, origin = 'center') {
-  bevel = Math.max(0.0005, Math.min(bevel, width / 2 - 0.0001, height / 2 - 0.0001, depth / 2 - 0.0001));
+function createBeveledBoxGeometry(width, height, depth, bevel = 0.01, origin = "center") {
+  bevel = Math.max(
+    0.0005,
+    Math.min(bevel, width / 2 - 0.0001, height / 2 - 0.0001, depth / 2 - 0.0001),
+  );
   const hw = width / 2;
   const hh = height / 2;
   const hd = depth / 2;
@@ -207,7 +205,7 @@ function createBeveledBoxGeometry(width, height, depth, bevel = 0.01, origin = '
   const uvArr = new Float32Array(48);
 
   const getCornerIndex = (cx, cy, cz, comp) =>
-    (((cx > 0 ? 1 : 0) + (cy > 0 ? 2 : 0) + (cz > 0 ? 4 : 0)) * 3) + comp;
+    ((cx > 0 ? 1 : 0) + (cy > 0 ? 2 : 0) + (cz > 0 ? 4 : 0)) * 3 + comp;
 
   for (const cx of [-1, 1]) {
     for (const cy of [-1, 1]) {
@@ -215,12 +213,12 @@ function createBeveledBoxGeometry(width, height, depth, bevel = 0.01, origin = '
         const pOffsets = [
           [cx * hw, cy * (hh - bevel), cz * (hd - bevel)],
           [cx * (hw - bevel), cy * hh, cz * (hd - bevel)],
-          [cx * (hw - bevel), cy * (hh - bevel), cz * hd]
+          [cx * (hw - bevel), cy * (hh - bevel), cz * hd],
         ];
         const nVectors = [
           [cx, 0, 0],
           [0, cy, 0],
-          [0, 0, cz]
+          [0, 0, cz],
         ];
         for (let comp = 0; comp < 3; comp++) {
           const idx = getCornerIndex(cx, cy, cz, comp);
@@ -243,9 +241,15 @@ function createBeveledBoxGeometry(width, height, depth, bevel = 0.01, origin = '
 
   const indices = [];
   const addTri = (ia, ib, ic) => {
-    const ax = posArr[ia * 3], ay = posArr[ia * 3 + 1], az = posArr[ia * 3 + 2];
-    const bax = posArr[ib * 3] - ax, bay = posArr[ib * 3 + 1] - ay, baz = posArr[ib * 3 + 2] - az;
-    const cax = posArr[ic * 3] - ax, cay = posArr[ic * 3 + 1] - ay, caz = posArr[ic * 3 + 2] - az;
+    const ax = posArr[ia * 3],
+      ay = posArr[ia * 3 + 1],
+      az = posArr[ia * 3 + 2];
+    const bax = posArr[ib * 3] - ax,
+      bay = posArr[ib * 3 + 1] - ay,
+      baz = posArr[ib * 3 + 2] - az;
+    const cax = posArr[ic * 3] - ax,
+      cay = posArr[ic * 3 + 1] - ay,
+      caz = posArr[ic * 3 + 2] - az;
     const nx = bay * caz - baz * cay;
     const ny = baz * cax - bax * caz;
     const nz = bax * cay - bay * cax;
@@ -263,7 +267,12 @@ function createBeveledBoxGeometry(width, height, depth, bevel = 0.01, origin = '
     addTri(ia, ic, id);
   };
 
-  const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+  const corners = [
+    [-1, -1],
+    [1, -1],
+    [1, 1],
+    [-1, 1],
+  ];
   for (const cx of [-1, 1]) {
     addQuad(...corners.map(([cy, cz]) => getCornerIndex(cx, cy, cz, 0)));
     addQuad(...corners.map(([cy, cz]) => getCornerIndex(cy, cx, cz, 1)));
@@ -275,19 +284,19 @@ function createBeveledBoxGeometry(width, height, depth, bevel = 0.01, origin = '
         getCornerIndex(-1, cx, cy, 1),
         getCornerIndex(1, cx, cy, 1),
         getCornerIndex(1, cx, cy, 2),
-        getCornerIndex(-1, cx, cy, 2)
+        getCornerIndex(-1, cx, cy, 2),
       );
       addQuad(
         getCornerIndex(cx, -1, cy, 0),
         getCornerIndex(cx, 1, cy, 0),
         getCornerIndex(cx, 1, cy, 2),
-        getCornerIndex(cx, -1, cy, 2)
+        getCornerIndex(cx, -1, cy, 2),
       );
       addQuad(
         getCornerIndex(cx, cy, -1, 0),
         getCornerIndex(cx, cy, 1, 0),
         getCornerIndex(cx, cy, 1, 1),
-        getCornerIndex(cx, cy, -1, 1)
+        getCornerIndex(cx, cy, -1, 1),
       );
     }
   }
@@ -297,18 +306,18 @@ function createBeveledBoxGeometry(width, height, depth, bevel = 0.01, origin = '
         addTri(
           getCornerIndex(cx, cy, cz, 0),
           getCornerIndex(cx, cy, cz, 1),
-          getCornerIndex(cx, cy, cz, 2)
+          getCornerIndex(cx, cy, cz, 2),
         );
       }
     }
   }
 
   const geom = new THREE.BufferGeometry();
-  geom.setAttribute('position', new THREE.Float32BufferAttribute(posArr, 3));
-  geom.setAttribute('normal', new THREE.Float32BufferAttribute(normArr, 3));
-  geom.setAttribute('uv', new THREE.Float32BufferAttribute(uvArr, 2));
+  geom.setAttribute("position", new THREE.Float32BufferAttribute(posArr, 3));
+  geom.setAttribute("normal", new THREE.Float32BufferAttribute(normArr, 3));
+  geom.setAttribute("uv", new THREE.Float32BufferAttribute(uvArr, 2));
   geom.setIndex(indices);
-  if (origin === 'bottom') geom.translate(0, height / 2, 0);
+  if (origin === "bottom") geom.translate(0, height / 2, 0);
   return geom;
 }
 
@@ -318,16 +327,21 @@ function createBeveledBoxGeometry(width, height, depth, bevel = 0.01, origin = '
 function checkFaceWinding(positions, uvs, startIdx, endIdx, center, invert) {
   let accum = 0;
   for (let a = startIdx; a < endIdx; a += 9) {
-    const abx = positions[a + 3] - positions[a], aby = positions[a + 4] - positions[a + 1], abz = positions[a + 5] - positions[a + 2];
-    const acx = positions[a + 6] - positions[a], acy = positions[a + 7] - positions[a + 1], acz = positions[a + 8] - positions[a + 2];
+    const abx = positions[a + 3] - positions[a],
+      aby = positions[a + 4] - positions[a + 1],
+      abz = positions[a + 5] - positions[a + 2];
+    const acx = positions[a + 6] - positions[a],
+      acy = positions[a + 7] - positions[a + 1],
+      acz = positions[a + 8] - positions[a + 2];
     const nx = aby * acz - abz * acy;
     const ny = abz * acx - abx * acz;
     const nz = abx * acy - aby * acx;
-    accum += nx * ((positions[a] + positions[a + 3] + positions[a + 6]) / 3 - center[0]) +
-             ny * ((positions[a + 1] + positions[a + 4] + positions[a + 7]) / 3 - center[1]) +
-             nz * ((positions[a + 2] + positions[a + 5] + positions[a + 8]) / 3 - center[2]);
+    accum +=
+      nx * ((positions[a] + positions[a + 3] + positions[a + 6]) / 3 - center[0]) +
+      ny * ((positions[a + 1] + positions[a + 4] + positions[a + 7]) / 3 - center[1]) +
+      nz * ((positions[a + 2] + positions[a + 5] + positions[a + 8]) / 3 - center[2]);
   }
-  if ((accum < 0) !== (!invert)) {
+  if (accum < 0 !== !invert) {
     for (let a = startIdx; a < endIdx; a += 9) {
       for (let c = 0; c < 3; c++) {
         const tmp = positions[a + 3 + c];
@@ -347,7 +361,12 @@ function checkFaceWinding(positions, uvs, startIdx, endIdx, center, invert) {
 /**
  * 沿截面路径放样挤出生成曲面几何体 (Extruded Ribbon / Sweep Surface)
  */
-function createLoftedRibbonGeometry(profile, pathY, transformFn, { closed = false, center = null, inward = false, caps = false } = {}) {
+function createLoftedRibbonGeometry(
+  profile,
+  pathY,
+  transformFn,
+  { closed = false, center = null, inward = false, caps = false } = {},
+) {
   const positions = [];
   const uvs = [];
   const profLen = profile.length;
@@ -372,12 +391,18 @@ function createLoftedRibbonGeometry(profile, pathY, transformFn, { closed = fals
       const v01 = transformFn(p0[0], p0[1], y1, g + 1);
       positions.push(...v00, ...v10, ...v11, ...v00, ...v11, ...v01);
       uvs.push(
-        distAlong[b], y0,
-        distAlong[b + 1], y0,
-        distAlong[b + 1], y1,
-        distAlong[b], y0,
-        distAlong[b + 1], y1,
-        distAlong[b], y1
+        distAlong[b],
+        y0,
+        distAlong[b + 1],
+        y0,
+        distAlong[b + 1],
+        y1,
+        distAlong[b],
+        y0,
+        distAlong[b + 1],
+        y1,
+        distAlong[b],
+        y1,
       );
     }
   }
@@ -400,9 +425,14 @@ function createLoftedRibbonGeometry(profile, pathY, transformFn, { closed = fals
   checkFaceWinding(positions, uvs, 0, vertCount, calcCenter, inward);
 
   if (caps && closed) {
-    let avgX = 0, avgY = 0;
-    for (const p of profile) { avgX += p[0]; avgY += p[1]; }
-    avgX /= profLen; avgY /= profLen;
+    let avgX = 0,
+      avgY = 0;
+    for (const p of profile) {
+      avgX += p[0];
+      avgY += p[1];
+    }
+    avgX /= profLen;
+    avgY /= profLen;
 
     for (const endIdx of [0, pathY.length - 1]) {
       const startVert = positions.length;
@@ -411,7 +441,11 @@ function createLoftedRibbonGeometry(profile, pathY, transformFn, { closed = fals
       for (let i = 0; i < profLen; i++) {
         const p0 = profile[i];
         const p1 = profile[(i + 1) % profLen];
-        positions.push(...capCenter, ...transformFn(p0[0], p0[1], curY, endIdx), ...transformFn(p1[0], p1[1], curY, endIdx));
+        positions.push(
+          ...capCenter,
+          ...transformFn(p0[0], p0[1], curY, endIdx),
+          ...transformFn(p1[0], p1[1], curY, endIdx),
+        );
         uvs.push(avgX, avgY, p0[0], p0[1], p1[0], p1[1]);
       }
       checkFaceWinding(positions, uvs, startVert, positions.length, calcCenter, inward);
@@ -419,8 +453,8 @@ function createLoftedRibbonGeometry(profile, pathY, transformFn, { closed = fals
   }
 
   const geom = new THREE.BufferGeometry();
-  geom.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(positions), 3));
-  geom.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(uvs), 2));
+  geom.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(positions), 3));
+  geom.setAttribute("uv", new THREE.Float32BufferAttribute(new Float32Array(uvs), 2));
   geom.computeVertexNormals();
   return geom;
 }
@@ -433,7 +467,7 @@ function evalCorrugationWave(x, period, depth, flat1, slope) {
   if (modX < 0) modX += period;
   const flat2 = period - flat1 - 2 * slope;
   if (modX <= flat1) return 0;
-  if (modX < flat1 + slope) return -depth * (modX - flat1) / slope;
+  if (modX < flat1 + slope) return (-depth * (modX - flat1)) / slope;
   if (modX <= flat1 + slope + flat2) return -depth;
   return -depth * (1 - (modX - flat1 - slope - flat2) / slope);
 }
@@ -455,7 +489,7 @@ function generateCorrugatedProfilePoints(start, end, period, depth, flat1, slope
     }
   }
   pts.push(end);
-  return pts.map(p => [p, evalCorrugationWave(p - offset, period, depth, flat1, slope)]);
+  return pts.map((p) => [p, evalCorrugationWave(p - offset, period, depth, flat1, slope)]);
 }
 
 /**
@@ -472,7 +506,7 @@ function createRoundedRectGeometry(w, h, seg = 5) {
       const angle = (u + s / seg) * HALF_PI;
       pts.push([
         Math.cos(angle) * r + (u === 0 || u === 3 ? ox : -ox),
-        Math.sin(angle) * r + (u < 2 ? oy : -oy)
+        Math.sin(angle) * r + (u < 2 ? oy : -oy),
       ]);
     }
   }
@@ -487,8 +521,8 @@ function createRoundedRectGeometry(w, h, seg = 5) {
   }
 
   const geom = new THREE.BufferGeometry();
-  geom.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(positions), 3));
-  geom.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(uvs), 2));
+  geom.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(positions), 3));
+  geom.setAttribute("uv", new THREE.Float32BufferAttribute(new Float32Array(uvs), 2));
   geom.computeVertexNormals();
   return geom;
 }
@@ -515,10 +549,10 @@ function toFlatShadedGeometry(geo) {
 }
 
 const eulerHelper = new THREE.Euler();
-const quatHelper  = new THREE.Quaternion();
-const matHelper   = new THREE.Matrix4();
-const posHelper   = new THREE.Vector3();
-const scaleOne    = new THREE.Vector3(1, 1, 1);
+const quatHelper = new THREE.Quaternion();
+const matHelper = new THREE.Matrix4();
+const posHelper = new THREE.Vector3();
+const scaleOne = new THREE.Vector3(1, 1, 1);
 
 /**
  * 在局部内存中快速变换几何体坐标
@@ -595,7 +629,10 @@ class PropMeshAssembler {
   }
 
   box(mat, w, h, d, x, y, z, opts = {}) {
-    const geo = opts.r === 0 ? $e(w, h, d) : createBeveledBoxGeometry(w, h, d, opts.r || Math.min(0.012, Math.min(w, h, d) * 0.25));
+    const geo =
+      opts.r === 0
+        ? $e(w, h, d)
+        : createBeveledBoxGeometry(w, h, d, opts.r || Math.min(0.012, Math.min(w, h, d) * 0.25));
     return this.add(mat, transformGeometryInPlace(geo, x, y, z, opts.rot), opts.col);
   }
 
@@ -606,18 +643,31 @@ class PropMeshAssembler {
   }
 
   tube(mat, points, radius, opts = {}) {
-    return this.add(mat, Fn(points, radius, opts.seg || 6, false, opts.tension === undefined ? 0.5 : opts.tension), opts.col);
+    return this.add(
+      mat,
+      Fn(points, radius, opts.seg || 6, false, opts.tension === undefined ? 0.5 : opts.tension),
+      opts.col,
+    );
   }
 
   bar(mat, p0, p1, radius, opts = {}) {
     const delta = new THREE.Vector3(p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]);
     const len = delta.length();
-    const geo = ot(opts.r2 === undefined ? radius : opts.r2, radius, len, opts.seg || 6, !opts.caps);
-    const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), delta.normalize());
+    const geo = ot(
+      opts.r2 === undefined ? radius : opts.r2,
+      radius,
+      len,
+      opts.seg || 6,
+      !opts.caps,
+    );
+    const q = new THREE.Quaternion().setFromUnitVectors(
+      new THREE.Vector3(0, 1, 0),
+      delta.normalize(),
+    );
     const m = new THREE.Matrix4().compose(
       new THREE.Vector3((p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2, (p0[2] + p1[2]) / 2),
       q,
-      scaleOne
+      scaleOne,
     );
     geo.applyMatrix4(m);
     return this.add(mat, geo, opts.col);
@@ -626,13 +676,20 @@ class PropMeshAssembler {
   beam(mat, p0, p1, width, depth, opts = {}) {
     const delta = new THREE.Vector3(p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]);
     const len = delta.length();
-    const geo = opts.r === 0 ? $e(width, len, depth) : createBeveledBoxGeometry(width, len, depth, opts.r || Math.min(width, depth) * 0.2);
-    const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), delta.normalize());
-    if (opts.twist) q.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), opts.twist));
+    const geo =
+      opts.r === 0
+        ? $e(width, len, depth)
+        : createBeveledBoxGeometry(width, len, depth, opts.r || Math.min(width, depth) * 0.2);
+    const q = new THREE.Quaternion().setFromUnitVectors(
+      new THREE.Vector3(0, 1, 0),
+      delta.normalize(),
+    );
+    if (opts.twist)
+      q.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), opts.twist));
     const m = new THREE.Matrix4().compose(
       new THREE.Vector3((p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2, (p0[2] + p1[2]) / 2),
       q,
-      scaleOne
+      scaleOne,
     );
     geo.applyMatrix4(m);
     return this.add(mat, geo, opts.col);
@@ -640,7 +697,12 @@ class PropMeshAssembler {
 
   decal(decalObj, w, h, x, y, z, rotEuler, aspect) {
     const plane = new THREE.PlaneGeometry(aspect || w * decalObj.aspect, w);
-    return this.add(decalObj.material, transformGeometryInPlace(plane, x, y, z, rotEuler), null, true);
+    return this.add(
+      decalObj.material,
+      transformGeometryInPlace(plane, x, y, z, rotEuler),
+      null,
+      true,
+    );
   }
 
   parts() {
@@ -692,11 +754,11 @@ class PropCompoundBuilder {
   }
 
   add(matOrName, geo, trans, lumFactor = 1, { raw = false, cast = true } = {}) {
-    const m = typeof matOrName === 'string' ? this.mat(matOrName) : matOrName;
+    const m = typeof matOrName === "string" ? this.mat(matOrName) : matOrName;
     if (trans) Dc(geo, trans);
     geo.applyMatrix4(this.stack[this.stack.length - 1]);
     if (!raw) applyVertexColorLuminance(geo, lumFactor);
-    const key = m.uuid + (cast ? 'c' : 'n');
+    const key = m.uuid + (cast ? "c" : "n");
     let bucket = this.b.get(key);
     if (!bucket) {
       bucket = { mat: m, geos: [], raw, cast };
@@ -725,7 +787,10 @@ class PropCompoundBuilder {
 
   tube(matOrName, points, radius = 0.03, opts = {}) {
     const geo = Fn(points, radius, opts.radial || 6, opts.closed || false, opts.tension ?? 0.5);
-    return this.add(matOrName, geo, opts.trans, 1, { raw: opts.raw || false, cast: opts.cast !== false });
+    return this.add(matOrName, geo, opts.trans, 1, {
+      raw: opts.raw || false,
+      cast: opts.cast !== false,
+    });
   }
 
   finish({ size, colliders, grime = 1, surface } = {}) {
@@ -739,15 +804,18 @@ class PropCompoundBuilder {
         const norm = mergedGeo.attributes.normal;
         const colArr = mergedGeo.attributes.color.array;
         for (let v = 0; v < pos.count; v++) {
-          const vx = pos.getX(v), vy = pos.getY(v), vz = pos.getZ(v);
+          const vx = pos.getX(v),
+            vy = pos.getY(v),
+            vz = pos.getZ(v);
           const ny = norm.getY(v);
           const n1 = sampleSimplexNoise3D(vx * 1.9 + noiseOffset, vy * 1.9, vz * 1.9 + 5.3);
           const n2 = sampleSimplexNoise3D(vx * 9 + 2.1, vy * 9 + noiseOffset, vz * 9);
-          let factor = (0.82 + 0.18 * n1) * (0.92 + 0.08 * n2) * (0.76 + 0.24 * clamp(ny * 0.6 + 0.62, 0, 1));
+          let factor =
+            (0.82 + 0.18 * n1) * (0.92 + 0.08 * n2) * (0.76 + 0.24 * clamp(ny * 0.6 + 0.62, 0, 1));
           const groundOccl = clamp(1 - vy / 0.2, 0, 1);
-          factor *= (1 - 0.42 * groundOccl * groundOccl * (0.55 + 0.45 * n2));
+          factor *= 1 - 0.42 * groundOccl * groundOccl * (0.55 + 0.45 * n2);
           factor = 1 + (factor - 1) * grime;
-          colArr[v * 3]     *= factor;
+          colArr[v * 3] *= factor;
           colArr[v * 3 + 1] *= factor * (1 - 0.05 * groundOccl * grime);
           colArr[v * 3 + 2] *= factor * (1 - 0.12 * groundOccl * grime);
         }
@@ -758,18 +826,19 @@ class PropCompoundBuilder {
       grp.add(mesh);
     }
 
-    const defaultDef = PROP_SIZES[this.name] || [1, 1, 1, '', 'metal'];
+    const defaultDef = PROP_SIZES[this.name] || [1, 1, 1, "", "metal"];
     const finalSize = size || [defaultDef[0], defaultDef[1], defaultDef[2]];
     grp.userData.size = finalSize;
-    grp.userData.colliders = colliders || [{
-      min: [-finalSize[0] / 2, 0, -finalSize[2] / 2],
-      max: [finalSize[0] / 2, finalSize[1], finalSize[2] / 2],
-      surface: surface || defaultDef[4]
-    }];
+    grp.userData.colliders = colliders || [
+      {
+        min: [-finalSize[0] / 2, 0, -finalSize[2] / 2],
+        max: [finalSize[0] / 2, finalSize[1], finalSize[2] / 2],
+        surface: surface || defaultDef[4],
+      },
+    ];
     return grp;
   }
 }
-
 
 // ============================================================================
 // 五、 材质、标贴与几何原型缓存 (Texture, Decal & Prototype Cache)
@@ -794,10 +863,15 @@ function getCachedLabelTexture(engineCtx, text, options) {
     } catch {
       lbl = null;
     }
-    subMap.set(key, lbl && lbl.material ? lbl : {
-      material: engineCtx.mats.get("paint_white"),
-      aspect: Math.max(1, text.length * 0.6)
-    });
+    subMap.set(
+      key,
+      lbl && lbl.material
+        ? lbl
+        : {
+            material: engineCtx.mats.get("paint_white"),
+            aspect: Math.max(1, text.length * 0.6),
+          },
+    );
   }
   return subMap.get(key);
 }
@@ -819,10 +893,15 @@ function getCachedDecalTexture(engineCtx, decalName) {
     } catch {
       dec = null;
     }
-    subMap.set(key, dec && dec.material ? dec : {
-      material: engineCtx.mats.get("paint_white"),
-      aspect: 1
-    });
+    subMap.set(
+      key,
+      dec && dec.material
+        ? dec
+        : {
+            material: engineCtx.mats.get("paint_white"),
+            aspect: 1,
+          },
+    );
   }
   return subMap.get(key);
 }
@@ -854,7 +933,7 @@ const CONTAINER_SPECS = {
     tare: "2,230",
     net: "28,250",
     cu: "33.2",
-    def: "red"
+    def: "red",
   },
   container40: {
     type: "42G1",
@@ -862,7 +941,7 @@ const CONTAINER_SPECS = {
     tare: "3,750",
     net: "28,750",
     cu: "67.7",
-    def: "blue"
+    def: "blue",
   },
   container40hc: {
     type: "45G1",
@@ -870,8 +949,8 @@ const CONTAINER_SPECS = {
     tare: "3,940",
     net: "28,560",
     cu: "76.3",
-    def: "green"
-  }
+    def: "green",
+  },
 };
 
 const CONTAINER_BIC_CODES = [
@@ -880,7 +959,7 @@ const CONTAINER_BIC_CODES = [
   "NRDU 665201 9",
   "OKTU 119873 4",
   "VSLU 850362 1",
-  "TQLU 274590 6"
+  "TQLU 274590 6",
 ];
 
 const CONTAINER_LOGOS = ["logo_a", "logo_b", "logo_c", "logo_d"];
@@ -891,10 +970,10 @@ const CORNER_CASTING_Z = 0.162;
 
 // 梯形波纹截面参数 (Side Corrugation Wave Specs)
 const CORRUGATION_SPECS = {
-  P:  0.278, // 周期
-  d:  0.036, // 深度
+  P: 0.278, // 周期
+  d: 0.036, // 深度
   fo: 0.072, // 平面宽度
-  sl: 0.068  // 斜坡宽度
+  sl: 0.068, // 斜坡宽度
 };
 
 /**
@@ -926,47 +1005,65 @@ function generateContainerGeometry(engineCtx, type, seed, doorOpenRatio, wearFac
   // 凹陷与物理撞击损伤变形列表
   const dents = [];
   const dentCount = Math.round((1 + prng() * 2.4) * (0.4 + wearFactor));
-  const excludeZones = [[-halfLength * 0.75, -halfLength * 0.05], [halfLength - 2.2, halfLength]];
+  const excludeZones = [
+    [-halfLength * 0.75, -halfLength * 0.05],
+    [halfLength - 2.2, halfLength],
+  ];
 
   for (let i = 0; i < dentCount; i++) {
     const side = prng() < 0.5 ? 1 : -1;
-    let dx = 0, tries = 0;
+    let dx = 0,
+      tries = 0;
     do {
       dx = (prng() * 2 - 1) * (halfLength - 0.9);
       tries++;
-    } while (tries < 8 && excludeZones.some(z => dx > z[0] - 0.4 && dx < z[1] + 0.4 && prng() < 0.9));
+    } while (
+      tries < 8 &&
+      excludeZones.some((z) => dx > z[0] - 0.4 && dx < z[1] + 0.4 && prng() < 0.9)
+    );
     dents.push({
       side,
       x: side * dx,
       y: 0.45 + prng() * 1.3,
       r: 0.22 + prng() * 0.3,
-      depth: 0.025 + prng() * 0.04
+      depth: 0.025 + prng() * 0.04,
     });
   }
 
   // 锈蚀流淌条带列表
   const rustRuns = [];
-  const rustCount = Math.round(length / 2.2 * (0.5 + wearFactor) * (0.6 + prng()));
+  const rustCount = Math.round((length / 2.2) * (0.5 + wearFactor) * (0.6 + prng()));
   for (let i = 0; i < rustCount * 2; i++) {
     rustRuns.push({
-      side: (i % 2) ? 1 : -1,
+      side: i % 2 ? 1 : -1,
       x: (prng() * 2 - 1) * (halfLength - 0.3),
       w: 0.05 + prng() * 0.12,
-      k: 0.4 + prng() * 0.6
+      k: 0.4 + prng() * 0.6,
     });
   }
 
   const grimeTint = [0.5, 0.44, 0.38];
-  const rustTint  = [0.62, 0.38, 0.24];
+  const rustTint = [0.62, 0.38, 0.24];
   const noiseSeed = seed * 9.7;
 
   // 顶点噪波着色器回调函数
   const vertexColorShader = (vx, vy, vz) => {
-    let factor = 1 + (sampleValueNoise2D(vx * 0.9 + noiseSeed, vy * 1.7 + vz * 0.4) - 0.5) * 0.16 * (0.5 + wearFactor);
-    factor *= (0.94 + 0.06 * sampleValueNoise2D(vx * 6.1 + vz * 3.3, vy * 5 + noiseSeed));
+    let factor =
+      1 +
+      (sampleValueNoise2D(vx * 0.9 + noiseSeed, vy * 1.7 + vz * 0.4) - 0.5) *
+        0.16 *
+        (0.5 + wearFactor);
+    factor *= 0.94 + 0.06 * sampleValueNoise2D(vx * 6.1 + vz * 3.3, vy * 5 + noiseSeed);
     let col = [factor, factor, factor];
-    const groundOccl = smoothstepHermite(0.62, 0.02, vy) * (0.45 + 0.5 * wearFactor) * (0.75 + 0.5 * sampleValueNoise2D(vx * 2.3 + vz, noiseSeed));
-    col = lerpVec3(col, [grimeTint[0] * factor, grimeTint[1] * factor, grimeTint[2] * factor], Math.min(1, groundOccl));
+    const groundOccl =
+      smoothstepHermite(0.62, 0.02, vy) *
+      (0.45 + 0.5 * wearFactor) *
+      (0.75 + 0.5 * sampleValueNoise2D(vx * 2.3 + vz, noiseSeed));
+    col = lerpVec3(
+      col,
+      [grimeTint[0] * factor, grimeTint[1] * factor, grimeTint[2] * factor],
+      Math.min(1, groundOccl),
+    );
     return col;
   };
 
@@ -994,13 +1091,45 @@ function generateContainerGeometry(engineCtx, type, seed, doorOpenRatio, wearFac
     for (const sy of [0, 1]) {
       for (const sz of [-1, 1]) {
         const cx = sx * (halfLength - CORNER_CASTING_X / 2);
-        const cy = sy ? (height - CORNER_CASTING_Y / 2) : (CORNER_CASTING_Y / 2);
+        const cy = sy ? height - CORNER_CASTING_Y / 2 : CORNER_CASTING_Y / 2;
         const cz = sz * (halfWidth - CORNER_CASTING_Z / 2);
-        assembler.box(BODY_TAG, CORNER_CASTING_X, CORNER_CASTING_Y, CORNER_CASTING_Z, cx, cy, cz, { r: 0.012 });
-        assembler.add(BODY_TAG, transformGeometryInPlace(createRoundedRectGeometry(0.078, 0.052, 3), cx, cy, sz * (halfWidth + 0.0012), [0, sz > 0 ? 0 : PI, 0]), holeColor);
-        assembler.add(BODY_TAG, transformGeometryInPlace(createRoundedRectGeometry(0.064, 0.05, 3), sx * (halfLength + 0.0012), cy, cz, [0, sx * HALF_PI, 0]), holeColor);
+        assembler.box(BODY_TAG, CORNER_CASTING_X, CORNER_CASTING_Y, CORNER_CASTING_Z, cx, cy, cz, {
+          r: 0.012,
+        });
+        assembler.add(
+          BODY_TAG,
+          transformGeometryInPlace(
+            createRoundedRectGeometry(0.078, 0.052, 3),
+            cx,
+            cy,
+            sz * (halfWidth + 0.0012),
+            [0, sz > 0 ? 0 : PI, 0],
+          ),
+          holeColor,
+        );
+        assembler.add(
+          BODY_TAG,
+          transformGeometryInPlace(
+            createRoundedRectGeometry(0.064, 0.05, 3),
+            sx * (halfLength + 0.0012),
+            cy,
+            cz,
+            [0, sx * HALF_PI, 0],
+          ),
+          holeColor,
+        );
         if (sy) {
-          assembler.add(BODY_TAG, transformGeometryInPlace(createRoundedRectGeometry(0.124, 0.064, 3), cx, height + 0.0012, cz, [-HALF_PI, 0, 0]), holeColor);
+          assembler.add(
+            BODY_TAG,
+            transformGeometryInPlace(
+              createRoundedRectGeometry(0.124, 0.064, 3),
+              cx,
+              height + 0.0012,
+              cz,
+              [-HALF_PI, 0, 0],
+            ),
+            holeColor,
+          );
         }
       }
     }
@@ -1008,26 +1137,114 @@ function generateContainerGeometry(engineCtx, type, seed, doorOpenRatio, wearFac
 
   // 2. 主体立柱与横梁 (Main Structural Posts and Rails)
   for (const sz of [-1, 1]) {
-    assembler.box(BODY_TAG, 0.085, height - 2 * CORNER_CASTING_Y + 0.01, 0.15, -halfLength + 0.0465, height / 2, sz * (halfWidth - 0.079), { r: 0.014 });
-    assembler.box(BODY_TAG, 0.14, height - 2 * CORNER_CASTING_Y + 0.01, 0.056, halfLength - 0.074, height / 2, sz * (halfWidth - 0.032), { r: 0.012 });
-    assembler.box(BODY_TAG, length - 0.2, 0.062, 0.062, -0.02, height - 0.031, sz * (halfWidth - 0.035), { r: 0.008 });
-    assembler.box(BODY_TAG, length - 0.2, 0.158, 0.05, -0.02, 0.012 + 0.079, sz * (halfWidth - 0.029), { r: 0.008 });
+    assembler.box(
+      BODY_TAG,
+      0.085,
+      height - 2 * CORNER_CASTING_Y + 0.01,
+      0.15,
+      -halfLength + 0.0465,
+      height / 2,
+      sz * (halfWidth - 0.079),
+      { r: 0.014 },
+    );
+    assembler.box(
+      BODY_TAG,
+      0.14,
+      height - 2 * CORNER_CASTING_Y + 0.01,
+      0.056,
+      halfLength - 0.074,
+      height / 2,
+      sz * (halfWidth - 0.032),
+      { r: 0.012 },
+    );
+    assembler.box(
+      BODY_TAG,
+      length - 0.2,
+      0.062,
+      0.062,
+      -0.02,
+      height - 0.031,
+      sz * (halfWidth - 0.035),
+      { r: 0.008 },
+    );
+    assembler.box(
+      BODY_TAG,
+      length - 0.2,
+      0.158,
+      0.05,
+      -0.02,
+      0.012 + 0.079,
+      sz * (halfWidth - 0.029),
+      { r: 0.008 },
+    );
   }
 
-  assembler.box(BODY_TAG, 0.062, 0.062, CONTAINER_WIDTH_STD - 0.2, -halfLength + 0.035, height - 0.031, 0, { r: 0.008 });
-  assembler.box(BODY_TAG, 0.05, 0.158, CONTAINER_WIDTH_STD - 0.2, -halfLength + 0.029, 0.091, 0, { r: 0.008 });
-  assembler.box(BODY_TAG, 0.13, 0.12, CONTAINER_WIDTH_STD - 0.12, halfLength - 0.072, height - 0.06, 0, { r: 0.01 });
-  assembler.box(BODY_TAG, 0.13, 0.158, CONTAINER_WIDTH_STD - 0.12, halfLength - 0.072, 0.091, 0, { r: 0.01 });
-  assembler.box(BODY_TAG, 0.03, 0.012, CONTAINER_WIDTH_STD - 0.4, halfLength - 0.012, height - 0.125, 0, { r: 0.003, rot: [0, 0, -0.5] });
+  assembler.box(
+    BODY_TAG,
+    0.062,
+    0.062,
+    CONTAINER_WIDTH_STD - 0.2,
+    -halfLength + 0.035,
+    height - 0.031,
+    0,
+    { r: 0.008 },
+  );
+  assembler.box(BODY_TAG, 0.05, 0.158, CONTAINER_WIDTH_STD - 0.2, -halfLength + 0.029, 0.091, 0, {
+    r: 0.008,
+  });
+  assembler.box(
+    BODY_TAG,
+    0.13,
+    0.12,
+    CONTAINER_WIDTH_STD - 0.12,
+    halfLength - 0.072,
+    height - 0.06,
+    0,
+    { r: 0.01 },
+  );
+  assembler.box(BODY_TAG, 0.13, 0.158, CONTAINER_WIDTH_STD - 0.12, halfLength - 0.072, 0.091, 0, {
+    r: 0.01,
+  });
+  assembler.box(
+    BODY_TAG,
+    0.03,
+    0.012,
+    CONTAINER_WIDTH_STD - 0.4,
+    halfLength - 0.012,
+    height - 0.125,
+    0,
+    { r: 0.003, rot: [0, 0, -0.5] },
+  );
 
   // 20尺集装箱特有的底部叉车槽 (Forklift Pockets for 20ft Containers)
   if (type === "container20") {
     for (const sz of [-1, 1]) {
       for (const px of [-1.025, 1.025]) {
-        assembler.add(BODY_TAG, transformGeometryInPlace(new THREE.PlaneGeometry(0.36, 0.112), px, 0.075, sz * (halfWidth - 0.0035), [0, sz > 0 ? 0 : PI, 0]), holeColor);
-        assembler.box(BODY_TAG, 0.46, 0.018, 0.012, px, 0.142, sz * (halfWidth - 0.002), { r: 0.003 });
+        assembler.add(
+          BODY_TAG,
+          transformGeometryInPlace(
+            new THREE.PlaneGeometry(0.36, 0.112),
+            px,
+            0.075,
+            sz * (halfWidth - 0.0035),
+            [0, sz > 0 ? 0 : PI, 0],
+          ),
+          holeColor,
+        );
+        assembler.box(BODY_TAG, 0.46, 0.018, 0.012, px, 0.142, sz * (halfWidth - 0.002), {
+          r: 0.003,
+        });
         for (const mx of [-1, 1]) {
-          assembler.box(BODY_TAG, 0.018, 0.13, 0.01, px + mx * 0.19, 0.078, sz * (halfWidth - 0.003), { r: 0.003 });
+          assembler.box(
+            BODY_TAG,
+            0.018,
+            0.13,
+            0.01,
+            px + mx * 0.19,
+            0.078,
+            sz * (halfWidth - 0.003),
+            { r: 0.003 },
+          );
         }
       }
     }
@@ -1035,14 +1252,22 @@ function generateContainerGeometry(engineCtx, type, seed, doorOpenRatio, wearFac
 
   // 3. 梯形波纹钢制侧板 (Trapezoidal Corrugated Side Panels)
   const yPath = [bottomCorrugationY, 0.44, 1.25, height - 0.5, topCorrugationY];
-  const sideProfile = generateCorrugatedProfilePoints(startX, endX, CORRUGATION_SPECS.P, CORRUGATION_SPECS.d, CORRUGATION_SPECS.fo, CORRUGATION_SPECS.sl, startX + 0.02);
+  const sideProfile = generateCorrugatedProfilePoints(
+    startX,
+    endX,
+    CORRUGATION_SPECS.P,
+    CORRUGATION_SPECS.d,
+    CORRUGATION_SPECS.fo,
+    CORRUGATION_SPECS.sl,
+    startX + 0.02,
+  );
 
   for (const sz of [-1, 1]) {
     const sideMesh = createLoftedRibbonGeometry(
       sideProfile,
       yPath,
       (px, pz, py) => [px, py, sz * (innerHalfWidth + pz - getDentDisplacement(px, py, sz))],
-      { center: [0, height / 2, 0] }
+      { center: [0, height / 2, 0] },
     );
     sideMesh.computeVertexNormals();
     const pos = sideMesh.attributes.position;
@@ -1055,7 +1280,11 @@ function generateContainerGeometry(engineCtx, type, seed, doorOpenRatio, wearFac
       let col = vertexColorShader(vx, vy, vz);
       const edgeDist = innerHalfWidth - Math.abs(vz);
       const edgeWeight = smoothstepHermite(0.008, 0.034, edgeDist);
-      col = [col[0] * (1 - 0.17 * edgeWeight), col[1] * (1 - 0.18 * edgeWeight), col[2] * (1 - 0.18 * edgeWeight)];
+      col = [
+        col[0] * (1 - 0.17 * edgeWeight),
+        col[1] * (1 - 0.18 * edgeWeight),
+        col[2] * (1 - 0.18 * edgeWeight),
+      ];
 
       const topRustWeight = smoothstepHermite(height - 0.75, topCorrugationY, vy);
       if (topRustWeight > 0) {
@@ -1063,41 +1292,69 @@ function generateContainerGeometry(engineCtx, type, seed, doorOpenRatio, wearFac
           if (r.side === sz) {
             const rxDist = Math.abs(vx - r.x) / r.w;
             if (rxDist < 1) {
-              col = lerpVec3(col, [col[0] * rustTint[0], col[1] * rustTint[1], col[2] * rustTint[2]], topRustWeight * topRustWeight * r.k * (1 - rxDist * rxDist) * (0.45 + 0.55 * wearFactor));
+              col = lerpVec3(
+                col,
+                [col[0] * rustTint[0], col[1] * rustTint[1], col[2] * rustTint[2]],
+                topRustWeight *
+                  topRustWeight *
+                  r.k *
+                  (1 - rxDist * rxDist) *
+                  (0.45 + 0.55 * wearFactor),
+              );
             }
           }
         }
       }
-      colArr[i * 3]     = col[0];
+      colArr[i * 3] = col[0];
       colArr[i * 3 + 1] = col[1];
       colArr[i * 3 + 2] = col[2];
     }
-    sideMesh.setAttribute('color', new THREE.Float32BufferAttribute(colArr, 3));
+    sideMesh.setAttribute("color", new THREE.Float32BufferAttribute(colArr, 3));
     assembler.add(BODY_TAG, sideMesh);
   }
 
   // 4. 前端封板与顶板波纹 (Front Wall and Roof Corrugations)
-  const frontProfile = generateCorrugatedProfilePoints(-halfWidth + 0.08, halfWidth - 0.08, 0.209, 0.02, 0.09, 0.03, -halfWidth + 0.08);
+  const frontProfile = generateCorrugatedProfilePoints(
+    -halfWidth + 0.08,
+    halfWidth - 0.08,
+    0.209,
+    0.02,
+    0.09,
+    0.03,
+    -halfWidth + 0.08,
+  );
   const frontMesh = createLoftedRibbonGeometry(
     frontProfile,
     [bottomCorrugationY, topCorrugationY],
     (px, pz, py) => [-halfLength + 0.035 - pz, py, px],
-    { center: [0, height / 2, 0] }
+    { center: [0, height / 2, 0] },
   );
   assembler.add(BODY_TAG, frontMesh);
 
   const roofY = height - 0.025;
-  const roofProfile = generateCorrugatedProfilePoints(startX + 0.02, endX - 0.02, 0.25, 0.042, 0.07, 0.06, startX + 0.02);
+  const roofProfile = generateCorrugatedProfilePoints(
+    startX + 0.02,
+    endX - 0.02,
+    0.25,
+    0.042,
+    0.07,
+    0.06,
+    startX + 0.02,
+  );
   const roofMesh = createLoftedRibbonGeometry(
     roofProfile,
     [-halfWidth + 0.066, 0, halfWidth - 0.066],
     (px, pz, py) => [px, roofY + pz + (Math.abs(py) < 0.01 ? 0.006 : 0), py],
-    { center: [0, height / 2, 0] }
+    { center: [0, height / 2, 0] },
   );
   assembler.add(BODY_TAG, roofMesh, (vx, vy, vz) => {
     const noise = 0.78 + 0.3 * sampleValueNoise2D(vx * 0.8 + noiseSeed, vz * 1.1);
     const roofSlope = smoothstepHermite(0.004, 0.018, roofY - vy);
-    return [noise * (1 - 0.25 * roofSlope), noise * (1 - 0.3 * roofSlope) * 0.97, noise * (1 - 0.32 * roofSlope) * 0.94];
+    return [
+      noise * (1 - 0.25 * roofSlope),
+      noise * (1 - 0.3 * roofSlope) * 0.97,
+      noise * (1 - 0.32 * roofSlope) * 0.94,
+    ];
   });
 
   // 5. 内部木地板与中空通行结构 (Interior Wooden Floor & Hollow Walkway when doors open)
@@ -1105,22 +1362,81 @@ function generateContainerGeometry(engineCtx, type, seed, doorOpenRatio, wearFac
   const floorLevel = 0.172;
   if (hasOpenDoor) {
     const floorShader = (vx, vy, vz) => {
-      const occl = (0.16 + 0.62 * smoothstepHermite(-halfLength, halfLength, vx) * smoothstepHermite(-halfLength, halfLength, vx)) * (0.8 + 0.2 * smoothstepHermite(0.2, 1.4, vy));
+      const occl =
+        (0.16 +
+          0.62 *
+            smoothstepHermite(-halfLength, halfLength, vx) *
+            smoothstepHermite(-halfLength, halfLength, vx)) *
+        (0.8 + 0.2 * smoothstepHermite(0.2, 1.4, vy));
       return [occl, occl, occl];
     };
-    const innerProfile = generateCorrugatedProfilePoints(startX, endX, CORRUGATION_SPECS.P, CORRUGATION_SPECS.d, CORRUGATION_SPECS.fo, CORRUGATION_SPECS.sl, startX + 0.02);
+    const innerProfile = generateCorrugatedProfilePoints(
+      startX,
+      endX,
+      CORRUGATION_SPECS.P,
+      CORRUGATION_SPECS.d,
+      CORRUGATION_SPECS.fo,
+      CORRUGATION_SPECS.sl,
+      startX + 0.02,
+    );
     for (const sz of [-1, 1]) {
-      assembler.add(BODY_TAG, createLoftedRibbonGeometry(innerProfile, [floorLevel, topCorrugationY - 0.02], (px, pz, py) => [px, py, sz * (innerHalfWidth + pz - 0.004)], { center: [0, height / 2, 0], inward: true }), floorShader);
+      assembler.add(
+        BODY_TAG,
+        createLoftedRibbonGeometry(
+          innerProfile,
+          [floorLevel, topCorrugationY - 0.02],
+          (px, pz, py) => [px, py, sz * (innerHalfWidth + pz - 0.004)],
+          { center: [0, height / 2, 0], inward: true },
+        ),
+        floorShader,
+      );
     }
-    assembler.add(BODY_TAG, transformGeometryInPlace(new THREE.PlaneGeometry(endX - startX, 2 * innerHalfWidth), (startX + endX) / 2, topCorrugationY - 0.03, 0, [HALF_PI, 0, 0]), floorShader);
-    assembler.add(BODY_TAG, transformGeometryInPlace(new THREE.PlaneGeometry(2 * innerHalfWidth, topCorrugationY - floorLevel), startX + 0.03, (floorLevel + topCorrugationY) / 2, 0, [0, HALF_PI, 0]), floorShader);
+    assembler.add(
+      BODY_TAG,
+      transformGeometryInPlace(
+        new THREE.PlaneGeometry(endX - startX, 2 * innerHalfWidth),
+        (startX + endX) / 2,
+        topCorrugationY - 0.03,
+        0,
+        [HALF_PI, 0, 0],
+      ),
+      floorShader,
+    );
+    assembler.add(
+      BODY_TAG,
+      transformGeometryInPlace(
+        new THREE.PlaneGeometry(2 * innerHalfWidth, topCorrugationY - floorLevel),
+        startX + 0.03,
+        (floorLevel + topCorrugationY) / 2,
+        0,
+        [0, HALF_PI, 0],
+      ),
+      floorShader,
+    );
 
     const woodPlankGeo = createWorldUVPlaneGeometry(endX - startX + 0.1, 2 * innerHalfWidth - 0.02);
-    assembler.add(matWood, transformGeometryInPlace(woodPlankGeo, (startX + endX) / 2 + 0.05, floorLevel, 0, [-HALF_PI, 0, 0]), vx => {
-      const w = 0.3 + 0.6 * (smoothstepHermite(-halfLength, halfLength, vx) ** 2);
-      return [w, w * 0.97, w * 0.93];
-    });
-    assembler.box(matGalv, 0.05, 0.006, 2 * innerHalfWidth - 0.1, halfLength - 0.11, floorLevel + 0.001, 0, { r: 0.002 });
+    assembler.add(
+      matWood,
+      transformGeometryInPlace(woodPlankGeo, (startX + endX) / 2 + 0.05, floorLevel, 0, [
+        -HALF_PI,
+        0,
+        0,
+      ]),
+      (vx) => {
+        const w = 0.3 + 0.6 * smoothstepHermite(-halfLength, halfLength, vx) ** 2;
+        return [w, w * 0.97, w * 0.93];
+      },
+    );
+    assembler.box(
+      matGalv,
+      0.05,
+      0.006,
+      2 * innerHalfWidth - 0.1,
+      halfLength - 0.11,
+      floorLevel + 0.001,
+      0,
+      { r: 0.002 },
+    );
   }
 
   // 6. 后部双开货运门 (Twin Cargo Swinging Doors with Locking Rods & Keepers)
@@ -1132,13 +1448,23 @@ function generateContainerGeometry(engineCtx, type, seed, doorOpenRatio, wearFac
   const dynamicColliders = [];
 
   for (const side of [1, -1]) {
-    const swingAngle = doorOpenRatio * (side > 0 ? 1 : 0.88) * THREE.MathUtils.degToRad(side > 0 ? 112 : 100);
+    const swingAngle =
+      doorOpenRatio * (side > 0 ? 1 : 0.88) * THREE.MathUtils.degToRad(side > 0 ? 112 : 100);
     const hingeZ = side * (halfWidth - 0.058);
     assembler.push(createTransformMatrix4(doorHingeX, 0, hingeZ, [0, -side * swingAngle, 0]));
 
-    const mirrorZ = k => -side * k;
+    const mirrorZ = (k) => -side * k;
     const doorMidY = (doorBottomY + doorTopY) / 2;
-    assembler.box(BODY_TAG, 0.034, doorHeight, doorWidth - 0.006, 0, doorMidY, mirrorZ(doorWidth / 2), { r: 0.008, col: vertexColorShader });
+    assembler.box(
+      BODY_TAG,
+      0.034,
+      doorHeight,
+      doorWidth - 0.006,
+      0,
+      doorMidY,
+      mirrorZ(doorWidth / 2),
+      { r: 0.008, col: vertexColorShader },
+    );
 
     // 门板纵向波纹折线 (Vertical Ribbed Profile on Door)
     const doorP = type === "container40hc" ? 7 : 6;
@@ -1149,31 +1475,96 @@ function generateContainerGeometry(engineCtx, type, seed, doorOpenRatio, wearFac
 
     for (let k = 0; k < doorP; k++) {
       const cy = ribMinY + k * ribStepY;
-      ribProf.push([cy, 0.019], [cy + 0.022, 0.019], [cy + 0.05, 0.031], [cy + ribStepY - 0.05, 0.031], [cy + ribStepY - 0.022, 0.019]);
+      ribProf.push(
+        [cy, 0.019],
+        [cy + 0.022, 0.019],
+        [cy + 0.05, 0.031],
+        [cy + ribStepY - 0.05, 0.031],
+        [cy + ribStepY - 0.022, 0.019],
+      );
     }
     ribProf.push([ribMaxY, 0.019]);
-    assembler.add(BODY_TAG, createLoftedRibbonGeometry(ribProf, [0.075, doorWidth - 0.085], (ry, rz, rx) => [rz, ry, mirrorZ(rx)], { center: [-1, doorMidY, mirrorZ(doorWidth / 2)] }), vertexColorShader);
+    assembler.add(
+      BODY_TAG,
+      createLoftedRibbonGeometry(
+        ribProf,
+        [0.075, doorWidth - 0.085],
+        (ry, rz, rx) => [rz, ry, mirrorZ(rx)],
+        { center: [-1, doorMidY, mirrorZ(doorWidth / 2)] },
+      ),
+      vertexColorShader,
+    );
 
     // 密封橡胶圈 (Rubber Gaskets)
     const rubberCol = [0.05, 0.05, 0.05];
-    assembler.box(BODY_TAG, 0.022, doorHeight + 0.012, 0.018, 0.004, doorMidY, mirrorZ(doorWidth + 0.001), { r: 0, col: rubberCol });
-    assembler.box(BODY_TAG, 0.022, 0.016, doorWidth, 0.004, doorTopY + 0.004, mirrorZ(doorWidth / 2), { r: 0, col: rubberCol });
-    assembler.box(BODY_TAG, 0.022, 0.016, doorWidth, 0.004, doorBottomY - 0.004, mirrorZ(doorWidth / 2), { r: 0, col: rubberCol });
+    assembler.box(
+      BODY_TAG,
+      0.022,
+      doorHeight + 0.012,
+      0.018,
+      0.004,
+      doorMidY,
+      mirrorZ(doorWidth + 0.001),
+      { r: 0, col: rubberCol },
+    );
+    assembler.box(
+      BODY_TAG,
+      0.022,
+      0.016,
+      doorWidth,
+      0.004,
+      doorTopY + 0.004,
+      mirrorZ(doorWidth / 2),
+      { r: 0, col: rubberCol },
+    );
+    assembler.box(
+      BODY_TAG,
+      0.022,
+      0.016,
+      doorWidth,
+      0.004,
+      doorBottomY - 0.004,
+      mirrorZ(doorWidth / 2),
+      { r: 0, col: rubberCol },
+    );
 
     // 门铰链 (Door Hinges)
     const hingeCount = type === "container40hc" ? 5 : 4;
     for (let k = 0; k < hingeCount; k++) {
-      const hy = doorBottomY + 0.16 + k * (doorHeight - 0.32) / (hingeCount - 1);
+      const hy = doorBottomY + 0.16 + (k * (doorHeight - 0.32)) / (hingeCount - 1);
       assembler.box(BODY_TAG, 0.012, 0.062, 0.15, 0.021, hy, mirrorZ(0.085), { r: 0 });
-      assembler.cyl(matGalv, 0.013, 0.013, 0.086, 0.026, hy, mirrorZ(-0.002), { seg: 6, open: true });
+      assembler.cyl(matGalv, 0.013, 0.013, 0.086, 0.026, hy, mirrorZ(-0.002), {
+        seg: 6,
+        open: true,
+      });
     }
 
     // 镀锌锁杆、凸轮锁头与操作手柄 (Locking Cam Rods & Operating Handles)
     for (const rodZ of [0.31, 0.83]) {
-      assembler.cyl(matGalv, 0.0155, 0.0155, doorHeight + 0.2, 0.052, doorMidY, mirrorZ(rodZ), { seg: 7, open: true });
+      assembler.cyl(matGalv, 0.0155, 0.0155, doorHeight + 0.2, 0.052, doorMidY, mirrorZ(rodZ), {
+        seg: 7,
+        open: true,
+      });
       for (const endSign of [-1, 1]) {
-        assembler.add(matGalv, transformGeometryInPlace($e(0.03, 0.045, 0.085), 0.052 - 0.004, doorMidY + endSign * (doorHeight / 2 + 0.065), mirrorZ(rodZ)));
-        assembler.box(BODY_TAG, 0.03, 0.05, 0.075, 0.052 - 0.012, doorMidY + endSign * (doorHeight / 2 - 0.035), mirrorZ(rodZ), { r: 0 });
+        assembler.add(
+          matGalv,
+          transformGeometryInPlace(
+            $e(0.03, 0.045, 0.085),
+            0.052 - 0.004,
+            doorMidY + endSign * (doorHeight / 2 + 0.065),
+            mirrorZ(rodZ),
+          ),
+        );
+        assembler.box(
+          BODY_TAG,
+          0.03,
+          0.05,
+          0.075,
+          0.052 - 0.012,
+          doorMidY + endSign * (doorHeight / 2 - 0.035),
+          mirrorZ(rodZ),
+          { r: 0 },
+        );
       }
       for (const guideY of [doorBottomY + doorHeight * 0.3, doorBottomY + doorHeight * 0.72]) {
         assembler.box(BODY_TAG, 0.026, 0.04, 0.07, 0.052 - 0.012, guideY, mirrorZ(rodZ), { r: 0 });
@@ -1181,9 +1572,36 @@ function generateContainerGeometry(engineCtx, type, seed, doorOpenRatio, wearFac
       const handleY = 1.02 + (rodZ > 0.5 ? 0 : 0.13);
       const handleDir = rodZ > 0.5 ? -1 : 1;
       assembler.box(matGalv, 0.02, 0.05, 0.05, 0.052 + 0.008, handleY, mirrorZ(rodZ), { r: 0 });
-      assembler.box(matGalv, 0.011, 0.032, 0.36, 0.052 + 0.016, handleY, mirrorZ(rodZ + handleDir * 0.19), { r: 0.004 });
-      assembler.box(BODY_TAG, 0.03, 0.07, 0.05, 0.052 - 0.008, handleY, mirrorZ(rodZ + handleDir * 0.33), { r: 0 });
-      assembler.box(matGalv, 0.012, 0.085, 0.012, 0.052 + 0.012, handleY + 0.005, mirrorZ(rodZ + handleDir * 0.33), { r: 0 });
+      assembler.box(
+        matGalv,
+        0.011,
+        0.032,
+        0.36,
+        0.052 + 0.016,
+        handleY,
+        mirrorZ(rodZ + handleDir * 0.19),
+        { r: 0.004 },
+      );
+      assembler.box(
+        BODY_TAG,
+        0.03,
+        0.07,
+        0.05,
+        0.052 - 0.008,
+        handleY,
+        mirrorZ(rodZ + handleDir * 0.33),
+        { r: 0 },
+      );
+      assembler.box(
+        matGalv,
+        0.012,
+        0.085,
+        0.012,
+        0.052 + 0.012,
+        handleY + 0.005,
+        mirrorZ(rodZ + handleDir * 0.33),
+        { r: 0 },
+      );
     }
 
     // 门体涂装、警告标线与铭牌 (Decals & Stencil Markings on Doors)
@@ -1195,23 +1613,94 @@ function generateContainerGeometry(engineCtx, type, seed, doorOpenRatio, wearFac
         sz *= maxW / finalW;
         finalW = maxW;
       }
-      assembler.add(dec.material, transformGeometryInPlace(new THREE.PlaneGeometry(finalW, sz), doorDecalX, py, mirrorZ(pz), doorDecalRot), null, true);
+      assembler.add(
+        dec.material,
+        transformGeometryInPlace(
+          new THREE.PlaneGeometry(finalW, sz),
+          doorDecalX,
+          py,
+          mirrorZ(pz),
+          doorDecalRot,
+        ),
+        null,
+        true,
+      );
     };
 
-    const getRibY = k => ribMinY + (k + 0.5) * ribStepY;
+    const getRibY = (k) => ribMinY + (k + 0.5) * ribStepY;
 
     if (side < 0) {
-      addDoorDecal(getCachedLabelTexture(engineCtx, CONTAINER_BIC_CODES[seed % CONTAINER_BIC_CODES.length], { color: "white", font: "stencil", distress: 0.3 }), 0.115, getRibY(doorP - 1), doorWidth / 2, doorWidth - 0.24);
-      addDoorDecal(getCachedLabelTexture(engineCtx, spec.type, { color: "white", font: "stencil", distress: 0.3 }), 0.1, getRibY(doorP - 2), doorWidth / 2 + 0.2, 0.4);
+      addDoorDecal(
+        getCachedLabelTexture(engineCtx, CONTAINER_BIC_CODES[seed % CONTAINER_BIC_CODES.length], {
+          color: "white",
+          font: "stencil",
+          distress: 0.3,
+        }),
+        0.115,
+        getRibY(doorP - 1),
+        doorWidth / 2,
+        doorWidth - 0.24,
+      );
+      addDoorDecal(
+        getCachedLabelTexture(engineCtx, spec.type, {
+          color: "white",
+          font: "stencil",
+          distress: 0.3,
+        }),
+        0.1,
+        getRibY(doorP - 2),
+        doorWidth / 2 + 0.2,
+        0.4,
+      );
       const fontOpt = { color: "white", font: "sans", distress: 0.2 };
-      addDoorDecal(getCachedLabelTexture(engineCtx, "最大总重 " + spec.gross + " 千克", fontOpt), 0.052, getRibY(doorP - 3) + 0.062, doorWidth / 2 - 0.01, 0.44);
-      addDoorDecal(getCachedLabelTexture(engineCtx, "皮重 " + spec.tare + " 千克  净重 " + spec.net + " 千克", fontOpt), 0.045, getRibY(doorP - 3), doorWidth / 2 - 0.01, 0.44);
-      addDoorDecal(getCachedLabelTexture(engineCtx, "容积 " + spec.cu + " 立方米", fontOpt), 0.045, getRibY(doorP - 3) - 0.062, doorWidth / 2 - 0.01, 0.44);
+      addDoorDecal(
+        getCachedLabelTexture(engineCtx, "最大总重 " + spec.gross + " 千克", fontOpt),
+        0.052,
+        getRibY(doorP - 3) + 0.062,
+        doorWidth / 2 - 0.01,
+        0.44,
+      );
+      addDoorDecal(
+        getCachedLabelTexture(
+          engineCtx,
+          "皮重 " + spec.tare + " 千克  净重 " + spec.net + " 千克",
+          fontOpt,
+        ),
+        0.045,
+        getRibY(doorP - 3),
+        doorWidth / 2 - 0.01,
+        0.44,
+      );
+      addDoorDecal(
+        getCachedLabelTexture(engineCtx, "容积 " + spec.cu + " 立方米", fontOpt),
+        0.045,
+        getRibY(doorP - 3) - 0.062,
+        doorWidth / 2 - 0.01,
+        0.44,
+      );
     } else {
-      addDoorDecal(getCachedDecalTexture(engineCtx, CONTAINER_LOGOS[seed % 4]), 0.2, getRibY(doorP - 1), doorWidth / 2, doorWidth - 0.36);
-      addDoorDecal(getCachedDecalTexture(engineCtx, "csc_plate"), 0.17, getRibY(1), doorWidth / 2 + 0.05, 0.36);
+      addDoorDecal(
+        getCachedDecalTexture(engineCtx, CONTAINER_LOGOS[seed % 4]),
+        0.2,
+        getRibY(doorP - 1),
+        doorWidth / 2,
+        doorWidth - 0.36,
+      );
+      addDoorDecal(
+        getCachedDecalTexture(engineCtx, "csc_plate"),
+        0.17,
+        getRibY(1),
+        doorWidth / 2 + 0.05,
+        0.36,
+      );
       if (type === "container40hc") {
-        addDoorDecal(getCachedDecalTexture(engineCtx, "caution_stripes"), 0.1, doorTopY - 0.04, doorWidth / 2, doorWidth - 0.1);
+        addDoorDecal(
+          getCachedDecalTexture(engineCtx, "caution_stripes"),
+          0.1,
+          doorTopY - 0.04,
+          doorWidth / 2,
+          doorWidth - 0.1,
+        );
       }
     }
     assembler.pop();
@@ -1219,14 +1708,20 @@ function generateContainerGeometry(engineCtx, type, seed, doorOpenRatio, wearFac
     // 开门后的动态旋转扇形碰撞盒 (Door Dynamic Colliders when Opened)
     if (hasOpenDoor) {
       for (let k = 0; k < 3; k++) {
-        const segStart = doorWidth * k / 3;
-        const segEnd   = doorWidth * (k + 1) / 3;
-        const pA = [doorHingeX + Math.sin(swingAngle) * segStart, hingeZ - side * Math.cos(swingAngle) * segStart];
-        const pB = [doorHingeX + Math.sin(swingAngle) * segEnd,   hingeZ - side * Math.cos(swingAngle) * segEnd];
+        const segStart = (doorWidth * k) / 3;
+        const segEnd = (doorWidth * (k + 1)) / 3;
+        const pA = [
+          doorHingeX + Math.sin(swingAngle) * segStart,
+          hingeZ - side * Math.cos(swingAngle) * segStart,
+        ];
+        const pB = [
+          doorHingeX + Math.sin(swingAngle) * segEnd,
+          hingeZ - side * Math.cos(swingAngle) * segEnd,
+        ];
         dynamicColliders.push({
           min: [Math.min(pA[0], pB[0]) - 0.03, doorBottomY, Math.min(pA[1], pB[1]) - 0.03],
-          max: [Math.max(pA[0], pB[0]) + 0.03, doorTopY,    Math.max(pA[1], pB[1]) + 0.03],
-          surface: "metal"
+          max: [Math.max(pA[0], pB[0]) + 0.03, doorTopY, Math.max(pA[1], pB[1]) + 0.03],
+          surface: "metal",
         });
       }
     }
@@ -1243,12 +1738,24 @@ function generateContainerGeometry(engineCtx, type, seed, doorOpenRatio, wearFac
     const maxX = py + finalW / 2;
     const effMinX = sz > 0 ? minX : -maxX;
     const effMaxX = sz > 0 ? maxX : -minX;
-    const sideProf = generateCorrugatedProfilePoints(Math.max(startX, effMinX), Math.min(endX, effMaxX), CORRUGATION_SPECS.P, CORRUGATION_SPECS.d, CORRUGATION_SPECS.fo, CORRUGATION_SPECS.sl, startX + 0.02);
+    const sideProf = generateCorrugatedProfilePoints(
+      Math.max(startX, effMinX),
+      Math.min(endX, effMaxX),
+      CORRUGATION_SPECS.P,
+      CORRUGATION_SPECS.d,
+      CORRUGATION_SPECS.fo,
+      CORRUGATION_SPECS.sl,
+      startX + 0.02,
+    );
     const ribbon = createLoftedRibbonGeometry(
       sideProf,
       [pz - finalW / 2, pz + finalW / 2],
-      (rx, rz, ry) => [rx, ry, sz * (innerHalfWidth + rz + 0.003 - getDentDisplacement(rx, ry, sz))],
-      { center: [0, height / 2, 0] }
+      (rx, rz, ry) => [
+        rx,
+        ry,
+        sz * (innerHalfWidth + rz + 0.003 - getDentDisplacement(rx, ry, sz)),
+      ],
+      { center: [0, height / 2, 0] },
     );
     const pos = ribbon.attributes.position;
     const uv = ribbon.attributes.uv;
@@ -1260,14 +1767,28 @@ function generateContainerGeometry(engineCtx, type, seed, doorOpenRatio, wearFac
     return finalW;
   };
 
-  const bicDecal   = getCachedLabelTexture(engineCtx, CONTAINER_BIC_CODES[seed % CONTAINER_BIC_CODES.length], { color: "white", font: "stencil", distress: 0.3 });
-  const typeDecal  = getCachedLabelTexture(engineCtx, spec.type, { color: "white", font: "stencil", distress: 0.3 });
-  const logoDecal  = getCachedDecalTexture(engineCtx, CONTAINER_LOGOS[seed % 4]);
+  const bicDecal = getCachedLabelTexture(
+    engineCtx,
+    CONTAINER_BIC_CODES[seed % CONTAINER_BIC_CODES.length],
+    { color: "white", font: "stencil", distress: 0.3 },
+  );
+  const typeDecal = getCachedLabelTexture(engineCtx, spec.type, {
+    color: "white",
+    font: "stencil",
+    distress: 0.3,
+  });
+  const logoDecal = getCachedDecalTexture(engineCtx, CONTAINER_LOGOS[seed % 4]);
 
   for (const sz of [-1, 1]) {
     const logoH = Math.min(height * 0.4, 1.05);
     const logoW = Math.min(logoH * logoDecal.aspect, type === "container20" ? 2.2 : 3.4);
-    addSideDecal(logoDecal, sz, type === "container20" ? -0.75 : -halfLength * 0.42, height * 0.52, logoW / logoDecal.aspect);
+    addSideDecal(
+      logoDecal,
+      sz,
+      type === "container20" ? -0.75 : -halfLength * 0.42,
+      height * 0.52,
+      logoW / logoDecal.aspect,
+    );
 
     const bicW = Math.min(0.14 * bicDecal.aspect, 1.9);
     addSideDecal(bicDecal, sz, halfLength - 0.3 - bicW / 2, height - 0.32, 0.14);
@@ -1275,29 +1796,60 @@ function generateContainerGeometry(engineCtx, type, seed, doorOpenRatio, wearFac
     const typeW = Math.min(0.11 * typeDecal.aspect, 0.6);
     addSideDecal(typeDecal, sz, halfLength - 0.3 - typeW / 2, height - 0.52, 0.11);
 
-    const grimeStreakCount = Math.round((1 + prng() * 2) * (0.4 + wearFactor) * (length > 7 ? 1.6 : 1));
+    const grimeStreakCount = Math.round(
+      (1 + prng() * 2) * (0.4 + wearFactor) * (length > 7 ? 1.6 : 1),
+    );
     for (let v = 0; v < grimeStreakCount; v++) {
-      const streakDec = getCachedDecalTexture(engineCtx, prng() < 0.6 ? "rust_run" : "grime_streak");
+      const streakDec = getCachedDecalTexture(
+        engineCtx,
+        prng() < 0.6 ? "rust_run" : "grime_streak",
+      );
       const streakH = 0.5 + prng() * 0.7;
       const streakW = Math.min(0.5, Math.max(0.16, streakH * streakDec.aspect));
-      addSideDecal({ material: streakDec.material, aspect: streakW / streakH }, sz, (prng() * 2 - 1) * (halfLength - 0.6), topCorrugationY - streakH / 2 - 0.005, streakH);
+      addSideDecal(
+        { material: streakDec.material, aspect: streakW / streakH },
+        sz,
+        (prng() * 2 - 1) * (halfLength - 0.6),
+        topCorrugationY - streakH / 2 - 0.005,
+        streakH,
+      );
     }
   }
 
   // 8. 物理碰撞包围盒定义 (Hollow Colliders if open, Solid AABB if closed)
   if (hasOpenDoor) {
     dynamicColliders.push(
-      { min: [-halfLength, 0, -halfWidth],                max: [halfLength, floorLevel, halfWidth],               surface: "wood" },
-      { min: [-halfLength, height - 0.09, -halfWidth],    max: [halfLength, height, halfWidth],                   surface: "metal" },
-      { min: [-halfLength, 0, -halfWidth],                max: [halfLength, height, -halfWidth + 0.07],           surface: "metal" },
-      { min: [-halfLength, 0, halfWidth - 0.07],          max: [halfLength, height, halfWidth],                   surface: "metal" },
-      { min: [-halfLength, 0, -halfWidth],                max: [-halfLength + 0.07, height, halfWidth],           surface: "metal" }
+      {
+        min: [-halfLength, 0, -halfWidth],
+        max: [halfLength, floorLevel, halfWidth],
+        surface: "wood",
+      },
+      {
+        min: [-halfLength, height - 0.09, -halfWidth],
+        max: [halfLength, height, halfWidth],
+        surface: "metal",
+      },
+      {
+        min: [-halfLength, 0, -halfWidth],
+        max: [halfLength, height, -halfWidth + 0.07],
+        surface: "metal",
+      },
+      {
+        min: [-halfLength, 0, halfWidth - 0.07],
+        max: [halfLength, height, halfWidth],
+        surface: "metal",
+      },
+      {
+        min: [-halfLength, 0, -halfWidth],
+        max: [-halfLength + 0.07, height, halfWidth],
+        surface: "metal",
+      },
     );
   } else {
     dynamicColliders.push({
       min: [-halfLength, 0, -halfWidth],
       max: [halfLength, height, halfWidth],
-      surface: "metal"
+      surface: "metal",
     });
   }
 
@@ -1311,7 +1863,10 @@ function buildContainerMesh(engineCtx, type, options = {}) {
   const spec = CONTAINER_SPECS[type];
   const seed = options.seed === undefined ? 0 : Math.abs(Math.floor(options.seed));
   const colorIdx = seed % 6;
-  const colorName = options.color || ["red", "blue", "green", "yellow", "orange", "white", "grey", "teal"][colorIdx] || spec.def;
+  const colorName =
+    options.color ||
+    ["red", "blue", "green", "yellow", "orange", "white", "grey", "teal"][colorIdx] ||
+    spec.def;
   const matName = "paint_" + colorName;
   const doorRatio = clamp(options.doors !== undefined ? +options.doors : 0, 0, 1);
   const wear = clamp(options.wear !== undefined ? +options.wear : 0.4, 0, 1);
@@ -1356,10 +1911,18 @@ function buildJerseyBarrier(engineCtx, options = {}) {
   const matConcrete = t.M("concrete", { vertexColors: true });
 
   const profile = [
-    [-0.3, 0], [0.3, 0], [0.3, 0.076], [0.127, 0.33],
-    [0.1, 0.57], [0.077, 0.79], [0.06, 0.81],
-    [-0.06, 0.81], [-0.077, 0.79], [-0.1, 0.57],
-    [-0.127, 0.33], [-0.3, 0.076]
+    [-0.3, 0],
+    [0.3, 0],
+    [0.3, 0.076],
+    [0.127, 0.33],
+    [0.1, 0.57],
+    [0.077, 0.79],
+    [0.06, 0.81],
+    [-0.06, 0.81],
+    [-0.077, 0.79],
+    [-0.1, 0.57],
+    [-0.127, 0.33],
+    [-0.3, 0.076],
   ];
   const xPath = [-1.5, -1.47];
   for (let f = -1.25; f <= 1.26; f += 0.25) xPath.push(f);
@@ -1369,7 +1932,7 @@ function buildJerseyBarrier(engineCtx, options = {}) {
     profile,
     xPath,
     (px, py, pxPos) => [pxPos, py, px],
-    { center: [0, 0.4, 0], closed: true, caps: true }
+    { center: [0, 0.4, 0], closed: true, caps: true },
   );
 
   const pos = barrierGeo.attributes.position;
@@ -1377,28 +1940,51 @@ function buildJerseyBarrier(engineCtx, options = {}) {
   const colArr = new Float32Array(pos.count * 3);
 
   for (let i = 0; i < pos.count; i++) {
-    const vx = pos.getX(i), vy = pos.getY(i), vz = pos.getZ(i);
+    const vx = pos.getX(i),
+      vy = pos.getY(i),
+      vz = pos.getZ(i);
     const ny = norm.getY(i);
     const n1 = sampleValueNoise2D(vx * 1.5 + noise, vz * 3);
     const n2 = sampleValueNoise2D(vx * 7, vy * 5 + noise);
-    let factor = (0.78 + 0.22 * n1) * (0.88 + 0.12 * n2) * (0.82 + 0.18 * clamp(ny * 0.7 + 0.7, 0, 1));
+    let factor =
+      (0.78 + 0.22 * n1) * (0.88 + 0.12 * n2) * (0.82 + 0.18 * clamp(ny * 0.7 + 0.7, 0, 1));
     const groundOccl = clamp(1 - vy / 0.18, 0, 1);
-    factor *= (1 - 0.4 * groundOccl * groundOccl * (0.6 + 0.4 * n2));
-    colArr[i * 3]     = factor;
+    factor *= 1 - 0.4 * groundOccl * groundOccl * (0.6 + 0.4 * n2);
+    colArr[i * 3] = factor;
     colArr[i * 3 + 1] = factor * (1 - 0.04 * groundOccl);
     colArr[i * 3 + 2] = factor * (1 - 0.1 * groundOccl);
   }
-  barrierGeo.setAttribute('color', new THREE.Float32BufferAttribute(colArr, 3));
+  barrierGeo.setAttribute("color", new THREE.Float32BufferAttribute(colArr, 3));
   t.add(matConcrete, barrierGeo);
 
   // 两侧红白反光警示片与吊装钢筋环
   const matGalv = t.M("steel_galv");
   const matReflector = t.M("plastic_red");
-  t.tube(matGalv, [[-0.8, 0.81, 0], [-0.8, 0.9, 0], [-0.74, 0.9, 0], [-0.74, 0.81, 0]], 0.008);
-  t.tube(matGalv, [[0.74, 0.81, 0], [0.74, 0.9, 0], [0.8, 0.9, 0], [0.8, 0.81, 0]], 0.008);
+  t.tube(
+    matGalv,
+    [
+      [-0.8, 0.81, 0],
+      [-0.8, 0.9, 0],
+      [-0.74, 0.9, 0],
+      [-0.74, 0.81, 0],
+    ],
+    0.008,
+  );
+  t.tube(
+    matGalv,
+    [
+      [0.74, 0.81, 0],
+      [0.74, 0.9, 0],
+      [0.8, 0.9, 0],
+      [0.8, 0.81, 0],
+    ],
+    0.008,
+  );
   for (const sx of [-0.9, 0.9]) {
     for (const sz of [-1, 1]) {
-      t.box(matReflector, 0.08, 0.04, 0.005, sx, 0.58, sz * 0.105, { rot: [sz > 0 ? 0.1 : -0.1, 0, 0] });
+      t.box(matReflector, 0.08, 0.04, 0.005, sx, 0.58, sz * 0.105, {
+        rot: [sz > 0 ? 0.1 : -0.1, 0, 0],
+      });
     }
   }
 
@@ -1413,7 +1999,7 @@ function buildLightMast(engineCtx, options = {}) {
   const matGalv = t.M("steel_galv");
   const matConc = t.M("concrete", { vertexColors: true });
   const matDark = t.M("steel_dark");
-  const matLamp = engineCtx.mats.emissive(0xFFDEBD, options.on === false ? 0.02 : 8);
+  const matLamp = engineCtx.mats.emissive(0xffdebd, options.on === false ? 0.02 : 8);
 
   // 混凝土基座
   t.box(matConc, 0.8, 0.32, 0.8, 0, 0.16, 0, { r: 0.03 });
@@ -1424,10 +2010,18 @@ function buildLightMast(engineCtx, options = {}) {
   const rBot = 0.22;
   const rTop = 0.08;
   const legPts = [
-    [-rBot, -rBot], [rBot, -rBot], [rBot, rBot], [-rBot, rBot]
+    [-rBot, -rBot],
+    [rBot, -rBot],
+    [rBot, rBot],
+    [-rBot, rBot],
   ];
   for (const lp of legPts) {
-    t.bar(matGalv, [lp[0], 0.35, lp[1]], [lp[0] * (rTop / rBot), mastH, lp[1] * (rTop / rBot)], 0.02);
+    t.bar(
+      matGalv,
+      [lp[0], 0.35, lp[1]],
+      [lp[0] * (rTop / rBot), mastH, lp[1] * (rTop / rBot)],
+      0.02,
+    );
   }
 
   // 沿高度方向的多级横撑与斜撑
@@ -1438,9 +2032,9 @@ function buildLightMast(engineCtx, options = {}) {
     const rb0 = rBot + (rTop - rBot) * (k / tiers);
     const rb1 = rBot + (rTop - rBot) * ((k + 1) / tiers);
     for (let j = 0; j < 4; j++) {
-      const pA0 = legPts[j].map(c => c * (rb0 / rBot));
-      const pB0 = legPts[(j + 1) % 4].map(c => c * (rb0 / rBot));
-      const pB1 = legPts[(j + 1) % 4].map(c => c * (rb1 / rBot));
+      const pA0 = legPts[j].map((c) => c * (rb0 / rBot));
+      const pB0 = legPts[(j + 1) % 4].map((c) => c * (rb0 / rBot));
+      const pB1 = legPts[(j + 1) % 4].map((c) => c * (rb1 / rBot));
       t.bar(matGalv, [pA0[0], y0, pA0[1]], [pB0[0], y0, pB0[1]], 0.012);
       t.bar(matGalv, [pA0[0], y0, pA0[1]], [pB1[0], y1, pB1[1]], 0.01);
     }
@@ -1449,7 +2043,7 @@ function buildLightMast(engineCtx, options = {}) {
   // 检修爬梯与安全护笼 (Ladder & Safety Cage)
   const ladX = rBot + 0.06;
   t.bar(matGalv, [ladX, 0.5, -0.15], [ladX * (rTop / rBot), mastH, -0.15], 0.012);
-  t.bar(matGalv, [ladX, 0.5, 0.15],  [ladX * (rTop / rBot), mastH, 0.15], 0.012);
+  t.bar(matGalv, [ladX, 0.5, 0.15], [ladX * (rTop / rBot), mastH, 0.15], 0.012);
   for (let y = 0.6; y < mastH; y += 0.3) {
     t.bar(matGalv, [ladX, y, -0.15], [ladX, y, 0.15], 0.008);
   }
@@ -1478,7 +2072,8 @@ function buildFencePanel(engineCtx, options = {}) {
   const matConc = t.M("concrete", { vertexColors: true });
 
   const posts = options.posts || "both";
-  const postList = posts === "both" ? [-1.5, 1.5] : posts === "left" ? [-1.5] : posts === "right" ? [1.5] : [];
+  const postList =
+    posts === "both" ? [-1.5, 1.5] : posts === "left" ? [-1.5] : posts === "right" ? [1.5] : [];
 
   for (const px of postList) {
     t.box(matConc, 0.32, 0.09, 0.32, px, 0.035, 0, { r: 0.02 });
@@ -1526,11 +2121,27 @@ function buildGuardBooth(engineCtx, options = {}) {
   // 宽视野玻璃观察窗 (Aluminum Windows)
   for (const sz of [-1.06, 1.06]) {
     t.box(matDark, 1.8, 1.0, 0.04, 0, 1.45, sz);
-    t.add(matGlass, transformGeometryInPlace(new THREE.PlaneGeometry(1.7, 0.9), 0, 1.45, sz + (sz > 0 ? 0.021 : -0.021), [0, sz > 0 ? 0 : PI, 0]), null, true);
+    t.add(
+      matGlass,
+      transformGeometryInPlace(
+        new THREE.PlaneGeometry(1.7, 0.9),
+        0,
+        1.45,
+        sz + (sz > 0 ? 0.021 : -0.021),
+        [0, sz > 0 ? 0 : PI, 0],
+      ),
+      null,
+      true,
+    );
   }
   // 正面出入工作窗
   t.box(matDark, 0.04, 1.0, 1.4, 1.26, 1.45, 0);
-  t.add(matGlass, transformGeometryInPlace(new THREE.PlaneGeometry(1.3, 0.9), 1.28, 1.45, 0, [0, HALF_PI, 0]), null, true);
+  t.add(
+    matGlass,
+    transformGeometryInPlace(new THREE.PlaneGeometry(1.3, 0.9), 1.28, 1.45, 0, [0, HALF_PI, 0]),
+    null,
+    true,
+  );
 
   // 悬挑挑檐平顶 (Overhanging Flat Roof)
   t.box(matRoof, 2.8, 0.16, 2.4, 0, 2.63, 0, { r: 0.02 });
@@ -1577,7 +2188,7 @@ function buildBollardMooring(engineCtx, options = {}) {
   const t = new PropMeshAssembler(engineCtx);
   const seed = (options.seed | 0) * 2.1;
   const matSteel = t.M("steel_dark", { vertexColors: true });
-  const matRust  = t.M("steel_rust");
+  const matRust = t.M("steel_rust");
 
   // 铸钢基座法兰盘
   t.cyl(matSteel, 0.34, 0.35, 0.045, 0, 0.0225, 0, { seg: 20 });
@@ -1640,7 +2251,7 @@ function buildFloodlightStand(engineCtx, options = {}) {
   const matYellow = t.M("paint_yellow");
   const matAlum = t.M("aluminium");
   const matDark = t.M("steel_dark");
-  const matLamp = engineCtx.mats.emissive(0xFFDEBD, options.on === false ? 0.02 : 10);
+  const matLamp = engineCtx.mats.emissive(0xffdebd, options.on === false ? 0.02 : 10);
 
   // 伸缩立杆
   t.cyl(matAlum, 0.021, 0.021, 1.1, 0, 0.75, 0, { seg: 8, open: true });
@@ -1649,7 +2260,7 @@ function buildFloodlightStand(engineCtx, options = {}) {
 
   // 三脚折叠支腿 (Tripod Legs)
   for (let i = 0; i < 3; i++) {
-    const angle = i * (PI * 2 / 3);
+    const angle = i * ((PI * 2) / 3);
     const lx = Math.cos(angle) * 0.45;
     const lz = Math.sin(angle) * 0.45;
     t.bar(matDark, [0, 0.7, 0], [lx, 0.02, lz], 0.014);
@@ -1718,7 +2329,8 @@ function buildCatwalk(engineCtx, options = {}) {
   const matDark = t.M("steel_dark");
 
   const rails = options.rails || "both";
-  const railSides = rails === "both" ? [-1, 1] : rails === "left" ? [-1] : rails === "right" ? [1] : [];
+  const railSides =
+    rails === "both" ? [-1, 1] : rails === "left" ? [-1] : rails === "right" ? [1] : [];
 
   // 花纹钢格栅主桥面 (Catwalk Flooring)
   t.box(matPlate, 3.0, 0.04, 1.2, 0, 0.02, 0, { r: 0.005 });
@@ -1818,15 +2430,15 @@ function buildReeferUnit(engineCtx, options = {}) {
  */
 function buildRelayNode(engineCtx, options = {}) {
   const seed = options.seed | 0;
-  const labelId = options.id || options.label || ("ABC"[seed % 3]);
+  const labelId = options.id || options.label || "ABC"[seed % 3];
   const t = new PropMeshAssembler(engineCtx);
 
   const matGrey = t.M("paint_grey", { vertexColors: true });
   const matDark = t.M("steel_dark");
   const matGalv = t.M("steel_galv");
   const matAlum = t.M("aluminium");
-  const matScreen = engineCtx.mats.emissive(0x38D8FF, 3.5);
-  const matLed = engineCtx.mats.emissive(0x40FF60, 4.0);
+  const matScreen = engineCtx.mats.emissive(0x38d8ff, 3.5);
+  const matLed = engineCtx.mats.emissive(0x40ff60, 4.0);
 
   // 防震重型基座 (Concrete & Steel Heavy Base)
   t.box(t.M("concrete"), 1.3, 0.12, 0.9, 0, 0.06, 0, { r: 0.02 });
@@ -1860,7 +2472,6 @@ function buildRelayNode(engineCtx, options = {}) {
   return grp;
 }
 
-
 // ============================================================================
 // 八、 辅助几何变换与材质调色板 (Geometry Helpers & Color Palette)
 // ============================================================================
@@ -1869,15 +2480,15 @@ function buildRelayNode(engineCtx, options = {}) {
  * 颜色名称映射至材质名与亮度因子
  */
 const COLOR_PALETTE = {
-  blue:   ["paint_blue",   1.0],
-  red:    ["paint_red",    1.0],
-  green:  ["paint_green",  1.0],
+  blue: ["paint_blue", 1.0],
+  red: ["paint_red", 1.0],
+  green: ["paint_green", 1.0],
   yellow: ["paint_yellow", 1.0],
   orange: ["paint_orange", 1.0],
-  white:  ["paint_white",  1.0],
-  grey:   ["paint_grey",   1.0],
-  teal:   ["paint_teal",   1.0],
-  olive:  ["paint_green",  0.8]
+  white: ["paint_white", 1.0],
+  grey: ["paint_grey", 1.0],
+  teal: ["paint_teal", 1.0],
+  olive: ["paint_green", 0.8],
 };
 
 function resolveColorPalette(colorName, fallback = "blue") {
@@ -1891,7 +2502,8 @@ function composeTransformMatrix4({ p = [0, 0, 0], r = [0, 0, 0], s = 1 } = {}) {
   const euler = new THREE.Euler(r[0], r[1], r[2]);
   const quat = new THREE.Quaternion().setFromEuler(euler);
   const pos = new THREE.Vector3(p[0], p[1], p[2]);
-  const scale = typeof s === 'number' ? new THREE.Vector3(s, s, s) : new THREE.Vector3(s[0], s[1], s[2]);
+  const scale =
+    typeof s === "number" ? new THREE.Vector3(s, s, s) : new THREE.Vector3(s[0], s[1], s[2]);
   return new THREE.Matrix4().compose(pos, quat, scale);
 }
 
@@ -1928,7 +2540,7 @@ function applyVertexColorLuminance(geo, factor) {
   let colAttr = geo.attributes.color;
   if (!colAttr) {
     colAttr = new THREE.Float32BufferAttribute(new Float32Array(count * 3).fill(1), 3);
-    geo.setAttribute('color', colAttr);
+    geo.setAttribute("color", colAttr);
   }
   const arr = colAttr.array;
   for (let i = 0; i < count * 3; i++) {
@@ -1949,7 +2561,16 @@ function createChamferedBoxGeometry(w, h, d, bevel = 0.008, origin = "center") {
 /**
  * 创建带细分的圆角多面体盒子 (Subdivided Box Geometry)
  */
-function createSubdividedBoxGeometry(w, h, d, bevel, segX = 3, segY = 3, segZ = 3, origin = "center") {
+function createSubdividedBoxGeometry(
+  w,
+  h,
+  d,
+  bevel,
+  segX = 3,
+  segY = 3,
+  segZ = 3,
+  origin = "center",
+) {
   const geo = new THREE.BoxGeometry(w, h, d, segX, segY, segZ);
   if (origin === "bottom") geo.translate(0, h / 2, 0);
   return geo;
@@ -1964,11 +2585,14 @@ function createConnectingCylinder(p0, p1, radius = 0.02, seg = 6, caps = true) {
   const delta = new THREE.Vector3().subVectors(v1, v0);
   const len = delta.length();
   const geo = ot(radius, radius, len, seg, !caps);
-  const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), delta.normalize());
+  const q = new THREE.Quaternion().setFromUnitVectors(
+    new THREE.Vector3(0, 1, 0),
+    delta.normalize(),
+  );
   const m = new THREE.Matrix4().compose(
     new THREE.Vector3().addVectors(v0, v1).multiplyScalar(0.5),
     q,
-    new THREE.Vector3(1, 1, 1)
+    new THREE.Vector3(1, 1, 1),
   );
   geo.applyMatrix4(m);
   return geo;
@@ -1988,7 +2612,7 @@ function createOrientedBoxBeam(p0, p1, width, depth, bevel = 0.006, raw = false)
   const m = new THREE.Matrix4().compose(
     new THREE.Vector3().addVectors(v0, v1).multiplyScalar(0.5),
     q,
-    new THREE.Vector3(1, 1, 1)
+    new THREE.Vector3(1, 1, 1),
   );
   geo.applyMatrix4(m);
   return geo;
@@ -2014,8 +2638,14 @@ function createCurvedCylinderDecal(w, h, radius, seg = 4) {
  */
 function generateBarrelProfilePoints(isOpen = false) {
   const pts = [
-    [0, 0.016], [0.262, 0.016], [0.262, 0.016], [0.268, 0.002],
-    [0.288, 0], [0.295, 0.008], [0.295, 0.022], [0.284, 0.034]
+    [0, 0.016],
+    [0.262, 0.016],
+    [0.262, 0.016],
+    [0.268, 0.002],
+    [0.288, 0],
+    [0.295, 0.008],
+    [0.295, 0.022],
+    [0.284, 0.034],
   ];
   // 两个桶身环形加强滚筋 (2 Rolling Hoops / Ribs)
   for (const n of [0.305, 0.595]) {
@@ -2024,7 +2654,7 @@ function generateBarrelProfilePoints(isOpen = false) {
       [0.291, n - 0.018],
       [0.297, n],
       [0.291, n + 0.018],
-      [0.283, n + 0.03]
+      [0.283, n + 0.03],
     );
   }
   pts.push([0.284, 0.866], [0.295, 0.878], [0.295, 0.892], [0.288, 0.9], [0.268, 0.898]);
@@ -2040,7 +2670,7 @@ function generateBarrelProfilePoints(isOpen = false) {
  * 旋转轮廓生成回转体几何体 (Lathe Revolved Geometry)
  */
 function createRevolvedGeometry(profile, seg = 16) {
-  const pts = profile.map(p => new THREE.Vector2(p[0], p[1]));
+  const pts = profile.map((p) => new THREE.Vector2(p[0], p[1]));
   return new THREE.LatheGeometry(pts, seg);
 }
 
@@ -2055,7 +2685,7 @@ function generateTireTreadProfile(width, radius, rimRadius, seg = 20) {
     new THREE.Vector2(radius * 0.88, halfW),
     new THREE.Vector2(radius, halfW * 0.9),
     new THREE.Vector2(radius, -halfW * 0.9),
-    new THREE.Vector2(radius * 0.88, -halfW)
+    new THREE.Vector2(radius * 0.88, -halfW),
   ];
   return new THREE.LatheGeometry(pts, seg);
 }
@@ -2119,7 +2749,10 @@ function buildBarrel(engineCtx, options = {}, variant = 0) {
  * EUR 欧标木托盘构建核心 (Wooden Pallet Geometry Builder)
  */
 function buildPalletGeometry(builder, prng, { broken = false, bevel = true } = {}) {
-  const boxFn = (w, h, d, p) => builder.add("wood_pallet", bevel ? createChamferedBoxGeometry(w, h, d, 0.004) : $e(w, h, d), { p });
+  const boxFn = (w, h, d, p) =>
+    builder.add("wood_pallet", bevel ? createChamferedBoxGeometry(w, h, d, 0.004) : $e(w, h, d), {
+      p,
+    });
 
   // 顶层 5 块木板条 (5 Top Deckboards)
   const topZs = [-0.45, -0.22, 0, 0.22, 0.45];
@@ -2167,7 +2800,10 @@ function buildPalletStack(engineCtx, options = {}) {
     const isTop = i === count - 1;
     b.push({
       p: [i ? prng.range(-0.028, 0.028) : 0, i * 0.144, i ? prng.range(-0.022, 0.022) : 0],
-      r: [0, prng.range(-0.035, 0.035) + (prng() < 0.3 ? PI : 0) + (isTop ? prng.range(-0.06, 0.06) : 0)]
+      r: [
+        0,
+        prng.range(-0.035, 0.035) + (prng() < 0.3 ? PI : 0) + (isTop ? prng.range(-0.06, 0.06) : 0),
+      ],
     });
     buildPalletGeometry(b, prng, { broken: false, bevel: false });
     b.pop();
@@ -2178,14 +2814,25 @@ function buildPalletStack(engineCtx, options = {}) {
 /**
  * 木质包装箱几何生成核心 (Wooden Crate Generator)
  */
-function buildWoodCrateGeometry(builder, w, h, d, { detail = true, label = "易碎物品", code = "B4-117", skids = true } = {}) {
+function buildWoodCrateGeometry(
+  builder,
+  w,
+  h,
+  d,
+  { detail = true, label = "易碎物品", code = "B4-117", skids = true } = {},
+) {
   const prng = builder.rng;
   const skidH = skids ? 0.07 : 0;
   const boxH = h - skidH;
   const boxCenterY = skidH + boxH / 2;
 
   // 主箱体 (Main Crate Body)
-  builder.add("wood_pallet", detail ? createChamferedBoxGeometry(w, boxH, d, 0.004) : $e(w, boxH, d), { p: [0, boxCenterY, 0] }, prng.range(0.85, 1.0));
+  builder.add(
+    "wood_pallet",
+    detail ? createChamferedBoxGeometry(w, boxH, d, 0.004) : $e(w, boxH, d),
+    { p: [0, boxCenterY, 0] },
+    prng.range(0.85, 1.0),
+  );
 
   // 底部托板木梁 (Bottom Skids)
   if (skids) {
@@ -2207,10 +2854,14 @@ function buildWoodCrateGeometry(builder, w, h, d, { detail = true, label = "易�
 
   // 唛头、条形码与警示喷涂印章 (Stencil Labels)
   if (label) {
-    builder.label(label, { color: "black", font: "stencil", distress: 0.35 }, 0.45, 0.14, { p: [0, boxCenterY + 0.1, d / 2 + 0.002] });
+    builder.label(label, { color: "black", font: "stencil", distress: 0.35 }, 0.45, 0.14, {
+      p: [0, boxCenterY + 0.1, d / 2 + 0.002],
+    });
   }
   if (code) {
-    builder.label(code, { color: "black", font: "stencil", distress: 0.35 }, 0.35, 0.09, { p: [0, boxCenterY - 0.1, d / 2 + 0.002] });
+    builder.label(code, { color: "black", font: "stencil", distress: 0.35 }, 0.35, 0.09, {
+      p: [0, boxCenterY - 0.1, d / 2 + 0.002],
+    });
   }
 }
 
@@ -2222,7 +2873,7 @@ function buildCrateWood(engineCtx, options = {}) {
   const labels = ["易碎物品", "此面向上", "保持干燥", "机械零件"];
   buildWoodCrateGeometry(b, 1.1, 1.0, 0.9, {
     label: options.label === undefined ? labels[b.seed % labels.length] : options.label,
-    code: options.code || ("B4-" + [117, 204, 318][b.seed % 3])
+    code: options.code || "B4-" + [117, 204, 318][b.seed % 3],
   });
   return b.finish();
 }
@@ -2238,7 +2889,7 @@ function buildCrateStack(engineCtx, options = {}) {
   // 上层错落中货箱
   b.push({
     p: [prng.range(-0.1, 0.02), 0.95, prng.range(-0.05, 0.05)],
-    r: [0, (prng() < 0.5 ? -1 : 1) * prng.range(0.1, 0.16), 0]
+    r: [0, (prng() < 0.5 ? -1 : 1) * prng.range(0.1, 0.16), 0],
   });
   buildWoodCrateGeometry(b, 0.86, 0.82, 0.72, { label: "此面向上", code: "B4-88" });
   b.pop();
@@ -2256,7 +2907,9 @@ function buildIbcTote(engineCtx, options = {}) {
   b.add("steel_galv", $e(1.2, 0.028, 1.0), { p: [0, 0.014, 0] });
   for (const sx of [-0.54, 0, 0.54]) {
     for (const sz of [-0.44, 0, 0.44]) {
-      b.add("steel_galv", createChamferedBoxGeometry(0.12, 0.074, 0.1, 0.005), { p: [sx, 0.065, sz] });
+      b.add("steel_galv", createChamferedBoxGeometry(0.12, 0.074, 0.1, 0.005), {
+        p: [sx, 0.065, sz],
+      });
     }
   }
 
@@ -2297,16 +2950,29 @@ function buildCableReel(engineCtx, options = {}) {
 
   // 两侧圆形法兰木护盘 (Twin Wooden Circular Flanges)
   for (const sz of [-width / 2 + flangeThick / 2, width / 2 - flangeThick / 2]) {
-    b.add("wood_dark", ot(radius, radius, flangeThick, 20), { p: [0, radius, sz], rot: [HALF_PI, 0, 0] }, prng.range(0.8, 1.0));
+    b.add(
+      "wood_dark",
+      ot(radius, radius, flangeThick, 20),
+      { p: [0, radius, sz], rot: [HALF_PI, 0, 0] },
+      prng.range(0.8, 1.0),
+    );
   }
 
   // 中间圆柱形电缆卷筒 (Core Cylinder)
   const coreRadius = 0.32;
-  b.add("wood_pallet", ot(coreRadius, coreRadius, width - 2 * flangeThick, 16), { p: [0, radius, 0], rot: [HALF_PI, 0, 0] });
+  b.add("wood_pallet", ot(coreRadius, coreRadius, width - 2 * flangeThick, 16), {
+    p: [0, radius, 0],
+    rot: [HALF_PI, 0, 0],
+  });
 
   // 缠绕黑色橡胶护套特种高压电缆 (Coiled High-Voltage Rubber Cable)
   const cableRadius = 0.54;
-  b.add("rubber", ot(cableRadius, cableRadius, width - 2 * flangeThick - 0.02, 18), { p: [0, radius, 0], rot: [HALF_PI, 0, 0] }, 0.7);
+  b.add(
+    "rubber",
+    ot(cableRadius, cableRadius, width - 2 * flangeThick - 0.02, 18),
+    { p: [0, radius, 0], rot: [HALF_PI, 0, 0] },
+    0.7,
+  );
 
   return b.finish({ size: [radius * 2, radius * 2, width] });
 }
@@ -2324,8 +2990,12 @@ function buildTireStack(engineCtx, options = {}) {
   for (let i = 0; i < count; i++) {
     const tireGeo = generateTireTreadProfile(tireWidth, tireRadius, 0.22, 16);
     b.push({
-      p: [i ? prng.range(-0.03, 0.03) : 0, i * tireWidth + tireWidth / 2, i ? prng.range(-0.03, 0.03) : 0],
-      r: [HALF_PI, 0, prng() * 6]
+      p: [
+        i ? prng.range(-0.03, 0.03) : 0,
+        i * tireWidth + tireWidth / 2,
+        i ? prng.range(-0.03, 0.03) : 0,
+      ],
+      r: [HALF_PI, 0, prng() * 6],
     });
     b.add("tire", tireGeo, null, 0.85);
     b.pop();
@@ -2347,7 +3017,12 @@ function buildJerryCan(engineCtx, options = {}, variant = 0) {
 
   // 经典三联式便携提把 (Classic 3-Bar Handle)
   for (const sz of [-0.038, 0, 0.038]) {
-    b.add(matName, createConnectingCylinder([-0.11, 0.39, sz], [0.08, 0.39, sz], 0.012, 6), null, tint);
+    b.add(
+      matName,
+      createConnectingCylinder([-0.11, 0.39, sz], [0.08, 0.39, sz], 0.012, 6),
+      null,
+      tint,
+    );
   }
 
   // 铰链式金属注油密封盖 (Cam-lock Pouring Spout Cap)
@@ -2389,8 +3064,12 @@ function buildGasCylinders(engineCtx, options = {}) {
   // 花纹防滑钢板底座与防护笼架 (Steel Base Skid & Protective Frame)
   b.add("diamond_plate", createChamferedBoxGeometry(0.9, 0.016, 0.5, 0.004), { p: [0, 0.008, 0] });
   for (const sx of [-0.43, 0.43]) {
-    b.add("steel_dark", createChamferedBoxGeometry(0.04, 1.14, 0.04, 0.005), { p: [sx, 0.585, -0.225] });
-    b.add("steel_dark", createChamferedBoxGeometry(0.04, 1.14, 0.04, 0.005), { p: [sx, 0.585, 0.225] });
+    b.add("steel_dark", createChamferedBoxGeometry(0.04, 1.14, 0.04, 0.005), {
+      p: [sx, 0.585, -0.225],
+    });
+    b.add("steel_dark", createChamferedBoxGeometry(0.04, 1.14, 0.04, 0.005), {
+      p: [sx, 0.585, 0.225],
+    });
   }
   b.add("steel_dark", $e(0.9, 0.03, 0.03), { p: [0, 1.14, -0.225] });
   b.add("steel_dark", $e(0.9, 0.03, 0.03), { p: [0, 1.14, 0.225] });
@@ -2403,7 +3082,11 @@ function buildGasCylinders(engineCtx, options = {}) {
     // 瓶身
     b.add(cylColors[i % cylColors.length], ot(0.1, 0.1, 1.25, 14), { p: [cx, 0.65, 0] });
     // 顶部球冠半球
-    b.add(cylColors[i % cylColors.length], new THREE.SphereGeometry(0.1, 12, 8, 0, PI * 2, 0, HALF_PI), { p: [cx, 1.275, 0] });
+    b.add(
+      cylColors[i % cylColors.length],
+      new THREE.SphereGeometry(0.1, 12, 8, 0, PI * 2, 0, HALF_PI),
+      { p: [cx, 1.275, 0] },
+    );
     // 减压阀与防护铜盖 (Brass Pressure Regulator & Protective Cap)
     b.add("brass", ot(0.035, 0.035, 0.08, 8), { p: [cx, 1.36, 0] });
   }
@@ -2429,16 +3112,26 @@ function buildPipeStack(engineCtx, options = {}) {
   const layers = [
     { count: 4, y: 0.08 + radius, zStart: -0.42 },
     { count: 3, y: 0.08 + radius + radius * Math.sqrt(3), zStart: -0.28 },
-    { count: 2, y: 0.08 + radius + radius * Math.sqrt(3) * 2, zStart: -0.14 }
+    { count: 2, y: 0.08 + radius + radius * Math.sqrt(3) * 2, zStart: -0.14 },
   ];
 
   for (const lyr of layers) {
     for (let i = 0; i < lyr.count; i++) {
       const cz = lyr.zStart + i * (radius * 2);
       const pipeGeo = ot(radius, radius, pipeLen, 16, true);
-      b.add("steel_rust", pipeGeo, { p: [0, lyr.y, cz], rot: [0, 0, HALF_PI] }, prng.range(0.8, 1.0));
+      b.add(
+        "steel_rust",
+        pipeGeo,
+        { p: [0, lyr.y, cz], rot: [0, 0, HALF_PI] },
+        prng.range(0.8, 1.0),
+      );
       // 内部内壁暗色
-      b.add("steel_dark", ot(radius - 0.015, radius - 0.015, pipeLen - 0.01, 14, true), { p: [0, lyr.y, cz], rot: [0, 0, HALF_PI] }, 0.5);
+      b.add(
+        "steel_dark",
+        ot(radius - 0.015, radius - 0.015, pipeLen - 0.01, 14, true),
+        { p: [0, lyr.y, cz], rot: [0, 0, HALF_PI] },
+        0.5,
+      );
     }
   }
 
@@ -2471,7 +3164,16 @@ function buildTarpCargo(engineCtx, options = {}) {
 
   // 捆绑拉紧防风绳索 (Fastening Cargo Tie-down Ropes)
   for (const sx of [-0.8, -0.2, 0.4, 0.9]) {
-    b.tube("polymer_tan", [[sx, 0.1, -0.68], [sx, 1.45, -0.68], [sx, 1.48, 0.68], [sx, 0.1, 0.68]], 0.008);
+    b.tube(
+      "polymer_tan",
+      [
+        [sx, 0.1, -0.68],
+        [sx, 1.45, -0.68],
+        [sx, 1.48, 0.68],
+        [sx, 0.1, 0.68],
+      ],
+      0.008,
+    );
   }
 
   return b.finish();
@@ -2498,13 +3200,18 @@ function buildSandbags(engineCtx, options = {}) {
     for (let i = 0; i < count; i++) {
       const x = xStart + i * (bagW * 0.92) + prng.range(-0.015, 0.015);
       const bagGeo = createChamferedBoxGeometry(bagW, bagH, bagD, 0.045);
-      traverseAndMutateVertices(bagGeo, v => {
+      traverseAndMutateVertices(bagGeo, (v) => {
         const deform = (sampleSimplexNoise3D(v.x * 8, v.y * 8, v.z * 8) - 0.5) * 0.03;
         v.y += deform;
         v.x += deform * 0.5;
       });
       recomputeNormalsAndBounds(bagGeo);
-      b.add("tarp", bagGeo, { p: [x, y, prng.range(-0.02, 0.02)], r: [0, prng.range(-0.08, 0.08), 0] }, prng.range(0.78, 0.96));
+      b.add(
+        "tarp",
+        bagGeo,
+        { p: [x, y, prng.range(-0.02, 0.02)], r: [0, prng.range(-0.08, 0.08), 0] },
+        prng.range(0.78, 0.96),
+      );
     }
   }
 
@@ -2522,7 +3229,12 @@ function buildCardboardBoxes(engineCtx, options = {}) {
     const boxGeo = createChamferedBoxGeometry(bw, bh, bd, 0.006);
     b.add("cardboard", boxGeo, { p: [px, py + bh / 2, pz], r: [0, ry, 0] }, prng.range(0.85, 1.0));
     // 封箱牛皮胶带 (Packing Tape)
-    b.add("polymer_tan", $e(bw + 0.002, 0.05, bd + 0.002), { p: [px, py + bh / 2, pz], r: [0, ry, 0] }, 0.9);
+    b.add(
+      "polymer_tan",
+      $e(bw + 0.002, 0.05, bd + 0.002),
+      { p: [px, py + bh / 2, pz], r: [0, ry, 0] },
+      0.9,
+    );
   };
 
   // 底层 2 盒
@@ -2586,9 +3298,13 @@ function buildForklift(engineCtx, options = {}) {
   b.add(matGalv, $e(0.06, 0.65, 0.86), { p: [mastX + 0.08, carriageY + 0.32, 0] });
   for (const sz of [-0.26, 0.26]) {
     // 垂直叉背
-    b.add(matGalv, createChamferedBoxGeometry(0.05, 0.75, 0.12, 0.006), { p: [mastX + 0.12, carriageY + 0.36, sz] });
+    b.add(matGalv, createChamferedBoxGeometry(0.05, 0.75, 0.12, 0.006), {
+      p: [mastX + 0.12, carriageY + 0.36, sz],
+    });
     // 水平货叉长臂 (1.2m Fork Tine)
-    b.add(matGalv, createChamferedBoxGeometry(1.22, 0.045, 0.12, 0.005), { p: [mastX + 0.72, carriageY + 0.025, sz] });
+    b.add(matGalv, createChamferedBoxGeometry(1.22, 0.045, 0.12, 0.005), {
+      p: [mastX + 0.72, carriageY + 0.025, sz],
+    });
   }
 
   // 6. 前后四实心橡胶工业轮胎 (4 Solid Rubber Industrial Tires)
@@ -2657,7 +3373,12 @@ function buildDumpster(engineCtx, options = {}) {
 
   // 顶部双开轻质翻盖 (Plastic Split Lids)
   for (const sx of [-0.46, 0.46]) {
-    b.add("plastic_grey", createChamferedBoxGeometry(0.9, 0.04, 1.1, 0.01), { p: [sx, 1.32, 0] }, 0.8);
+    b.add(
+      "plastic_grey",
+      createChamferedBoxGeometry(0.9, 0.04, 1.1, 0.01),
+      { p: [sx, 1.32, 0] },
+      0.8,
+    );
   }
 
   // 四只重载脚轮 (4 Heavy Duty Caster Wheels)
@@ -2688,7 +3409,12 @@ function buildToolboxCart(engineCtx, options = {}) {
   let curY = 0.75;
   for (const dh of drawerHeights) {
     curY -= dh / 2;
-    b.add(matBody, createChamferedBoxGeometry(0.68, dh - 0.01, 0.02, 0.004), { p: [0.04, curY, 0.235] }, tint);
+    b.add(
+      matBody,
+      createChamferedBoxGeometry(0.68, dh - 0.01, 0.02, 0.004),
+      { p: [0.04, curY, 0.235] },
+      tint,
+    );
     b.add(matAlum, $e(0.62, 0.016, 0.016), { p: [0.04, curY + dh / 2 - 0.02, 0.245] });
     curY -= dh / 2;
   }
@@ -2697,7 +3423,16 @@ function buildToolboxCart(engineCtx, options = {}) {
   b.add("rubber", $e(0.7, 0.01, 0.42), { p: [0.04, 0.785, 0] });
 
   // 侧边坚固推手把 (Side Tubular Grab Handle)
-  b.tube(matAlum, [[-0.35, 0.72, -0.17], [-0.43, 0.72, -0.17], [-0.43, 0.72, 0.17], [-0.35, 0.72, 0.17]], 0.014);
+  b.tube(
+    matAlum,
+    [
+      [-0.35, 0.72, -0.17],
+      [-0.43, 0.72, -0.17],
+      [-0.43, 0.72, 0.17],
+      [-0.35, 0.72, 0.17],
+    ],
+    0.014,
+  );
 
   // 4 个工业旋转脚轮 (4 Swivel Casters)
   for (const sx of [-0.28, 0.36]) {
@@ -2727,43 +3462,60 @@ export function registerPropBuilder(name, builderFn) {
     registerPropBuilder(t, (ctx, opts) => buildContainerMesh(ctx, t, opts));
   }
   // 2. 港区基础设施
-  registerPropBuilder("jersey_barrier",   buildJerseyBarrier);
-  registerPropBuilder("light_mast",       buildLightMast);
-  registerPropBuilder("fence_panel",      buildFencePanel);
-  registerPropBuilder("guard_booth",      buildGuardBooth);
-  registerPropBuilder("gate_arm",         buildGateArm);
-  registerPropBuilder("bollard_mooring",  buildBollardMooring);
-  registerPropBuilder("bollard_post",     buildBollardPost);
-  registerPropBuilder("sign_post",        buildSignPost);
+  registerPropBuilder("jersey_barrier", buildJerseyBarrier);
+  registerPropBuilder("light_mast", buildLightMast);
+  registerPropBuilder("fence_panel", buildFencePanel);
+  registerPropBuilder("guard_booth", buildGuardBooth);
+  registerPropBuilder("gate_arm", buildGateArm);
+  registerPropBuilder("bollard_mooring", buildBollardMooring);
+  registerPropBuilder("bollard_post", buildBollardPost);
+  registerPropBuilder("sign_post", buildSignPost);
   registerPropBuilder("floodlight_stand", buildFloodlightStand);
-  registerPropBuilder("stairs_metal",     buildStairsMetal);
-  registerPropBuilder("catwalk",          buildCatwalk);
-  registerPropBuilder("shelf_rack",       buildShelfRack);
-  registerPropBuilder("reefer_unit",      buildReeferUnit);
-  registerPropBuilder("relay_node",       buildRelayNode);
+  registerPropBuilder("stairs_metal", buildStairsMetal);
+  registerPropBuilder("catwalk", buildCatwalk);
+  registerPropBuilder("shelf_rack", buildShelfRack);
+  registerPropBuilder("reefer_unit", buildReeferUnit);
+  registerPropBuilder("relay_node", buildRelayNode);
 
   // 3. 物流与仓储货物
-  registerPropBuilder("barrel",           (ctx, opts = {}) => withCachedPrototype(`barrel|${opts.color}|${!!opts.lying}|${!!opts.open}|${Math.abs(opts.seed | 0) % 4}`, () => buildBarrel(ctx, opts, Math.abs(opts.seed | 0) % 4)));
-  registerPropBuilder("pallet",           (ctx, opts = {}) => withCachedPrototype(`pallet|${!!opts.broken}|${Math.abs(opts.seed | 0) % 4}`, () => buildPallet(ctx, opts, Math.abs(opts.seed | 0) % 4)));
-  registerPropBuilder("pallet_stack",     buildPalletStack);
-  registerPropBuilder("crate_wood",       buildCrateWood);
-  registerPropBuilder("crate_stack",      buildCrateStack);
-  registerPropBuilder("ibc_tote",         buildIbcTote);
-  registerPropBuilder("cable_reel",       buildCableReel);
-  registerPropBuilder("tire_stack",       buildTireStack);
-  registerPropBuilder("jerry_can",        (ctx, opts = {}) => withCachedPrototype(`jerry|${opts.color}|${Math.abs(opts.seed | 0) % 2}`, () => buildJerryCan(ctx, opts, Math.abs(opts.seed | 0) % 2)));
-  registerPropBuilder("traffic_cone",     (ctx, opts = {}) => withCachedPrototype(`cone|${!!opts.lying}|${Math.abs(opts.seed | 0) % 3}`, () => buildTrafficCone(ctx, opts, Math.abs(opts.seed | 0) % 3)));
-  registerPropBuilder("gas_cylinders",    buildGasCylinders);
-  registerPropBuilder("pipe_stack",       buildPipeStack);
-  registerPropBuilder("tarp_cargo",       buildTarpCargo);
-  registerPropBuilder("sandbags",         buildSandbags);
-  registerPropBuilder("cardboard_boxes",  buildCardboardBoxes);
+  registerPropBuilder("barrel", (ctx, opts = {}) =>
+    withCachedPrototype(
+      `barrel|${opts.color}|${!!opts.lying}|${!!opts.open}|${Math.abs(opts.seed | 0) % 4}`,
+      () => buildBarrel(ctx, opts, Math.abs(opts.seed | 0) % 4),
+    ),
+  );
+  registerPropBuilder("pallet", (ctx, opts = {}) =>
+    withCachedPrototype(`pallet|${!!opts.broken}|${Math.abs(opts.seed | 0) % 4}`, () =>
+      buildPallet(ctx, opts, Math.abs(opts.seed | 0) % 4),
+    ),
+  );
+  registerPropBuilder("pallet_stack", buildPalletStack);
+  registerPropBuilder("crate_wood", buildCrateWood);
+  registerPropBuilder("crate_stack", buildCrateStack);
+  registerPropBuilder("ibc_tote", buildIbcTote);
+  registerPropBuilder("cable_reel", buildCableReel);
+  registerPropBuilder("tire_stack", buildTireStack);
+  registerPropBuilder("jerry_can", (ctx, opts = {}) =>
+    withCachedPrototype(`jerry|${opts.color}|${Math.abs(opts.seed | 0) % 2}`, () =>
+      buildJerryCan(ctx, opts, Math.abs(opts.seed | 0) % 2),
+    ),
+  );
+  registerPropBuilder("traffic_cone", (ctx, opts = {}) =>
+    withCachedPrototype(`cone|${!!opts.lying}|${Math.abs(opts.seed | 0) % 3}`, () =>
+      buildTrafficCone(ctx, opts, Math.abs(opts.seed | 0) % 3),
+    ),
+  );
+  registerPropBuilder("gas_cylinders", buildGasCylinders);
+  registerPropBuilder("pipe_stack", buildPipeStack);
+  registerPropBuilder("tarp_cargo", buildTarpCargo);
+  registerPropBuilder("sandbags", buildSandbags);
+  registerPropBuilder("cardboard_boxes", buildCardboardBoxes);
 
   // 4. 重工业机械与车辆
-  registerPropBuilder("forklift",         buildForklift);
-  registerPropBuilder("generator",        buildGenerator);
-  registerPropBuilder("dumpster",         buildDumpster);
-  registerPropBuilder("toolbox_cart",     buildToolboxCart);
+  registerPropBuilder("forklift", buildForklift);
+  registerPropBuilder("generator", buildGenerator);
+  registerPropBuilder("dumpster", buildDumpster);
+  registerPropBuilder("toolbox_cart", buildToolboxCart);
 })();
 
 /**
@@ -2772,7 +3524,7 @@ export function registerPropBuilder(name, builderFn) {
 export function createPropsManager(engineCtx) {
   return {
     names: () => Object.keys(PROP_SIZES),
-    has: name => !!PROP_SIZES[name],
+    has: (name) => !!PROP_SIZES[name],
     build(name, opts = {}) {
       if (PROP_BUILDERS[name]) {
         try {
@@ -2789,15 +3541,17 @@ export function createPropsManager(engineCtx) {
       if (!PROP_SIZES[name]) console.warn(`[props] unknown prop "${name}"`);
       const fallback = new THREE.Group();
       fallback.add(Qi($e(def[0], def[1], def[2], "bottom"), engineCtx.mats.get(def[3])));
-      fallback.userData.colliders = [{
-        min: [-def[0] / 2, 0, -def[2] / 2],
-        max: [def[0] / 2, def[1], def[2] / 2],
-        surface: def[4]
-      }];
+      fallback.userData.colliders = [
+        {
+          min: [-def[0] / 2, 0, -def[2] / 2],
+          max: [def[0] / 2, def[1], def[2] / 2],
+          surface: def[4],
+        },
+      ];
       fallback.userData.size = [def[0], def[1], def[2]];
       fallback.userData.prop = name;
       return fallback;
-    }
+    },
   };
 }
 
@@ -2805,13 +3559,18 @@ export function createPropsManager(engineCtx) {
  * 道具展示厅与阵列预览
  */
 export function showcaseProps(engineCtx) {
-  const names = engineCtx.params.names ? engineCtx.params.names.split(",") : Object.keys(PROP_SIZES);
-  let curX = 0, curZ = 0, rowMaxZ = 0, totalWidth = 0;
+  const names = engineCtx.params.names
+    ? engineCtx.params.names.split(",")
+    : Object.keys(PROP_SIZES);
+  let curX = 0,
+    curZ = 0,
+    rowMaxZ = 0,
+    totalWidth = 0;
 
   for (const name of names) {
     const mesh = engineCtx.props.build(name, {
       seed: 7,
-      doors: name.startsWith("container") ? 0.6 : 0
+      doors: name.startsWith("container") ? 0.6 : 0,
     });
     const size = mesh.userData.size || PROP_SIZES[name] || [1, 1, 1];
     if (curX + size[0] > 26) {
@@ -2829,7 +3588,7 @@ export function showcaseProps(engineCtx) {
   const midX = Math.min(totalWidth, 26) / 2;
   return {
     cam: [midX - 4, 2.2, curZ + rowMaxZ + 6],
-    target: [midX, 1, curZ / 2]
+    target: [midX, 1, curZ / 2],
   };
 }
 
@@ -2842,6 +3601,6 @@ const $g = {
   PROP_SIZES,
   create: createPropsManager,
   register: registerPropBuilder,
-  showcase: showcaseProps
+  showcase: showcaseProps,
 };
 export { $g };

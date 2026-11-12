@@ -1,3 +1,4 @@
+// @ts-check
 /**
  * ============================================================================
  * 3A-GAME Procedural PBR Material Library (materials.js)
@@ -5,49 +6,50 @@
  * ============================================================================
  */
 
-import * as THREE from 'three';
-import {
-  oi, Mn, en, Pi, vf, zc, Pr, zy, Dy, il,
-  Zn, bi, Fo, sl, kn, Wt, dr
-} from './constants.js';
-
-import {
-  sa, Ly, oa, $e, Wi, ot, Fn, ky, Fy, Uy, Ny, Fg, Dc, Lc, Ii, By, Qi
-} from './geo.js';
+import * as THREE from "three";
 
 // Three.js 紧凑别名 (Compact Three.js Aliases)
-const lt = THREE;
-const W  = THREE.Vector3;
-const Ae = THREE.Vector2;
-const Dt = THREE.Vector4;
-const Ve = THREE.Color;
-const wt = THREE.Group;
-const Qe = THREE.Mesh;
-const rn = THREE.PlaneGeometry;
-const ls = THREE.SphereGeometry;
-const cr = THREE.OrthographicCamera;
-const ir = THREE.Scene;
-const si = THREE.WebGLRenderTarget;
-const Qt = THREE.MeshStandardMaterial;
-const Nn = THREE.MeshBasicMaterial;
-const V0 = THREE.RawShaderMaterial;
-const xs = THREE.CanvasTexture;
-const It = THREE.ShaderChunk;
-const Ac = THREE.GLSL3;
-const Sn = THREE.DoubleSide;
-const Ln = THREE.LinearMipmapLinearFilter;
-const Gn = THREE.NearestFilter;
-const Zt = THREE.LinearFilter;
-const Is = THREE.RepeatWrapping;
-const Vn = THREE.SRGBColorSpace;
-const hi = THREE.NoColorSpace;
+const threeNamespace = THREE;
+const Vector3 = THREE.Vector3;
+const Vector2 = THREE.Vector2;
+const Vector4 = THREE.Vector4;
+const Color = THREE.Color;
+const Group = THREE.Group;
+const Mesh = THREE.Mesh;
+const PlaneGeometry = THREE.PlaneGeometry;
+const SphereGeometry = THREE.SphereGeometry;
+const OrthographicCamera = THREE.OrthographicCamera;
+const Scene = THREE.Scene;
+const WebGLRenderTarget = THREE.WebGLRenderTarget;
+const MeshStandardMaterial = THREE.MeshStandardMaterial;
+const MeshBasicMaterial = THREE.MeshBasicMaterial;
+const RawShaderMaterial = THREE.RawShaderMaterial;
+const CanvasTexture = THREE.CanvasTexture;
+const ShaderChunk = THREE.ShaderChunk;
+const GLSL3 = THREE.GLSL3;
+const DoubleSide = THREE.DoubleSide;
+const LinearMipmapLinearFilter = THREE.LinearMipmapLinearFilter;
+const NearestFilter = THREE.NearestFilter;
+const LinearFilter = THREE.LinearFilter;
+const RepeatWrapping = THREE.RepeatWrapping;
+const SRGBColorSpace = THREE.SRGBColorSpace;
+const NoColorSpace = THREE.NoColorSpace;
 
-const _M = Object.defineProperty;
-const br = (i, e) => { for (var t in e) _M(i, t, { get: e[t], enumerable: true }); };
+const defineProperty = Object.defineProperty;
+const defineGetters = (i, e) => {
+  for (var t in e) defineProperty(i, t, { get: e[t], enumerable: true });
+};
 
-var qg={};br(qg,{applyPatch:()=>h3,create:()=>Gg,showcase:()=>wA});var Qy=`
+var MaterialsModule = {};
+defineGetters(MaterialsModule, {
+  applyPatch: () => applyMaterialPatch,
+  create: () => buildMaterialsManager,
+  showcase: () => buildMaterialsShowcase,
+});
+var fullscreenVertexShader = `
 in vec3 position; out vec2 vUv;
-void main(){ vUv = position.xy * 0.5 + 0.5; gl_Position = vec4(position.xy, 0.0, 1.0); }`,e3=`
+void main(){ vUv = position.xy * 0.5 + 0.5; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
+  surfaceShaderPrelude = `
 precision highp float; precision highp int;
 uniform vec4 uP; uniform float uSeed; uniform float uTexel;
 in vec2 vUv;
@@ -133,8 +135,11 @@ void paintDmg(vec2 uv, float amt, out float chip, out float stain, out float run
   }
   run = rr * smoothstep(0.5, 0.78, streak);
 }
-`,t3=`
-void main(){ surf(vUv); }`,Tn={};Tn.asphalt=`
+`,
+  surfaceShaderEntry = `
+void main(){ surf(vUv); }`,
+  surfaceShaderLibrary = {};
+surfaceShaderLibrary.asphalt = `
 void surf(vec2 uv){
   vec4 a = vor(uv * 110.0, vec2(110.0), 1.0);
   vec4 b = vor(uv * 230.0 + 3.0, vec2(230.0), 2.0);
@@ -159,7 +164,8 @@ void surf(vec2 uv){
   float r = mix(0.93, 0.74, stone * (0.4 + 0.6 * wearK)); r = mix(r, 0.36, band);
   float oil = smoothstep(0.72, 0.86, fbm(uv + 0.5, vec2(5.0), 4, 14.0)); col *= 1.0 - oil * 0.45; r = mix(r, 0.5, oil * 0.6);
   emit(col, 1.0, h, mix(0.55, 1.0, smoothstep(0.0, 0.6, h)), r, 0.0);
-}`;Tn.concrete=`
+}`;
+surfaceShaderLibrary.concrete = `
 void surf(vec2 uv){
   float big = fbm(uv, vec2(2.0), 5, 1.0), mid = fbm(uv, vec2(12.0), 5, 2.0), fine = fbm(uv, vec2(180.0), 3, 3.0);
   float form = fbm(uv, vec2(2.0, 7.0), 5, 4.0);
@@ -186,7 +192,8 @@ void surf(vec2 uv){
   float ao = 1.0 - pore * 0.5 - crack * 0.5 - joint * 0.6 - chip * 0.15;
   float pa = smoothstep(0.40, 0.47, fbm(uv, vec2(9.0), 5, 16.0) + (mid - 0.5) * 0.2) * (1.0 - chip) * (1.0 - crack) * (1.0 - pore);
   emit(col, pa, h, ao, r, 0.0);
-}`;Tn.brick=`
+}`;
+surfaceShaderLibrary.brick = `
 void surf(vec2 uv){
   float rows = 24.0, cols = 8.0; float y = uv.y * rows; float row = floor(y); float x = uv.x * cols + 0.5 * mod(row, 2.0); float cl = floor(x);
   vec2 f = vec2(fract(x), fract(y)); vec3 id = h3(vec2(cl, row), vec2(cols, rows), 1.0);
@@ -203,7 +210,8 @@ void surf(vec2 uv){
   float ef = smoothstep(0.7, 0.85, fbm(uv, vec2(5.0), 4, 7.0)) * brick; col = mix(col, L(0.7, 0.68, 0.64), ef * 0.3);
   float h = mix(0.25 + fine * 0.1, 0.7 + (mid - 0.5) * 0.15 + (fine - 0.5) * 0.1 - pit * 0.2 + (id.x - 0.5) * 0.12, brick);
   emit(col, 1.0, h, mix(0.6, 1.0, brick) * (1.0 - pit * 0.3), mix(0.95, 0.86 + (mid - 0.5) * 0.15, brick), 0.0);
-}`;Tn.epoxy=`
+}`;
+surfaceShaderLibrary.epoxy = `
 void surf(vec2 uv){
   float big = fbm(uv, vec2(3.0), 5, 1.0), mid = fbm(uv, vec2(20.0), 4, 2.0), fine = fbm(uv, vec2(250.0), 2, 3.0), mott = fbm(uv, vec2(9.0), 5, 11.0);
   vec3 col = L(0.41, 0.445, 0.435) * (0.78 + 0.3 * big + 0.22 * (mott - 0.5));
@@ -226,7 +234,8 @@ void surf(vec2 uv){
   float h = 0.5 + (fine - 0.5) * 0.05 + (mid - 0.5) * 0.06 - sc1 * 0.2 - sc2 * 0.08 + tm * 0.05 + (gloss - 0.5) * 0.03;
   float chip = smoothstep(0.87, 0.9, fbm(uv, vec2(14.0), 5, 10.0) + (fine - 0.5) * 0.06); col = mix(col, L(0.44, 0.44, 0.43) * (0.75 + 0.5 * fine), chip); h -= chip * 0.3; r = mix(r, 0.85, chip);
   emit(col, 1.0, h, 1.0 - chip * 0.2, r, 0.0);
-}`;var n3=`
+}`;
+var heightToNormalFragmentShader = `
   float fine = fbm(uv, vec2(260.0), 2, 1.0), mid = fbm(uv, vec2(16.0), 4, 2.0), big = fbm(uv, vec2(2.0), 4, 3.0);
   float chalk = smoothstep(0.3, 0.8, fbm(uv, vec2(1.0, 2.0), 4, 4.0));
   float dirt = smoothstep(0.42, 0.85, fbm(uv, vec2(3.0, 2.0), 5, 5.0));
@@ -254,22 +263,25 @@ void surf(vec2 uv){
   float r = baseR + chalk * 0.26 + df * 0.3 - clean * 0.06 + (mid - 0.5) * 0.14 + (big - 0.5) * 0.1; r = mix(r, 0.75, primer); r = mix(r, 0.92, steel); r = mix(r, 0.35, fresh); r = mix(r, 0.72, rs * 0.6);
   float m = fresh * 0.95 + (steel - fresh) * 0.15;
   float ao = 1.0 - steel * 0.25 - primer * 0.1;
-`;Tn.paint=`
+`;
+surfaceShaderLibrary.paint = `
 void surf(vec2 uv){
   float chip, stain, run; paintDmg(uv, uP.x, chip, stain, run);
   float shade = 0.8, baseR = 0.40;
-  ${n3}
+  ${heightToNormalFragmentShader}
   emit(nt, ta, h, ao, r, m);
-}`;Tn.hazard=`
+}`;
+surfaceShaderLibrary.hazard = `
 void surf(vec2 uv){
   float chip, stain, run; paintDmg(uv, 1.4, chip, stain, run);
   float shade = 1.0, baseR = 0.5;
-  ${n3}
+  ${heightToNormalFragmentShader}
   float s = fract((uv.x + uv.y) * 5.0);
   float yel = smoothstep(0.244, 0.256, abs(s - 0.5) + (fbm(uv, vec2(80.0), 2, 41.0) - 0.5) * 0.02);
   vec3 pc = mix(L(0.1, 0.1, 0.11), L(0.86, 0.66, 0.1), yel);
   emit(nt + pc * ta, 1.0, h, ao, r, m);
-}`;Tn.hull=`
+}`;
+surfaceShaderLibrary.hull = `
 void surf(vec2 uv){
   float ry = uv.y * 2.0; float row = floor(ry); float fy = fract(ry); float sx = fract(uv.x + 0.5 * mod(row, 2.0));
   float dh = min(fy, 1.0 - fy) * 2.0, dv = min(sx, 1.0 - sx) * 4.0; float dseam = min(dh, dv);
@@ -299,7 +311,8 @@ void surf(vec2 uv){
   float h = 0.5 + (roller - 0.5) * 0.05 + (fine - 0.5) * 0.03 + bead * 0.35 * ripple + (dish - 0.5) * 0.1 - rust * 0.08 * (1.0 - pit);
   float r = 0.5 + (mid - 0.5) * 0.15 + salt * 0.2; r = mix(r, 0.9, rust); r = mix(r, 0.7, weep * 0.5);
   emit(nt, ta, h, 1.0 - rust * 0.2 - smoothstep(0.03, 0.012, dseam) * (1.0 - bead) * 0.3, r, rust * 0.1);
-}`;Tn.galv=`
+}`;
+surfaceShaderLibrary.galv = `
 void surf(vec2 uv){
   vec2 wu = uv + (vec2(fbm(uv, vec2(8.0), 2, 1.0), fbm(uv, vec2(8.0), 2, 2.0)) - 0.5) * 0.03;
   vec4 a = vor(wu * 22.0, vec2(22.0), 3.0); vec4 b = vor(wu * 50.0 + 1.5, vec2(50.0), 4.0);
@@ -314,7 +327,8 @@ void surf(vec2 uv){
   float r = 0.3 + 0.28 * sp + (mid - 0.5) * 0.15 + wr * 0.3; r = mix(r, 0.9, rs);
   float h = 0.5 + (sp - 0.5) * 0.08 * edge + (fine - 0.5) * 0.04 + wr * 0.05 * fine - (1.0 - edge) * 0.03;
   emit(col, 1.0, h, 1.0, r, 1.0 - wr * 0.45 - rs * 0.9);
-}`;Tn.metal=`
+}`;
+surfaceShaderLibrary.metal = `
 void surf(vec2 uv){
   float big = fbm(uv, vec2(2.0), 5, 1.0), mid = fbm(uv, vec2(18.0), 4, 2.0), fine = fbm(uv, vec2(240.0), 2, 3.0);
   float smudge = fbm(uv, vec2(5.0, 7.0), 5, 4.0);
@@ -328,7 +342,8 @@ void surf(vec2 uv){
   float r = 0.42 + (smudge - 0.5) * 0.3 + (mid - 0.5) * 0.1 - sc * 0.15 + scale_ * 0.08; r = mix(r, 0.9, rust);
   float h = 0.5 + (fine - 0.5) * 0.04 + (mid - 0.5) * 0.04 - sc * 0.12 + rust * 0.08 * fine;
   emit(nt, ta, h, 1.0 - rust * 0.2, r, 1.0 - rust * 0.85);
-}`;Tn.brushed=`
+}`;
+surfaceShaderLibrary.brushed = `
 void surf(vec2 uv){
   float l1 = fbm(uv, vec2(2.0, 300.0), 3, 1.0), l2 = fbm(uv, vec2(6.0, 120.0), 3, 2.0), l3 = fbm(uv, vec2(1.0, 500.0), 2, 12.0);
   float big = fbm(uv, vec2(3.0), 4, 3.0), smudge = fbm(uv, vec2(6.0), 5, 4.0);
@@ -339,7 +354,8 @@ void surf(vec2 uv){
   float r = 0.3 + (l1 - 0.5) * 0.2 + (smudge - 0.5) * 0.2 + tar * 0.18 - sc * 0.08;
   float h = 0.5 + (l1 - 0.5) * 0.2 + (l3 - 0.5) * 0.2 + (l2 - 0.5) * 0.1 - sc * 0.2;
   emit(nt, ta, h, 1.0, r, 1.0);
-}`;Tn.rust=`
+}`;
+surfaceShaderLibrary.rust = `
 void surf(vec2 uv){
   vec2 wu = uv + (vec2(fbm(uv, vec2(5.0), 3, 1.0), fbm(uv, vec2(5.0), 3, 2.0)) - 0.5) * 0.08;
   float n = fbm(wu, vec2(6.0), 7, 3.0);
@@ -363,7 +379,8 @@ void surf(vec2 uv){
   c = mix(c, L(0.3, 0.3, 0.33) * (0.8 + 0.4 * grain), scaleI);
   float r = 0.9 + (grain - 0.5) * 0.15 - bloom * 0.06; r = mix(r, 0.55, scaleI);
   emit(c, 1.0, h, 1.0 - pit * 0.4 - flakeEdge * 0.25, r, scaleI * 0.35);
-}`;Tn.diamond=`
+}`;
+surfaceShaderLibrary.diamond = `
 void surf(vec2 uv){
   vec2 p = uv * 12.0; vec2 i = floor(p); vec2 q = fract(p) - 0.5; float par = mod(i.x + i.y, 2.0);
   vec2 d = (par < 0.5 ? vec2(q.x + q.y, q.x - q.y) : vec2(q.x - q.y, q.x + q.y)) * 0.7071;
@@ -380,7 +397,8 @@ void surf(vec2 uv){
   float r = 0.5 + (mid - 0.5) * 0.15; r = mix(r, 0.22, top * (0.4 + 0.6 * wear)); r = mix(r, 0.85, grime); r = mix(r, 0.9, rust); r -= sc * 0.1;
   float h = 0.2 + loz * 0.7 + (fine - 0.5) * 0.03 - sc * 0.03 * top;
   emit(col, 1.0, h, mix(1.0, 0.6, smoothstep(1.5, 1.0, e) * (1.0 - loz)), r, 1.0 - grime * 0.8 - rust * 0.9);
-}`;Tn.corrugated=`
+}`;
+surfaceShaderLibrary.corrugated = `
 void surf(vec2 uv){
   float w = uv.x * 10.0; float cz = 0.5 + 0.5 * cos(w * TAU);
   float big = fbm(uv, vec2(2.0), 4, 1.0), fine = fbm(uv, vec2(160.0, 480.0), 2, 3.0);
@@ -403,7 +421,8 @@ void surf(vec2 uv){
   float h = cz * 0.9 + (fine - 0.5) * 0.008 + fast * 0.05 - lapV * 0.03;
   float r = 0.5 + (streak2 - 0.5) * 0.14 + (big - 0.5) * 0.12; r = mix(r, 0.8, dirtV); r = mix(r, 0.92, rust);
   emit(col, 1.0, h, mix(0.72, 1.0, smoothstep(0.0, 0.6, cz)) * (1.0 - lapV * 0.4), r, 0.72 * (1.0 - rust * 0.9) * (1.0 - dirtV * 0.6));
-}`;Tn.chainlink=`
+}`;
+surfaceShaderLibrary.chainlink = `
 void surf(vec2 uv){
   float n = 7.0; float a = (uv.x + uv.y) * n, b = (uv.x - uv.y) * n;
   float da = abs(fract(a) - 0.5), db = abs(fract(b) - 0.5);
@@ -418,7 +437,8 @@ void surf(vec2 uv){
   vec3 col = vec3(0.6, 0.62, 0.64) * (0.8 + 0.3 * fine);
   float rust = smoothstep(0.62, 0.75, fbm(uv, vec2(9.0), 4, 3.0)); col = mix(col, L(0.42, 0.26, 0.15), rust * 0.8);
   emit(col, alpha, max(ha, hb), 1.0, mix(0.4 + 0.2 * fine, 0.9, rust), 1.0 - rust * 0.9);
-}`;Tn.gunmetal=`
+}`;
+surfaceShaderLibrary.gunmetal = `
 void surf(vec2 uv){
   float fine = fbm(uv, vec2(160.0), 3, 1.0), mid = fbm(uv, vec2(12.0), 4, 2.0), big = fbm(uv, vec2(2.0), 4, 3.0);
   vec4 g = vor(uv * 200.0, vec2(200.0), 4.0);
@@ -432,7 +452,8 @@ void surf(vec2 uv){
   float r = 0.58 + (g.w - 0.5) * 0.12 + (mid - 0.5) * 0.1 - oil * 0.14 - wear * 0.14; r = mix(r, 0.3, bright * 0.8);
   float h = 0.5 + (g.x - 0.5) * 0.12 + (fine - 0.5) * 0.1 - sc * 0.25 - wear * 0.05;
   emit(nt, ta, h, 1.0 - sc * 0.1, r, mix(0.75, 1.0, bright));
-}`;Tn.polymer=`
+}`;
+surfaceShaderLibrary.polymer = `
 void surf(vec2 uv){
   vec4 g = vor(uv * 40.0, vec2(40.0), 1.0); vec4 g2 = vor(uv * 90.0 + 0.5, vec2(90.0), 2.0);
   float fine = fbm(uv, vec2(120.0), 2, 3.0), big = fbm(uv, vec2(3.0), 4, 4.0);
@@ -444,7 +465,8 @@ void surf(vec2 uv){
   float h = 0.3 + stip * 0.6 * (1.0 - scuff * 0.6) + (fine - 0.5) * 0.05 - sc * 0.2;
   float r = 0.62 + (stip - 0.5) * 0.1 + (big - 0.5) * 0.1 - scuff * 0.22 + sc * 0.1;
   emit(nt, ta, h, 0.8 + 0.2 * stip, r, 0.0);
-}`;Tn.carbon=`
+}`;
+surfaceShaderLibrary.carbon = `
 void surf(vec2 uv){
   vec2 p = uv * 12.0; vec2 i = floor(p), q = fract(p);
   float warpTop = step(mod(i.x - i.y + 400.0, 4.0), 1.5);
@@ -454,7 +476,8 @@ void surf(vec2 uv){
   vec3 col = vec3(0.035, 0.036, 0.04) * (0.7 + 0.6 * fib) * (warpTop > 0.5 ? 1.0 : 0.8);
   float big = fbm(uv, vec2(2.0), 3, 2.0);
   emit(col, 1.0, h, 0.6 + 0.4 * prof, 0.32 + (fib - 0.5) * 0.2 + (big - 0.5) * 0.1, 0.0);
-}`;Tn.fabric=`
+}`;
+surfaceShaderLibrary.fabric = `
 void surf(vec2 uv){
   float f = 36.0; vec2 p = uv * f; vec2 i = floor(p), q = fract(p);
   float top = mod(i.x + i.y, 2.0);
@@ -464,7 +487,8 @@ void surf(vec2 uv){
   float thr = h3(vec2(top > 0.5 ? i.x : i.y, top), vec2(f), 3.0).x;
   float ta = 0.9 * (0.55 + 0.45 * h) * (0.85 + 0.2 * (thr - 0.5) + 0.2 * (fz - 0.5) + 0.2 * (big - 0.5));
   emit(vec3(0.0), ta, 0.2 + h * 0.7 + (fz - 0.5) * 0.15, 0.5 + 0.5 * h, 0.92, 0.0);
-}`;Tn.armor=`
+}`;
+surfaceShaderLibrary.armor = `
 void surf(vec2 uv){
   float chip, stain, run; paintDmg(uv, 0.5, chip, stain, run);
   float fine = fbm(uv, vec2(200.0), 2, 1.0), mid = fbm(uv, vec2(14.0), 4, 2.0), big = fbm(uv, vec2(2.0), 4, 3.0);
@@ -479,7 +503,8 @@ void surf(vec2 uv){
   float h = 0.6 + (fine - 0.5) * 0.04 + (mid - 0.5) * 0.03 - prim * 0.1 - sub * 0.25 - sc * 0.08;
   float r = 0.36 + (mid - 0.5) * 0.1 + grime * 0.1 + sc * 0.15; r = mix(r, 0.6, prim); r = mix(r, 0.75, sub);
   emit(nt, ta, h, 1.0 - sub * 0.2, r, 0.0);
-}`;Tn.wood=`
+}`;
+surfaceShaderLibrary.wood = `
 void surf(vec2 uv){
   vec4 kv = vor(uv * vec2(2.0, 4.0), vec2(2.0, 4.0), 1.0); float isK = step(kv.z, 0.3);
   float knot = isK * smoothstep(0.2, 0.0, length((kv.x) * vec2(1.0))), core = isK * smoothstep(0.05, 0.03, kv.x);
@@ -500,7 +525,8 @@ void surf(vec2 uv){
   col *= 1.0 - crack * 0.55;
   float h = 0.5 + (fib - 0.5) * 0.4 + (late - 0.5) * 0.2 - (saw - 0.5) * 0.12 * sawK + (fib2 - 0.5) * 0.15 - crack * 0.3 + core * 0.05;
   emit(col, 1.0, h, 1.0 - crack * 0.5, 0.82 + (fib - 0.5) * 0.15 + grey * 0.08 - core * 0.15, 0.0);
-}`;Tn.plastic=`
+}`;
+surfaceShaderLibrary.plastic = `
 void surf(vec2 uv){
   float fine = fbm(uv, vec2(220.0), 3, 1.0), mid = fbm(uv, vec2(14.0), 4, 2.0), big = fbm(uv, vec2(2.0), 4, 3.0);
   float scuff = smoothstep(0.55, 0.75, fbm(uv, vec2(5.0, 8.0), 5, 4.0));
@@ -512,7 +538,8 @@ void surf(vec2 uv){
   OV(L(0.25, 0.22, 0.18), dirt * 0.4);
   float h = 0.5 + (fine - 0.5) * 0.12 + (mid - 0.5) * 0.04 - sc * 0.25;
   emit(nt, ta, h, 1.0, 0.42 + (fine - 0.5) * 0.08 + scuff * 0.2 + sc * 0.2 + dirt * 0.2, 0.0);
-}`;Tn.tarp=`
+}`;
+surfaceShaderLibrary.tarp = `
 void surf(vec2 uv){
   vec2 wu = uv + (vec2(fbm(uv, vec2(2.0), 3, 1.0), fbm(uv, vec2(2.0), 3, 2.0)) - 0.5) * 0.12;
   float f1 = 1.0 - abs(gn(wu * vec2(2.0, 7.0), vec2(2.0, 7.0), 3.0)) * 2.4;        // long drape folds
@@ -527,7 +554,8 @@ void surf(vec2 uv){
   OV(vec3(0.5), smoothstep(0.85, 1.0, f1) * 0.03);
   OV(L(0.3, 0.27, 0.22), dirt * 0.3);
   emit(nt, ta, h, 0.9 + 0.1 * smoothstep(0.1, 0.7, f1), 0.48 + (mid - 0.5) * 0.15 + dirt * 0.25, 0.0);
-}`;Tn.cardboard=`
+}`;
+surfaceShaderLibrary.cardboard = `
 void surf(vec2 uv){
   float fl = 0.5 + 0.5 * cos(uv.y * TAU * 140.0);
   float fib = fbm(uv, vec2(40.0, 160.0), 3, 1.0), fine = fbm(uv, vec2(250.0), 2, 2.0), big = fbm(uv, vec2(2.0), 4, 3.0);
@@ -538,7 +566,8 @@ void surf(vec2 uv){
   col *= 1.0 - smoothstep(0.8, 0.9, fbm(uv, vec2(120.0), 2, 7.0)) * 0.2;
   float h = 0.5 + (fl - 0.5) * 0.12 + (fib - 0.5) * 0.15 + (fine - 0.5) * 0.08 - crease * 0.3 + damp * 0.2 * (fbm(uv, vec2(20.0), 3, 8.0) - 0.5);
   emit(col, 1.0, h, 1.0 - crease * 0.3, 0.9 - damp * 0.2 + (fib - 0.5) * 0.1, 0.0);
-}`;Tn.rope=`
+}`;
+surfaceShaderLibrary.rope = `
 void surf(vec2 uv){
   float a = (uv.x + uv.y) * 4.0; float prof = sin(fract(a) * 3.14159);
   float fib = fbm(uv, vec2(60.0), 3, 1.0);
@@ -547,7 +576,8 @@ void surf(vec2 uv){
   vec3 col = L(0.66, 0.6, 0.46) * (0.6 + 0.4 * prof) * (0.85 + 0.3 * (fib - 0.5)) * (0.92 + 0.16 * yarn);
   float dirt = smoothstep(0.4, 0.8, fbm(uv, vec2(3.0), 4, 2.0)); col = mix(col, L(0.25, 0.22, 0.18), dirt * 0.5 * (1.0 - prof * 0.5));
   emit(col, 1.0, h, 0.45 + 0.55 * prof, 0.95, 0.0);
-}`;Tn.tire=`
+}`;
+surfaceShaderLibrary.tire = `
 void surf(vec2 uv){
   float sv = fract(uv.y + 0.5) - 0.5; float v = abs(sv) * 2.0; float u = uv.x;
   float zig = 0.03 * abs(fract(u * 10.0) - 0.5) * 2.0;
@@ -562,7 +592,8 @@ void surf(vec2 uv){
   float dust = smoothstep(0.4, 0.75, fbm(uv, vec2(4.0, 3.0), 5, 3.0));
   vec3 col = vec3(0.022) * (0.8 + 0.5 * (mid - 0.5)); col = mix(col, L(0.22, 0.2, 0.17), dust * 0.25 + groove * (1.0 - side) * 0.2);
   emit(col, 1.0, h, 1.0 - groove * 0.5 * (1.0 - side), 0.85 + (fine - 0.5) * 0.1 - side * 0.1, 0.0);
-}`;Tn.glass=`
+}`;
+surfaceShaderLibrary.glass = `
 void surf(vec2 uv){
   float d = uP.x;
   float big = fbm(uv, vec2(2.0), 5, 1.0), mid = fbm(uv, vec2(12.0), 4, 2.0), fine = fbm(uv, vec2(200.0), 2, 3.0);
@@ -577,11 +608,13 @@ void surf(vec2 uv){
   float h = 0.3 + drop * 0.5 + drop2 * 0.15 + trail * 0.06 * st2;
   float r = mix(0.03, 0.55, dust); r = mix(r, 0.03, sat(drop * 2.0));
   emit(col, alpha, h, 1.0, r, 0.0);
-}`;Tn.water=`
+}`;
+surfaceShaderLibrary.water = `
 void surf(vec2 uv){
   float a = fbm(uv, vec2(6.0, 10.0), 4, 1.0), b = fbm(uv + 0.3, vec2(20.0, 30.0), 3, 2.0);
   emit(L(0.1, 0.16, 0.18) * 0.5, 1.0, 0.5 + (a - 0.5) * 0.6 + (b - 0.5) * 0.2, 1.0, 0.06, 0.0);
-}`;var i3=`
+}`;
+var normalMapFragmentShader = `
 precision highp float;
 uniform sampler2D tH; uniform vec2 uK; uniform float uTexel; in vec2 vUv; out vec4 o;
 float H(vec2 uv){ vec4 t = texture(tH, uv); return t.r + t.g / 255.0; }
@@ -592,15 +625,1314 @@ void main(){
   float gx = (r - l) * 0.5 + (ru + rd - lu - ld) * 0.25, gy = (u - d) * 0.5 + (ru + lu - rd - ld) * 0.25;
   vec3 n = normalize(vec3(-gx * uK.x, -gy * uK.y, 1.0));
   o = vec4(n * 0.5 + 0.5, 1.0);
-}`,s3=`
+}`,
+  srgbCopyFragmentShader = `
 precision highp float;
 uniform sampler2D tA; uniform float uSq; in vec2 vUv; out vec4 o;
-void main(){ vec4 t = texture(tA, vUv); o = uSq > 0.5 ? vec4(t.rgb * t.rgb, t.a) : t; }`;var o3='"PingFang SC", "PingFang SC", "PingFang SC", Impact, "PingFang SC", Arial, sans-serif',r3='"PingFang SC", "PingFang SC", "PingFang SC", Arial, sans-serif',oA='"PingFang SC", "PingFang SC", Menlo, Consolas, monospace',Ut={white:[226,223,213],black:[24,24,26],yellow:[222,172,30],red:[168,36,28],navy:[24,38,58],orange:[206,100,30]},An=(i,e=1)=>`rgba(${i[0]},${i[1]},${i[2]},${e})`,rA=new Set(["I","1"," ","-",".","/",":",",","'","!","\xB7"]);function aA(i){let e=i>>>0;return()=>{e|=0,e=e+1831565813|0;let t=Math.imul(e^e>>>15,1|e);return t=t+Math.imul(t^t>>>7,61|t)^t,((t^t>>>14)>>>0)/4294967296}}function lA(i){let e=2166136261;for(let t=0;t<i.length;t++)e^=i.charCodeAt(t),e=Math.imul(e,16777619);return e>>>0}function Wg(i,e){let t=document.createElement("canvas");return t.width=i,t.height=e,t}function ra(i,e,t,n,s,o=.35,r=9){i.beginPath();for(let a=0;a<r;a++){let l=a/r*Math.PI*2,c=n*(1-o+s()*o*2),u=e+Math.cos(l)*c,h=t+Math.sin(l)*c;a?i.lineTo(u,h):i.moveTo(u,h)}i.closePath()}function Ks(i,e,t,n,s){if(n<=0)return;i.save(),i.globalCompositeOperation="destination-out";let o=Math.floor(n*e*t/700);for(let r=0;r<o;r++){let a=Math.pow(s(),3)*t*.09+.6;i.globalAlpha=.45+s()*.55,ra(i,s()*e,s()*t,a,s,.5,7),i.fill()}i.lineCap="round";for(let r=0;r<n*16;r++){let a=s()*e,l=s()*t,c=(s()-.5)*.7,u=(.1+s()*.5)*e;i.globalAlpha=.5+s()*.5,i.lineWidth=.5+s()*s()*3,i.beginPath(),i.moveTo(a,l),i.lineTo(a+Math.cos(c)*u,l+Math.sin(c)*u),i.stroke()}i.globalAlpha=.8;for(let r=0;r<n*e*t/60;r++)i.fillRect(s()*e,s()*t,1+s(),1+s());for(let r=0;r<n*6;r++){let a=s()*e,l=s()*t,c=(.1+s()*.25)*t,u=i.createRadialGradient(a,l,0,a,l,c);u.addColorStop(0,"rgba(0,0,0,"+(.25+s()*.4)+")"),u.addColorStop(1,"rgba(0,0,0,0)"),i.globalAlpha=1,i.fillStyle=u,i.fillRect(a-c,l-c,c*2,c*2)}i.restore()}function a3(i,e,t,n,s,o){i.font=`${s} ${t}px ${n}`;let r=0;for(let a of e)r+=i.measureText(a).width+o;return r-o}function qa(i,e,t,n,s,o,r={}){let a=r.font==="sans"?r3:r.font==="mono"?oA:o3,l=r.weight||700,c=r.spacing!==void 0?r.spacing:s*.06,u=r.font!=="sans"&&r.font!=="mono"&&r.bridges!==!1,h=a3(i,e,s,a,l,c),f=r.maxW&&h>r.maxW?r.maxW/h:r.fitW?r.fitW/h:1,p=Wg(Math.ceil(h*f)+8,Math.ceil(s*1.4)),d=p.getContext("2d");d.font=`${l} ${s}px ${a}`,d.textBaseline="alphabetic",d.fillStyle=o,d.scale(f,1);let v=4/f,g=s*1.08;for(let y of e){let b=d.measureText(y).width;d.fillText(y,v,g),u&&!rA.has(y)&&(d.save(),d.globalCompositeOperation="destination-out",d.fillRect(v+b*.5-s*.032,0,s*.064,s*1.4),d.restore()),v+=b+c}let x=r.align==="center"?t-h*f/2:r.align==="right"?t-h*f:t;return i.drawImage(p,x-4,n-g),h*f}function l3(i,e=4){let t=new Map,n=[],s=0;function o(v,g={}){let x=new xs(v);x.colorSpace=Vn,x.anisotropy=e,x.generateMipmaps=!0,x.minFilter=Ln,s+=v.width*v.height*4*1.34;let y=new Qt({map:x,transparent:!0,depthWrite:!1,polygonOffset:!0,polygonOffsetFactor:-2,polygonOffsetUnits:-2,roughness:g.rough!==void 0?g.rough:.7,metalness:g.metal||0,opacity:g.opacity!==void 0?g.opacity:1});return y.name="decal",g.doubleSide&&(y.side=Sn),{material:y,aspect:v.width/v.height,texture:x}}function r(v,g,x,y,b={}){let m=Wg(g,x),A=m.getContext("2d"),_=()=>{A.setTransform(1,0,0,1,0,0),A.clearRect(0,0,g,x),A.globalAlpha=1,A.globalCompositeOperation="source-over",b.bleed&&(A.fillStyle=An(b.bleed,.012),A.fillRect(0,0,g,x)),y(A,g,x,aA(lA(v)+17))};_();let M=o(m,b);return b.text&&n.push(()=>{_(),M.texture.needsUpdate=!0}),M}function a(v,g,x,y){v.lineJoin="round",v.beginPath(),v.moveTo(g/2,x*.12),v.lineTo(g*.9,x*.84),v.lineTo(g*.1,x*.84),v.closePath(),v.lineWidth=g*.11,v.strokeStyle=An(Ut.black),v.stroke(),v.fillStyle=y,v.fill(),v.lineWidth=g*.035,v.strokeStyle=An(Ut.black),v.stroke()}function l(v,g,x,y,b,m,A,_){v.fillStyle=v.strokeStyle=An(y);let M=x;v.save(),v.translate(M*.5,M*.5),b(v,M*.38,An(_||y)),v.restore(),qa(v,m,M*1,x*.6,x*.42,An(y),{weight:900,bridges:!1,maxW:g-M*1.05,spacing:x*.012}),v.fillStyle=An(_||y),v.fillRect(M*1,x*.67,g-M*1.12,x*.022),qa(v,A,M*1,x*.84,x*.115,An(y),{font:"sans",weight:600,spacing:x*.035,maxW:g-M*1.1})}let c={hazard_flammable:()=>r("hazard_flammable",256,256,(v,g,x,y)=>{v.save(),v.translate(g/2,x/2),v.rotate(Math.PI/4),v.fillStyle=An(Ut.red),v.fillRect(-86,-86,172,172),v.strokeStyle=An(Ut.white),v.lineWidth=5,v.strokeRect(-76,-76,152,152),v.restore(),v.save(),v.translate(g/2,x/2-8),v.fillStyle=An(Ut.white),v.beginPath(),v.moveTo(2,-64),v.bezierCurveTo(34,-28,40,6,24,28),v.bezierCurveTo(12,44,-12,44,-24,28),v.bezierCurveTo(-40,6,-20,-12,-15,-34),v.bezierCurveTo(-6,-28,0,-44,2,-64),v.fill(),v.fillStyle=An(Ut.red),v.beginPath(),v.moveTo(1,-10),v.bezierCurveTo(15,6,15,24,0,31),v.bezierCurveTo(-15,24,-13,8,1,-10),v.fill(),v.fillStyle=An(Ut.white),v.fillRect(-34,50,68,6),v.restore(),qa(v,"3",g/2,x*.9,34,An(Ut.white),{align:"center",weight:900,bridges:!1}),Ks(v,g,x,.3,y)},{bleed:Ut.red,text:!0}),hazard_voltage:()=>r("hazard_voltage",256,256,(v,g,x,y)=>{a(v,g,x,An(Ut.yellow)),v.fillStyle=An(Ut.black),v.save(),v.translate(g/2,x*.56),v.beginPath(),[[12,-58],[-24,4],[-3,4],[-16,50],[26,-14],[5,-14],[22,-58]].forEach((b,m)=>m?v.lineTo(b[0],b[1]):v.moveTo(b[0],b[1])),v.closePath(),v.fill(),v.restore(),Ks(v,g,x,.3,y)},{bleed:Ut.yellow}),hazard_general:()=>r("hazard_general",256,256,(v,g,x,y)=>{a(v,g,x,An(Ut.yellow)),v.fillStyle=An(Ut.black),v.beginPath(),v.moveTo(g/2-13,x*.34),v.lineTo(g/2+13,x*.34),v.lineTo(g/2+7,x*.62),v.lineTo(g/2-7,x*.62),v.closePath(),v.fill(),v.beginPath(),v.arc(g/2,x*.715,11,0,7),v.fill(),Ks(v,g,x,.3,y)},{bleed:Ut.yellow}),arrow:()=>r("arrow",384,192,(v,g,x,y)=>{v.fillStyle=An(Ut.white),v.beginPath(),[[20,68],[226,68],[226,22],[364,96],[226,170],[226,124],[20,124]].forEach((b,m)=>m?v.lineTo(b[0],b[1]):v.moveTo(b[0],b[1])),v.closePath(),v.fill(),v.globalCompositeOperation="destination-out",v.fillRect(118,0,9,x),v.fillRect(232,0,7,x),v.globalCompositeOperation="source-over",Ks(v,g,x,.5,y)},{bleed:Ut.white}),no_entry:()=>r("no_entry",256,256,(v,g,x,y)=>{v.fillStyle=An(Ut.white),v.beginPath(),v.arc(128,128,112,0,7),v.fill(),v.fillStyle=An(Ut.red),v.beginPath(),v.arc(128,128,102,0,7),v.fill(),v.fillStyle=An(Ut.white),v.fillRect(52,106,152,44),Ks(v,g,x,.3,y)},{bleed:Ut.red}),logo_a:()=>r("logo_a",640,192,(v,g,x,y)=>{l(v,g,x,Ut.white,(b,m,A)=>{b.lineWidth=m*.13,b.beginPath(),b.arc(0,0,m*.92,.25*Math.PI,1.75*Math.PI),b.stroke(),b.beginPath(),b.moveTo(0,-m*1.08),b.lineTo(m*.26,0),b.lineTo(0,m*.62),b.lineTo(-m*.26,0),b.closePath(),b.fill(),b.beginPath(),b.moveTo(m*.5,0),b.lineTo(m*1.12,-m*.1),b.lineTo(m*1.12,m*.1),b.closePath(),b.fill()},"几猫北航","北极 · 大西洋 · 支线运输"),Ks(v,g,x,.35,y)},{bleed:Ut.white,text:!0}),logo_b:()=>r("logo_b",640,192,(v,g,x,y)=>{l(v,g,x,Ut.white,(b,m,A)=>{b.fillStyle=A;for(let _=0;_<2;_++){let M=-m*.35+_*m*.55,E=m*(.3-_*.06);b.beginPath(),b.moveTo(-m*1.05,M-m*.25),b.quadraticCurveTo(-m*.3,M-m*.2,0,M+m*.35),b.quadraticCurveTo(m*.3,M-m*.2,m*1.05,M-m*.25),b.quadraticCurveTo(m*.35,M+E*.2,0,M+m*.35+E),b.quadraticCurveTo(-m*.35,M+E*.2,-m*1.05,M-m*.25),b.fill()}},"几猫远洋","集装箱运输",Ut.orange),Ks(v,g,x,.35,y)},{bleed:Ut.white,text:!0}),logo_c:()=>r("logo_c",640,192,(v,g,x,y)=>{l(v,g,x,Ut.navy,(b,m,A)=>{b.beginPath(),b.arc(0,m*.25,m*.55,Math.PI,0),b.closePath(),b.fill(),b.lineWidth=m*.1,b.lineCap="butt";for(let _=0;_<7;_++){let M=Math.PI+(_+.5)/7*Math.PI;b.beginPath(),b.moveTo(Math.cos(M)*m*.7,m*.25+Math.sin(M)*m*.7),b.lineTo(Math.cos(M)*m*1.05,m*.25+Math.sin(M)*m*1.05),b.stroke()}b.fillRect(-m*1.05,m*.42,m*2.1,m*.13),b.fillRect(-m*.8,m*.68,m*1.6,m*.1)},"几猫太平洋","远洋 · 冷链 · 散货"),Ks(v,g,x,.35,y)},{bleed:Ut.navy,text:!0}),logo_d:()=>r("logo_d",640,192,(v,g,x,y)=>{l(v,g,x,Ut.white,(b,m,A)=>{b.fillRect(-m,-m,m*.5,m*2),b.fillRect(m*.5,-m,m*.5,m*2),b.fillRect(-m,-m*.2,m*2,m*.4),b.fillStyle=A,b.fillRect(-m*.32,-m,m*.64,m*.5),b.fillRect(-m*.32,m*.5,m*.64,m*.5)},"几猫联运","多式联运",Ut.yellow),Ks(v,g,x,.35,y)},{bleed:Ut.white,text:!0}),berth4:()=>r("berth4",640,224,(v,g,x,y)=>{v.strokeStyle=An(Ut.yellow),v.lineWidth=12,v.strokeRect(14,14,g-28,x-28),v.globalCompositeOperation="destination-out";for(let b of[g*.25,g*.75])v.fillRect(b-6,0,12,x);v.globalCompositeOperation="source-over",qa(v,"四号泊位",g/2,x*.76,x*.66,An(Ut.yellow),{align:"center",weight:900,maxW:g-80}),Ks(v,g,x,.55,y)},{bleed:Ut.yellow,text:!0}),caution_stripes:()=>r("caution_stripes",512,128,(v,g,x,y)=>{v.fillStyle=An(Ut.black),v.fillRect(0,8,g,x-16),v.save(),v.beginPath(),v.rect(0,8,g,x-16),v.clip(),v.fillStyle=An(Ut.yellow);for(let b=-x;b<g+x;b+=64)v.beginPath(),v.moveTo(b,x),v.lineTo(b+32,x),v.lineTo(b+32+x,0),v.lineTo(b+x,0),v.closePath(),v.fill();v.restore(),Ks(v,g,x,.5,y)},{bleed:Ut.black}),grime_streak:()=>r("grime_streak",128,256,(v,g,x,y)=>{for(let b=0;b<46;b++){let m=g*(.12+.76*(y()*.5+y()*.5)),A=x*(.25+y()*.7),_=1.5+y()*y()*12,M=.05+y()*.16,E=v.createLinearGradient(0,0,0,A);E.addColorStop(0,`rgba(26,23,19,${M})`),E.addColorStop(.15,`rgba(26,23,19,${M*1.3})`),E.addColorStop(1,"rgba(26,23,19,0)"),v.fillStyle=E,v.fillRect(m-_/2+(y()-.5)*2,0,_,A)}},{rough:.85,bleed:[26,23,19]}),rust_run:()=>r("rust_run",128,256,(v,g,x,y)=>{for(let b=0;b<40;b++){let m=g*(.2+.6*(y()*.5+y()*.5)),A=x*(.2+y()*.75),_=1.2+y()*y()*9,M=.08+y()*.22,E=y()<.5?"118,52,18":"150,78,26",w=v.createLinearGradient(0,8,0,A);w.addColorStop(0,`rgba(${E},${M*1.4})`),w.addColorStop(.3,`rgba(${E},${M})`),w.addColorStop(1,`rgba(${E},0)`),v.fillStyle=w,v.fillRect(m-_/2,8,_,A)}for(let b=0;b<9;b++)v.fillStyle=`rgba(${y()<.5?"70,30,14":"104,44,16"},${.5+y()*.4})`,ra(v,g*(.3+y()*.4),6+y()*12,3+y()*8,y,.5,7),v.fill()},{rough:.9,bleed:[118,52,18]}),oil_stain:()=>r("oil_stain",256,256,(v,g,x,y)=>{for(let b=0;b<26;b++){let m=y()*7,A=Math.pow(y(),1.5)*g*.26,_=g/2+Math.cos(m)*A,M=x/2+Math.sin(m)*A*.8,E=g*(.06+y()*.16),w=v.createRadialGradient(_,M,E*.2,_,M,E);w.addColorStop(0,`rgba(10,10,11,${.35+y()*.3})`),w.addColorStop(.75,"rgba(12,11,10,0.22)"),w.addColorStop(1,"rgba(12,11,10,0)"),v.fillStyle=w,v.fillRect(_-E,M-E,E*2,E*2)}for(let b=0;b<30;b++){v.fillStyle=`rgba(10,10,11,${.3+y()*.4})`;let m=y()*7,A=g*(.25+y()*.2);v.beginPath(),v.arc(g/2+Math.cos(m)*A,x/2+Math.sin(m)*A,1+y()*4,0,7),v.fill()}},{rough:.12,bleed:[10,10,11]}),leak_stain:()=>r("leak_stain",192,256,(v,g,x,y)=>{for(let b=0;b<18;b++){let m=g*(.3+y()*.4),A=x*(.12+y()*.2),_=g*(.1+y()*.2),M=v.createRadialGradient(m,A,_*.5,m,A,_);M.addColorStop(0,"rgba(150,146,130,0.0)"),M.addColorStop(.8,`rgba(168,162,140,${.18+y()*.2})`),M.addColorStop(1,"rgba(168,162,140,0)"),v.fillStyle=M,v.fillRect(m-_,A-_,_*2,_*2)}for(let b=0;b<22;b++){let m=g*(.25+.5*y()),A=x*(.3+y()*.6),_=2+y()*9,M=.08+y()*.16,E=y()<.6?"160,154,132":"60,66,52",w=v.createLinearGradient(0,x*.2,0,x*.2+A);w.addColorStop(0,`rgba(${E},${M})`),w.addColorStop(1,`rgba(${E},0)`),v.fillStyle=w,v.fillRect(m,x*.2,_,A)}},{rough:.8,bleed:[160,154,132]}),bullet_metal:()=>r("bullet_metal",128,128,(v,g,x,y)=>{v.fillStyle="rgba(96,52,40,0.9)",ra(v,64,64,30,y,.4,11),v.fill(),v.fillStyle="rgba(150,152,156,0.95)",ra(v,64,64,22,y,.3,12),v.fill(),v.strokeStyle="rgba(205,207,210,0.9)",v.lineWidth=1;for(let m=0;m<14;m++){let A=y()*7;v.beginPath(),v.moveTo(64+Math.cos(A)*9,64+Math.sin(A)*9),v.lineTo(64+Math.cos(A)*(16+y()*10),64+Math.sin(A)*(16+y()*10)),v.stroke()}let b=v.createRadialGradient(64,64,2,64,64,12);b.addColorStop(0,"rgba(4,4,5,1)"),b.addColorStop(.75,"rgba(10,10,12,1)"),b.addColorStop(1,"rgba(70,72,76,0.9)"),v.fillStyle=b,ra(v,64,64,12,y,.15,12),v.fill(),v.strokeStyle="rgba(230,232,235,0.85)",v.lineWidth=1.5,v.beginPath(),v.arc(64,64,12.5,3.6,5.6),v.stroke()},{rough:.4,metal:.8,bleed:[96,52,40]}),bullet_concrete:()=>r("bullet_concrete",128,128,(v,g,x,y)=>{let b=v.createRadialGradient(64,64,20,64,64,60);b.addColorStop(0,"rgba(176,172,162,0.5)"),b.addColorStop(1,"rgba(176,172,162,0)"),v.fillStyle=b,v.fillRect(0,0,g,x),v.fillStyle="rgba(168,164,154,0.95)",ra(v,64,64,32,y,.35,13),v.fill(),v.fillStyle="rgba(120,116,108,0.95)",ra(v,65,66,20,y,.35,11),v.fill(),v.strokeStyle="rgba(40,38,36,0.8)",v.lineWidth=1;for(let A=0;A<6;A++){let _=y()*7,M=64+Math.cos(_)*14,E=64+Math.sin(_)*14;v.beginPath(),v.moveTo(M,E);for(let w=0;w<5;w++)_+=(y()-.5)*.9,M+=Math.cos(_)*8,E+=Math.sin(_)*8,v.lineTo(M,E);v.stroke()}let m=v.createRadialGradient(64,64,1,64,64,11);m.addColorStop(0,"rgba(18,17,16,1)"),m.addColorStop(1,"rgba(60,58,54,0.95)"),v.fillStyle=m,ra(v,64,64,10,y,.3,9),v.fill();for(let A=0;A<40;A++){v.fillStyle=`rgba(${y()<.5?"90,86,80":"190,186,176"},0.8)`;let _=y()*7,M=10+y()*24;v.fillRect(64+Math.cos(_)*M,64+Math.sin(_)*M,1+y()*2,1+y()*2)}},{rough:.95,bleed:[168,164,154]}),scorch:()=>r("scorch",256,256,(v,g,x,y)=>{for(let b=0;b<40;b++){let m=y()*7,A=Math.pow(y(),1.2)*g*.3,_=g/2+Math.cos(m)*A,M=x/2+Math.sin(m)*A,E=g*(.07+y()*.15)*(1.2-A/(g*.4)),w=v.createRadialGradient(_,M,0,_,M,Math.max(4,E));w.addColorStop(0,`rgba(8,7,6,${.3+y()*.3})`),w.addColorStop(1,"rgba(8,7,6,0)"),v.fillStyle=w,v.fillRect(0,0,g,x)}v.strokeStyle="rgba(8,7,6,0.25)";for(let b=0;b<50;b++){let m=y()*7,A=g*.1,_=g*(.25+y()*.22);v.lineWidth=1+y()*3,v.beginPath(),v.moveTo(g/2+Math.cos(m)*A,x/2+Math.sin(m)*A),v.lineTo(g/2+Math.cos(m)*_,x/2+Math.sin(m)*_),v.stroke()}},{rough:.95,bleed:[8,7,6]}),crack:()=>r("crack",256,256,(v,g,x,y)=>{v.lineCap="round",v.lineJoin="round";let b=(m,A,_,M,E,w)=>{v.strokeStyle=`rgba(20,19,18,${.6+.35*Math.min(1,E/2.5)})`,v.lineWidth=E,v.beginPath(),v.moveTo(m,A);let S=Math.floor(M/9);for(let z=0;z<S;z++)_+=(y()-.5)*.8,m+=Math.cos(_)*9,A+=Math.sin(_)*9,v.lineTo(m,A),w>0&&y()<.22&&(v.stroke(),b(m,A,_+(y()<.5?1:-1)*(.5+y()*.7),M*(.3+y()*.3),E*.6,w-1),v.strokeStyle=`rgba(20,19,18,${.6+.35*Math.min(1,E/2.5)})`,v.lineWidth=E,v.beginPath(),v.moveTo(m,A));v.stroke()};b(g*.5,x*.5,y()*7,g*.42,2.6,3),b(g*.5,x*.5,y()*7+2,g*.4,2.2,3),b(g*.5,x*.5,y()*7+4,g*.36,1.8,2)},{rough:.95,bleed:[20,19,18]}),graffiti_tag:()=>r("graffiti_tag",384,256,(v,g,x,y)=>{v.lineCap="round",v.lineJoin="round";let b=(_,M,E)=>{v.strokeStyle=E,v.lineWidth=M,v.beginPath(),v.moveTo(_[0][0],_[0][1]);for(let w=1;w<_.length-1;w+=2)v.quadraticCurveTo(_[w][0],_[w][1],_[w+1][0],_[w+1][1]);v.stroke()},m="rgba(206,214,208,0.92)",A=[[[40,60],[36,130],[48,200],[70,150],[44,128],[80,110],[104,70]],[[104,70],[76,140],[108,190],[150,200],[150,110],[140,60],[112,84]],[[168,196],[172,120],[186,62],[200,110],[226,92],[214,150],[236,196]],[[250,76],[300,60],[318,66],[282,110],[262,178],[300,200],[334,176]]];for(let _ of A)b(_,12,"rgba(206,214,208,0.25)"),b(_,7,m);b([[30,222],[180,236],[352,206]],5,m),b([[330,40],[344,30],[356,44]],5,m);for(let _=0;_<7;_++){let M=50+y()*290,E=150+y()*50,w=12+y()*46,S=v.createLinearGradient(0,E,0,E+w);S.addColorStop(0,m),S.addColorStop(1,"rgba(206,214,208,0)"),v.fillStyle=S,v.fillRect(M,E,2+y()*2,w)}for(let _=0;_<260;_++)v.fillStyle=`rgba(206,214,208,${y()*.5})`,v.fillRect(30+y()*330,40+y()*190,1.2,1.2);Ks(v,g,x,.25,y)},{rough:.6,bleed:[206,214,208]}),csc_plate:()=>r("csc_plate",288,200,(v,g,x,y)=>{let b=v.createLinearGradient(0,0,g,x);b.addColorStop(0,"rgb(150,152,150)"),b.addColorStop(.5,"rgb(176,178,176)"),b.addColorStop(1,"rgb(138,140,138)"),v.fillStyle=b,v.beginPath(),v.roundRect?v.roundRect(3,3,g-6,x-6,8):v.rect(3,3,g-6,x-6),v.fill(),v.strokeStyle="rgba(40,42,44,0.8)",v.lineWidth=2,v.strokeRect(11,11,g-22,x-22);for(let[_,M]of[[20,20],[g-20,20],[20,x-20],[g-20,x-20]])v.fillStyle="rgb(96,98,98)",v.beginPath(),v.arc(_,M,5,0,7),v.fill(),v.fillStyle="rgba(230,232,232,0.7)",v.beginPath(),v.arc(_-1.2,M-1.2,2,0,7),v.fill();let m="rgba(28,30,32,0.92)";qa(v,"安全检验铭牌",g/2,46,19,m,{font:"sans",weight:600,align:"center",spacing:1.5,maxW:g-60}),["检验编号 SL/PA-4207/19","制造日期 2019年03月","设备编号 SLTU 402719 6","最大总重 30 480 千克","堆码载荷 192 000 千克","横向试验 150 千牛","下次检验 2027年09月"].forEach((_,M)=>{qa(v,_,30,70+M*16.5,11,m,{font:"mono",weight:500,spacing:0,maxW:g-60}),v.fillStyle="rgba(28,30,32,0.35)",v.fillRect(30,73+M*16.5,g-60,1)}),v.fillStyle="rgba(60,40,24,0.25)";for(let _=0;_<30;_++)ra(v,y()*g,y()*x,2+y()*9,y,.5,7),v.fill()},{rough:.45,metal:.75,text:!0}),numbers_0_9:()=>r("numbers_0_9",640,128,(v,g,x,y)=>{for(let b=0;b<10;b++)qa(v,String(b),b*64+32,x*.86,x*.92,An(Ut.white),{align:"center",weight:900,maxW:54});Ks(v,g,x,.3,y)},{bleed:Ut.white,text:!0})},u=Object.keys(c),h=new Set;function f(v){let g=t.get("d:"+v);if(g)return g;let x=c[v];if(!x)h.has(v)||(h.add(v),console.warn(`[mats] unknown decal "${v}"`)),g=f("grime_streak");else{let y=x();g={material:y.material,aspect:y.aspect},g.material.name="decal_"+v}return t.set("d:"+v,g),g}function p(v){let g="n:"+v,x=t.get(g);if(x)return x;let y=f("numbers_0_9").material,b=y.map.clone();b.repeat.set(.1,1),b.offset.set(Math.abs(v|0)%10/10,0),b.needsUpdate=!0;let m=y.clone();return m.map=b,n.push(()=>{b.needsUpdate=!0}),x={material:m,aspect:.5},t.set(g,x),x}function d(v,g={}){v=String(v===void 0?"":v).toUpperCase()||" ";let x=Ut[g.color]?g.color:"white",y=g.font==="sans"?"sans":"stencil",b=g.distress!==void 0?+g.distress:.35,m=`l:${v}|${x}|${y}|${b}`,A=t.get(m);if(A)return A;let _=128,M=100,E=Wg(4,4).getContext("2d"),w=y==="sans"?r3:o3,S=y==="sans"?600:700,z=M*.06,H=a3(E,v,M,w,S,z),O=Math.min(1,2e3/(H+32)),q=Math.max(48,Math.ceil((H+32)*O)),U=Math.ceil(_*O),T=r(m,q,U,(D,C,G,j)=>{D.save(),D.scale(O,O),qa(D,v,16,_*.84,M,An(Ut[x]),{font:y,weight:S,spacing:z,fitW:H}),D.restore(),Ks(D,C,G,b,j)},{bleed:Ut[x],text:!0,rough:.65});return A={material:T.material,aspect:T.aspect},A.material.name="label",t.set(m,A),A}try{if(typeof document<"u"&&document.fonts&&document.fonts.load){let v=0,g=()=>{v=0;for(let x of n)try{x()}catch{}};for(let x of['700 20px "PingFang SC"','900 20px "PingFang SC"','600 20px "PingFang SC"','500 20px "PingFang SC"'])document.fonts.load(x).then(y=>{y&&y.length&&!v&&(v=setTimeout(g,120))},()=>{})}}catch{}return{decal:f,label:d,number:p,names:u,bytes:()=>s}}var c3={asphalt:{fn:"asphalt",size:1,tile:2,bump:1.6,hero:!0},concrete:{fn:"concrete",size:1,tile:3,bump:2.5},brick:{fn:"brick",size:.5,tile:1.8,bump:6},epoxy:{fn:"epoxy",size:.5,tile:4,bump:3},paint:{fn:"paint",size:1,tile:2.5,bump:2.5,p:[.5]},hull:{fn:"hull",size:.5,tile:4,bump:12},galv:{fn:"galv",size:.5,tile:1,bump:.8},metal:{fn:"metal",size:.5,tile:1,bump:.5,p:[1]},brushed:{fn:"brushed",size:.5,tile:.5,bump:.4},rust:{fn:"rust",size:.5,tile:1.2,bump:3},diamond:{fn:"diamond",size:.5,tile:.5,bump:2},corrugated:{fn:"corrugated",size:.5,tile:[.762,2.286],bump:19},chainlink:{fn:"chainlink",size:.5,tile:.5,bump:5},hazard:{fn:"hazard",size:.5,tile:1,bump:2.5},gunmetal:{fn:"gunmetal",size:.5,tile:.25,bump:.3,p:[.6]},anodized:{fn:"gunmetal",size:.5,tile:.25,bump:.25,p:[.2],seed:11},polymer:{fn:"polymer",size:.25,tile:.1,bump:.4},carbon:{fn:"carbon",size:.25,tile:.05,bump:.5},fabric:{fn:"fabric",size:.25,tile:.05,bump:.4},armor:{fn:"armor",size:.5,tile:.5,bump:.8},wood:{fn:"wood",size:.5,tile:1.2,bump:2.6},plastic:{fn:"plastic",size:.5,tile:1,bump:1},tarp:{fn:"tarp",size:.5,tile:1.5,bump:20},cardboard:{fn:"cardboard",size:.5,tile:1,bump:.8},rope:{fn:"rope",size:.25,tile:.1,bump:4},tire:{fn:"tire",size:.5,tile:[.5,.3],bump:7},glass:{fn:"glass",size:.5,tile:1.5,bump:1.5,p:[.3]},glass_dirty:{fn:"glass",size:.5,tile:1.5,bump:1.5,p:[1],seed:40},water:{fn:"water",size:.25,tile:4,bump:30}},cA=[.42,.38,.5,0],kc=[.05,.62,.65,.7],aa=[0,.7,.55,.5],uA=[.3,.6,.55,0],i1=[.08,.62,.6,.5],u3=[.4,.5,.6,0],s1=[0,1,0,0],o1=[.22,.12,.35,.35],hA=[.14,.1,.8,.2],r1=[.07,.06,3,0],a1=[0,0,1,0],Nt=(i,e={})=>({set:i,tint:0,color:16777215,rough:1,metal:1,wet:cA,macro:hA,nrm:1,...e}),Xa=i=>Nt("paint",{tint:1,color:i,wet:kc,macro:[.2,.16,.4,.45]}),l1={asphalt:Nt("asphalt",{wet:[.45,.3,.5,0],macro:o1}),concrete:Nt("concrete",{macro:o1}),concrete_dirty:Nt("concrete",{color:13616822,macro:[.3,.15,.35,.9]}),concrete_painted:Nt("concrete",{tint:2,color:9343638,rough:.9,wet:[.15,.55,.6,.3],macro:[.14,.1,.5,.3]}),brick:Nt("brick"),floor_epoxy:Nt("epoxy",{wet:[.04,.75,.4,0],macro:[.12,.2,.45,.25]}),paint_red:Xa(8200729),paint_blue:Xa(2047846),paint_green:Xa(2906692),paint_yellow:Xa(12159516),paint_orange:Xa(11751962),paint_white:Xa(12172214),paint_grey:Xa(5922920),paint_teal:Xa(2055523),steel_galv:Nt("galv",{wet:aa}),steel_dark:Nt("metal",{tint:1,color:4014406,rough:1.15,wet:aa}),steel_worn:Nt("metal",{tint:1,color:9080466,rough:.9,wet:aa}),steel_bare:Nt("brushed",{tint:1,color:11843771,wet:aa,macro:r1}),steel_rust:Nt("rust",{wet:uA}),diamond_plate:Nt("diamond",{wet:aa}),corrugated_roof:Nt("corrugated",{wet:aa}),chainlink:Nt("chainlink",{tint:3,alphaCut:!0,side:2,wet:s1,macro:a1}),aluminium:Nt("brushed",{tint:1,color:12896459,rough:1.15,wet:aa,macro:r1}),brass:Nt("brushed",{tint:1,color:12753477,rough:.9,wet:aa,macro:[.1,.08,20,0]}),hazard_stripes:Nt("hazard",{wet:kc}),gunmetal:Nt("gunmetal",{tint:1,color:2764081,wet:[0,.75,.6,.5],macro:[.08,.06,6,0]}),anodized_black:Nt("anodized",{tint:1,color:1184790,rough:.72,metal:.9,wet:[0,.75,.6,.5],macro:[.06,.05,6,0]}),polymer_black:Nt("polymer",{tint:1,color:1513498,wet:[0,.7,.6,.5],macro:[.06,.06,6,0]}),polymer_tan:Nt("polymer",{tint:1,color:7299144,wet:[0,.7,.6,.5],macro:[.06,.06,6,0]}),rubber:Nt("polymer",{tint:1,color:1052688,rough:1.4,wet:[.05,.6,.6,.4],macro:[.06,.06,6,0]}),carbon:Nt("carbon",{wet:[0,.8,.6,.5],macro:[.05,.05,6,0]}),glove_fabric:Nt("fabric",{tint:1,color:2303530,wet:[.3,.7,.6,0],macro:[.08,.04,8,0]}),armor_white:Nt("armor",{tint:1,color:11449528,wet:kc,macro:[.08,.08,2.5,.15]}),armor_orange:Nt("armor",{tint:1,color:12670234,wet:kc,macro:[.08,.08,2.5,.15]}),wood_pallet:Nt("wood",{wet:u3,macro:[.2,.1,.9,.4]}),wood_dark:Nt("wood",{color:9074794,wet:u3,macro:[.2,.1,.9,.4]}),plastic_blue:Nt("plastic",{tint:1,color:1920134,wet:i1}),plastic_red:Nt("plastic",{tint:1,color:9314074,wet:i1}),plastic_grey:Nt("plastic",{tint:1,color:4935508,wet:i1}),tarp:Nt("tarp",{tint:1,color:3885626,wet:i1,macro:[.1,.1,1.2,.2]}),cardboard:Nt("cardboard",{wet:[.4,.75,.6,0]}),rope:Nt("rope",{macro:r1}),tire:Nt("tire",{wet:[.1,.6,.6,.3],macro:r1}),glass:Nt("glass",{tint:3,transparent:!0,wet:s1,macro:a1}),glass_dirty:Nt("glass_dirty",{tint:3,transparent:!0,wet:s1,macro:a1}),hull_paint:Nt("hull",{tint:1,color:1778219,wet:kc,macro:o1}),hull_red:Nt("hull",{tint:1,color:6233880,wet:kc,macro:o1}),water_dark:Nt("water",{wet:s1,macro:a1})},fA=Nt("metal",{tint:1,color:8027520,wet:aa}),dA=`
+void main(){ vec4 t = texture(tA, vUv); o = uSq > 0.5 ? vec4(t.rgb * t.rgb, t.a) : t; }`;
+var stencilFontStack =
+    '"PingFang SC", "PingFang SC", "PingFang SC", Impact, "PingFang SC", Arial, sans-serif',
+  sansFontStack = '"PingFang SC", "PingFang SC", "PingFang SC", Arial, sans-serif',
+  monoFontStack = '"PingFang SC", "PingFang SC", Menlo, Consolas, monospace',
+  PALETTE = {
+    white: [226, 223, 213],
+    black: [24, 24, 26],
+    yellow: [222, 172, 30],
+    red: [168, 36, 28],
+    navy: [24, 38, 58],
+    orange: [206, 100, 30],
+  },
+  rgba = (i, e = 1) => `rgba(${i[0]},${i[1]},${i[2]},${e})`,
+  NO_BRIDGE_CHARS = new Set(["I", "1", " ", "-", ".", "/", ":", ",", "'", "!", "\xB7"]);
+function createSeededRandom(seed) {
+  let e = seed >>> 0;
+  return () => {
+    ((e |= 0), (e = (e + 1831565813) | 0));
+    let t = Math.imul(e ^ (e >>> 15), 1 | e);
+    return (
+      (t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t),
+      ((t ^ (t >>> 14)) >>> 0) / 4294967296
+    );
+  };
+}
+function hashString(text) {
+  let e = 2166136261;
+  for (let t = 0; t < text.length; t++) ((e ^= text.charCodeAt(t)), (e = Math.imul(e, 16777619)));
+  return e >>> 0;
+}
+function createCanvas(width, height) {
+  let t = document.createElement("canvas");
+  return ((t.width = width), (t.height = height), t);
+}
+function drawBlob(canvasContext, centerX, centerY, radius, random, jitter = 0.35, pointCount = 9) {
+  canvasContext.beginPath();
+  for (let a = 0; a < pointCount; a++) {
+    let l = (a / pointCount) * Math.PI * 2,
+      c = radius * (1 - jitter + random() * jitter * 2),
+      u = centerX + Math.cos(l) * c,
+      h = centerY + Math.sin(l) * c;
+    a ? canvasContext.lineTo(u, h) : canvasContext.moveTo(u, h);
+  }
+  canvasContext.closePath();
+}
+function applyDistress(canvasContext, width, height, amount, random) {
+  if (amount <= 0) return;
+  (canvasContext.save(), (canvasContext.globalCompositeOperation = "destination-out"));
+  let o = Math.floor((amount * width * height) / 700);
+  for (let r = 0; r < o; r++) {
+    let a = Math.pow(random(), 3) * height * 0.09 + 0.6;
+    ((canvasContext.globalAlpha = 0.45 + random() * 0.55),
+      drawBlob(canvasContext, random() * width, random() * height, a, random, 0.5, 7),
+      canvasContext.fill());
+  }
+  canvasContext.lineCap = "round";
+  for (let r = 0; r < amount * 16; r++) {
+    let a = random() * width,
+      l = random() * height,
+      c = (random() - 0.5) * 0.7,
+      u = (0.1 + random() * 0.5) * width;
+    ((canvasContext.globalAlpha = 0.5 + random() * 0.5),
+      (canvasContext.lineWidth = 0.5 + random() * random() * 3),
+      canvasContext.beginPath(),
+      canvasContext.moveTo(a, l),
+      canvasContext.lineTo(a + Math.cos(c) * u, l + Math.sin(c) * u),
+      canvasContext.stroke());
+  }
+  canvasContext.globalAlpha = 0.8;
+  for (let r = 0; r < (amount * width * height) / 60; r++)
+    canvasContext.fillRect(random() * width, random() * height, 1 + random(), 1 + random());
+  for (let r = 0; r < amount * 6; r++) {
+    let a = random() * width,
+      l = random() * height,
+      c = (0.1 + random() * 0.25) * height,
+      u = canvasContext.createRadialGradient(a, l, 0, a, l, c);
+    (u.addColorStop(0, "rgba(0,0,0," + (0.25 + random() * 0.4) + ")"),
+      u.addColorStop(1, "rgba(0,0,0,0)"),
+      (canvasContext.globalAlpha = 1),
+      (canvasContext.fillStyle = u),
+      canvasContext.fillRect(a - c, l - c, c * 2, c * 2));
+  }
+  canvasContext.restore();
+}
+function measureTextWidth(canvasContext, text, fontSize, fontFamily, weight, letterSpacing) {
+  canvasContext.font = `${weight} ${fontSize}px ${fontFamily}`;
+  let r = 0;
+  for (let a of text) r += canvasContext.measureText(a).width + letterSpacing;
+  return r - letterSpacing;
+}
+function drawText(canvasContext, text, centerX, baselineY, fontSize, color, options = {}) {
+  let a =
+      options.font === "sans"
+        ? sansFontStack
+        : options.font === "mono"
+          ? monoFontStack
+          : stencilFontStack,
+    l = options.weight || 700,
+    c = options.spacing !== void 0 ? options.spacing : fontSize * 0.06,
+    u = options.font !== "sans" && options.font !== "mono" && options.bridges !== !1,
+    h = measureTextWidth(canvasContext, text, fontSize, a, l, c),
+    f = options.maxW && h > options.maxW ? options.maxW / h : options.fitW ? options.fitW / h : 1,
+    p = createCanvas(Math.ceil(h * f) + 8, Math.ceil(fontSize * 1.4)),
+    d = p.getContext("2d");
+  ((d.font = `${l} ${fontSize}px ${a}`),
+    (d.textBaseline = "alphabetic"),
+    (d.fillStyle = color),
+    d.scale(f, 1));
+  let v = 4 / f,
+    g = fontSize * 1.08;
+  for (let y of text) {
+    let b = d.measureText(y).width;
+    (d.fillText(y, v, g),
+      u &&
+        !NO_BRIDGE_CHARS.has(y) &&
+        (d.save(),
+        (d.globalCompositeOperation = "destination-out"),
+        d.fillRect(v + b * 0.5 - fontSize * 0.032, 0, fontSize * 0.064, fontSize * 1.4),
+        d.restore()),
+      (v += b + c));
+  }
+  let x =
+    options.align === "center"
+      ? centerX - (h * f) / 2
+      : options.align === "right"
+        ? centerX - h * f
+        : centerX;
+  return (canvasContext.drawImage(p, x - 4, baselineY - g), h * f);
+}
+function createDecalFactory(canvasContext, anisotropy = 4) {
+  let t = new Map(),
+    n = [],
+    s = 0;
+  function o(v, g = {}) {
+    let x = new CanvasTexture(v);
+    ((x.colorSpace = SRGBColorSpace),
+      (x.anisotropy = anisotropy),
+      (x.generateMipmaps = !0),
+      (x.minFilter = LinearMipmapLinearFilter),
+      (s += v.width * v.height * 4 * 1.34));
+    let y = new MeshStandardMaterial({
+      map: x,
+      transparent: !0,
+      depthWrite: !1,
+      polygonOffset: !0,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+      roughness: g.rough !== void 0 ? g.rough : 0.7,
+      metalness: g.metal || 0,
+      opacity: g.opacity !== void 0 ? g.opacity : 1,
+    });
+    return (
+      (y.name = "decal"),
+      g.doubleSide && (y.side = DoubleSide),
+      { material: y, aspect: v.width / v.height, texture: x }
+    );
+  }
+  function r(v, g, x, y, b = {}) {
+    let m = createCanvas(g, x),
+      A = m.getContext("2d"),
+      _ = () => {
+        (A.setTransform(1, 0, 0, 1, 0, 0),
+          A.clearRect(0, 0, g, x),
+          (A.globalAlpha = 1),
+          (A.globalCompositeOperation = "source-over"),
+          b.bleed && ((A.fillStyle = rgba(b.bleed, 0.012)), A.fillRect(0, 0, g, x)),
+          y(A, g, x, createSeededRandom(hashString(v) + 17)));
+      };
+    _();
+    let M = o(m, b);
+    return (
+      b.text &&
+        n.push(() => {
+          (_(), (M.texture.needsUpdate = !0));
+        }),
+      M
+    );
+  }
+  function a(v, g, x, y) {
+    ((v.lineJoin = "round"),
+      v.beginPath(),
+      v.moveTo(g / 2, x * 0.12),
+      v.lineTo(g * 0.9, x * 0.84),
+      v.lineTo(g * 0.1, x * 0.84),
+      v.closePath(),
+      (v.lineWidth = g * 0.11),
+      (v.strokeStyle = rgba(PALETTE.black)),
+      v.stroke(),
+      (v.fillStyle = y),
+      v.fill(),
+      (v.lineWidth = g * 0.035),
+      (v.strokeStyle = rgba(PALETTE.black)),
+      v.stroke());
+  }
+  function l(v, g, x, y, b, m, A, _) {
+    v.fillStyle = v.strokeStyle = rgba(y);
+    let M = x;
+    (v.save(),
+      v.translate(M * 0.5, M * 0.5),
+      b(v, M * 0.38, rgba(_ || y)),
+      v.restore(),
+      drawText(v, m, M * 1, x * 0.6, x * 0.42, rgba(y), {
+        weight: 900,
+        bridges: !1,
+        maxW: g - M * 1.05,
+        spacing: x * 0.012,
+      }),
+      (v.fillStyle = rgba(_ || y)),
+      v.fillRect(M * 1, x * 0.67, g - M * 1.12, x * 0.022),
+      drawText(v, A, M * 1, x * 0.84, x * 0.115, rgba(y), {
+        font: "sans",
+        weight: 600,
+        spacing: x * 0.035,
+        maxW: g - M * 1.1,
+      }));
+  }
+  let c = {
+      hazard_flammable: () =>
+        r(
+          "hazard_flammable",
+          256,
+          256,
+          (v, g, x, y) => {
+            (v.save(),
+              v.translate(g / 2, x / 2),
+              v.rotate(Math.PI / 4),
+              (v.fillStyle = rgba(PALETTE.red)),
+              v.fillRect(-86, -86, 172, 172),
+              (v.strokeStyle = rgba(PALETTE.white)),
+              (v.lineWidth = 5),
+              v.strokeRect(-76, -76, 152, 152),
+              v.restore(),
+              v.save(),
+              v.translate(g / 2, x / 2 - 8),
+              (v.fillStyle = rgba(PALETTE.white)),
+              v.beginPath(),
+              v.moveTo(2, -64),
+              v.bezierCurveTo(34, -28, 40, 6, 24, 28),
+              v.bezierCurveTo(12, 44, -12, 44, -24, 28),
+              v.bezierCurveTo(-40, 6, -20, -12, -15, -34),
+              v.bezierCurveTo(-6, -28, 0, -44, 2, -64),
+              v.fill(),
+              (v.fillStyle = rgba(PALETTE.red)),
+              v.beginPath(),
+              v.moveTo(1, -10),
+              v.bezierCurveTo(15, 6, 15, 24, 0, 31),
+              v.bezierCurveTo(-15, 24, -13, 8, 1, -10),
+              v.fill(),
+              (v.fillStyle = rgba(PALETTE.white)),
+              v.fillRect(-34, 50, 68, 6),
+              v.restore(),
+              drawText(v, "3", g / 2, x * 0.9, 34, rgba(PALETTE.white), {
+                align: "center",
+                weight: 900,
+                bridges: !1,
+              }),
+              applyDistress(v, g, x, 0.3, y));
+          },
+          { bleed: PALETTE.red, text: !0 },
+        ),
+      hazard_voltage: () =>
+        r(
+          "hazard_voltage",
+          256,
+          256,
+          (v, g, x, y) => {
+            (a(v, g, x, rgba(PALETTE.yellow)),
+              (v.fillStyle = rgba(PALETTE.black)),
+              v.save(),
+              v.translate(g / 2, x * 0.56),
+              v.beginPath(),
+              [
+                [12, -58],
+                [-24, 4],
+                [-3, 4],
+                [-16, 50],
+                [26, -14],
+                [5, -14],
+                [22, -58],
+              ].forEach((b, m) => (m ? v.lineTo(b[0], b[1]) : v.moveTo(b[0], b[1]))),
+              v.closePath(),
+              v.fill(),
+              v.restore(),
+              applyDistress(v, g, x, 0.3, y));
+          },
+          { bleed: PALETTE.yellow },
+        ),
+      hazard_general: () =>
+        r(
+          "hazard_general",
+          256,
+          256,
+          (v, g, x, y) => {
+            (a(v, g, x, rgba(PALETTE.yellow)),
+              (v.fillStyle = rgba(PALETTE.black)),
+              v.beginPath(),
+              v.moveTo(g / 2 - 13, x * 0.34),
+              v.lineTo(g / 2 + 13, x * 0.34),
+              v.lineTo(g / 2 + 7, x * 0.62),
+              v.lineTo(g / 2 - 7, x * 0.62),
+              v.closePath(),
+              v.fill(),
+              v.beginPath(),
+              v.arc(g / 2, x * 0.715, 11, 0, 7),
+              v.fill(),
+              applyDistress(v, g, x, 0.3, y));
+          },
+          { bleed: PALETTE.yellow },
+        ),
+      arrow: () =>
+        r(
+          "arrow",
+          384,
+          192,
+          (v, g, x, y) => {
+            ((v.fillStyle = rgba(PALETTE.white)),
+              v.beginPath(),
+              [
+                [20, 68],
+                [226, 68],
+                [226, 22],
+                [364, 96],
+                [226, 170],
+                [226, 124],
+                [20, 124],
+              ].forEach((b, m) => (m ? v.lineTo(b[0], b[1]) : v.moveTo(b[0], b[1]))),
+              v.closePath(),
+              v.fill(),
+              (v.globalCompositeOperation = "destination-out"),
+              v.fillRect(118, 0, 9, x),
+              v.fillRect(232, 0, 7, x),
+              (v.globalCompositeOperation = "source-over"),
+              applyDistress(v, g, x, 0.5, y));
+          },
+          { bleed: PALETTE.white },
+        ),
+      no_entry: () =>
+        r(
+          "no_entry",
+          256,
+          256,
+          (v, g, x, y) => {
+            ((v.fillStyle = rgba(PALETTE.white)),
+              v.beginPath(),
+              v.arc(128, 128, 112, 0, 7),
+              v.fill(),
+              (v.fillStyle = rgba(PALETTE.red)),
+              v.beginPath(),
+              v.arc(128, 128, 102, 0, 7),
+              v.fill(),
+              (v.fillStyle = rgba(PALETTE.white)),
+              v.fillRect(52, 106, 152, 44),
+              applyDistress(v, g, x, 0.3, y));
+          },
+          { bleed: PALETTE.red },
+        ),
+      logo_a: () =>
+        r(
+          "logo_a",
+          640,
+          192,
+          (v, g, x, y) => {
+            (l(
+              v,
+              g,
+              x,
+              PALETTE.white,
+              (b, m, A) => {
+                ((b.lineWidth = m * 0.13),
+                  b.beginPath(),
+                  b.arc(0, 0, m * 0.92, 0.25 * Math.PI, 1.75 * Math.PI),
+                  b.stroke(),
+                  b.beginPath(),
+                  b.moveTo(0, -m * 1.08),
+                  b.lineTo(m * 0.26, 0),
+                  b.lineTo(0, m * 0.62),
+                  b.lineTo(-m * 0.26, 0),
+                  b.closePath(),
+                  b.fill(),
+                  b.beginPath(),
+                  b.moveTo(m * 0.5, 0),
+                  b.lineTo(m * 1.12, -m * 0.1),
+                  b.lineTo(m * 1.12, m * 0.1),
+                  b.closePath(),
+                  b.fill());
+              },
+              "几猫北航",
+              "北极 · 大西洋 · 支线运输",
+            ),
+              applyDistress(v, g, x, 0.35, y));
+          },
+          { bleed: PALETTE.white, text: !0 },
+        ),
+      logo_b: () =>
+        r(
+          "logo_b",
+          640,
+          192,
+          (v, g, x, y) => {
+            (l(
+              v,
+              g,
+              x,
+              PALETTE.white,
+              (b, m, A) => {
+                b.fillStyle = A;
+                for (let _ = 0; _ < 2; _++) {
+                  let M = -m * 0.35 + _ * m * 0.55,
+                    E = m * (0.3 - _ * 0.06);
+                  (b.beginPath(),
+                    b.moveTo(-m * 1.05, M - m * 0.25),
+                    b.quadraticCurveTo(-m * 0.3, M - m * 0.2, 0, M + m * 0.35),
+                    b.quadraticCurveTo(m * 0.3, M - m * 0.2, m * 1.05, M - m * 0.25),
+                    b.quadraticCurveTo(m * 0.35, M + E * 0.2, 0, M + m * 0.35 + E),
+                    b.quadraticCurveTo(-m * 0.35, M + E * 0.2, -m * 1.05, M - m * 0.25),
+                    b.fill());
+                }
+              },
+              "几猫远洋",
+              "集装箱运输",
+              PALETTE.orange,
+            ),
+              applyDistress(v, g, x, 0.35, y));
+          },
+          { bleed: PALETTE.white, text: !0 },
+        ),
+      logo_c: () =>
+        r(
+          "logo_c",
+          640,
+          192,
+          (v, g, x, y) => {
+            (l(
+              v,
+              g,
+              x,
+              PALETTE.navy,
+              (b, m, A) => {
+                (b.beginPath(),
+                  b.arc(0, m * 0.25, m * 0.55, Math.PI, 0),
+                  b.closePath(),
+                  b.fill(),
+                  (b.lineWidth = m * 0.1),
+                  (b.lineCap = "butt"));
+                for (let _ = 0; _ < 7; _++) {
+                  let M = Math.PI + ((_ + 0.5) / 7) * Math.PI;
+                  (b.beginPath(),
+                    b.moveTo(Math.cos(M) * m * 0.7, m * 0.25 + Math.sin(M) * m * 0.7),
+                    b.lineTo(Math.cos(M) * m * 1.05, m * 0.25 + Math.sin(M) * m * 1.05),
+                    b.stroke());
+                }
+                (b.fillRect(-m * 1.05, m * 0.42, m * 2.1, m * 0.13),
+                  b.fillRect(-m * 0.8, m * 0.68, m * 1.6, m * 0.1));
+              },
+              "几猫太平洋",
+              "远洋 · 冷链 · 散货",
+            ),
+              applyDistress(v, g, x, 0.35, y));
+          },
+          { bleed: PALETTE.navy, text: !0 },
+        ),
+      logo_d: () =>
+        r(
+          "logo_d",
+          640,
+          192,
+          (v, g, x, y) => {
+            (l(
+              v,
+              g,
+              x,
+              PALETTE.white,
+              (b, m, A) => {
+                (b.fillRect(-m, -m, m * 0.5, m * 2),
+                  b.fillRect(m * 0.5, -m, m * 0.5, m * 2),
+                  b.fillRect(-m, -m * 0.2, m * 2, m * 0.4),
+                  (b.fillStyle = A),
+                  b.fillRect(-m * 0.32, -m, m * 0.64, m * 0.5),
+                  b.fillRect(-m * 0.32, m * 0.5, m * 0.64, m * 0.5));
+              },
+              "几猫联运",
+              "多式联运",
+              PALETTE.yellow,
+            ),
+              applyDistress(v, g, x, 0.35, y));
+          },
+          { bleed: PALETTE.white, text: !0 },
+        ),
+      berth4: () =>
+        r(
+          "berth4",
+          640,
+          224,
+          (v, g, x, y) => {
+            ((v.strokeStyle = rgba(PALETTE.yellow)),
+              (v.lineWidth = 12),
+              v.strokeRect(14, 14, g - 28, x - 28),
+              (v.globalCompositeOperation = "destination-out"));
+            for (let b of [g * 0.25, g * 0.75]) v.fillRect(b - 6, 0, 12, x);
+            ((v.globalCompositeOperation = "source-over"),
+              drawText(v, "四号泊位", g / 2, x * 0.76, x * 0.66, rgba(PALETTE.yellow), {
+                align: "center",
+                weight: 900,
+                maxW: g - 80,
+              }),
+              applyDistress(v, g, x, 0.55, y));
+          },
+          { bleed: PALETTE.yellow, text: !0 },
+        ),
+      caution_stripes: () =>
+        r(
+          "caution_stripes",
+          512,
+          128,
+          (v, g, x, y) => {
+            ((v.fillStyle = rgba(PALETTE.black)),
+              v.fillRect(0, 8, g, x - 16),
+              v.save(),
+              v.beginPath(),
+              v.rect(0, 8, g, x - 16),
+              v.clip(),
+              (v.fillStyle = rgba(PALETTE.yellow)));
+            for (let b = -x; b < g + x; b += 64)
+              (v.beginPath(),
+                v.moveTo(b, x),
+                v.lineTo(b + 32, x),
+                v.lineTo(b + 32 + x, 0),
+                v.lineTo(b + x, 0),
+                v.closePath(),
+                v.fill());
+            (v.restore(), applyDistress(v, g, x, 0.5, y));
+          },
+          { bleed: PALETTE.black },
+        ),
+      grime_streak: () =>
+        r(
+          "grime_streak",
+          128,
+          256,
+          (v, g, x, y) => {
+            for (let b = 0; b < 46; b++) {
+              let m = g * (0.12 + 0.76 * (y() * 0.5 + y() * 0.5)),
+                A = x * (0.25 + y() * 0.7),
+                _ = 1.5 + y() * y() * 12,
+                M = 0.05 + y() * 0.16,
+                E = v.createLinearGradient(0, 0, 0, A);
+              (E.addColorStop(0, `rgba(26,23,19,${M})`),
+                E.addColorStop(0.15, `rgba(26,23,19,${M * 1.3})`),
+                E.addColorStop(1, "rgba(26,23,19,0)"),
+                (v.fillStyle = E),
+                v.fillRect(m - _ / 2 + (y() - 0.5) * 2, 0, _, A));
+            }
+          },
+          { rough: 0.85, bleed: [26, 23, 19] },
+        ),
+      rust_run: () =>
+        r(
+          "rust_run",
+          128,
+          256,
+          (v, g, x, y) => {
+            for (let b = 0; b < 40; b++) {
+              let m = g * (0.2 + 0.6 * (y() * 0.5 + y() * 0.5)),
+                A = x * (0.2 + y() * 0.75),
+                _ = 1.2 + y() * y() * 9,
+                M = 0.08 + y() * 0.22,
+                E = y() < 0.5 ? "118,52,18" : "150,78,26",
+                w = v.createLinearGradient(0, 8, 0, A);
+              (w.addColorStop(0, `rgba(${E},${M * 1.4})`),
+                w.addColorStop(0.3, `rgba(${E},${M})`),
+                w.addColorStop(1, `rgba(${E},0)`),
+                (v.fillStyle = w),
+                v.fillRect(m - _ / 2, 8, _, A));
+            }
+            for (let b = 0; b < 9; b++)
+              ((v.fillStyle = `rgba(${y() < 0.5 ? "70,30,14" : "104,44,16"},${0.5 + y() * 0.4})`),
+                drawBlob(v, g * (0.3 + y() * 0.4), 6 + y() * 12, 3 + y() * 8, y, 0.5, 7),
+                v.fill());
+          },
+          { rough: 0.9, bleed: [118, 52, 18] },
+        ),
+      oil_stain: () =>
+        r(
+          "oil_stain",
+          256,
+          256,
+          (v, g, x, y) => {
+            for (let b = 0; b < 26; b++) {
+              let m = y() * 7,
+                A = Math.pow(y(), 1.5) * g * 0.26,
+                _ = g / 2 + Math.cos(m) * A,
+                M = x / 2 + Math.sin(m) * A * 0.8,
+                E = g * (0.06 + y() * 0.16),
+                w = v.createRadialGradient(_, M, E * 0.2, _, M, E);
+              (w.addColorStop(0, `rgba(10,10,11,${0.35 + y() * 0.3})`),
+                w.addColorStop(0.75, "rgba(12,11,10,0.22)"),
+                w.addColorStop(1, "rgba(12,11,10,0)"),
+                (v.fillStyle = w),
+                v.fillRect(_ - E, M - E, E * 2, E * 2));
+            }
+            for (let b = 0; b < 30; b++) {
+              v.fillStyle = `rgba(10,10,11,${0.3 + y() * 0.4})`;
+              let m = y() * 7,
+                A = g * (0.25 + y() * 0.2);
+              (v.beginPath(),
+                v.arc(g / 2 + Math.cos(m) * A, x / 2 + Math.sin(m) * A, 1 + y() * 4, 0, 7),
+                v.fill());
+            }
+          },
+          { rough: 0.12, bleed: [10, 10, 11] },
+        ),
+      leak_stain: () =>
+        r(
+          "leak_stain",
+          192,
+          256,
+          (v, g, x, y) => {
+            for (let b = 0; b < 18; b++) {
+              let m = g * (0.3 + y() * 0.4),
+                A = x * (0.12 + y() * 0.2),
+                _ = g * (0.1 + y() * 0.2),
+                M = v.createRadialGradient(m, A, _ * 0.5, m, A, _);
+              (M.addColorStop(0, "rgba(150,146,130,0.0)"),
+                M.addColorStop(0.8, `rgba(168,162,140,${0.18 + y() * 0.2})`),
+                M.addColorStop(1, "rgba(168,162,140,0)"),
+                (v.fillStyle = M),
+                v.fillRect(m - _, A - _, _ * 2, _ * 2));
+            }
+            for (let b = 0; b < 22; b++) {
+              let m = g * (0.25 + 0.5 * y()),
+                A = x * (0.3 + y() * 0.6),
+                _ = 2 + y() * 9,
+                M = 0.08 + y() * 0.16,
+                E = y() < 0.6 ? "160,154,132" : "60,66,52",
+                w = v.createLinearGradient(0, x * 0.2, 0, x * 0.2 + A);
+              (w.addColorStop(0, `rgba(${E},${M})`),
+                w.addColorStop(1, `rgba(${E},0)`),
+                (v.fillStyle = w),
+                v.fillRect(m, x * 0.2, _, A));
+            }
+          },
+          { rough: 0.8, bleed: [160, 154, 132] },
+        ),
+      bullet_metal: () =>
+        r(
+          "bullet_metal",
+          128,
+          128,
+          (v, g, x, y) => {
+            ((v.fillStyle = "rgba(96,52,40,0.9)"),
+              drawBlob(v, 64, 64, 30, y, 0.4, 11),
+              v.fill(),
+              (v.fillStyle = "rgba(150,152,156,0.95)"),
+              drawBlob(v, 64, 64, 22, y, 0.3, 12),
+              v.fill(),
+              (v.strokeStyle = "rgba(205,207,210,0.9)"),
+              (v.lineWidth = 1));
+            for (let m = 0; m < 14; m++) {
+              let A = y() * 7;
+              (v.beginPath(),
+                v.moveTo(64 + Math.cos(A) * 9, 64 + Math.sin(A) * 9),
+                v.lineTo(64 + Math.cos(A) * (16 + y() * 10), 64 + Math.sin(A) * (16 + y() * 10)),
+                v.stroke());
+            }
+            let b = v.createRadialGradient(64, 64, 2, 64, 64, 12);
+            (b.addColorStop(0, "rgba(4,4,5,1)"),
+              b.addColorStop(0.75, "rgba(10,10,12,1)"),
+              b.addColorStop(1, "rgba(70,72,76,0.9)"),
+              (v.fillStyle = b),
+              drawBlob(v, 64, 64, 12, y, 0.15, 12),
+              v.fill(),
+              (v.strokeStyle = "rgba(230,232,235,0.85)"),
+              (v.lineWidth = 1.5),
+              v.beginPath(),
+              v.arc(64, 64, 12.5, 3.6, 5.6),
+              v.stroke());
+          },
+          { rough: 0.4, metal: 0.8, bleed: [96, 52, 40] },
+        ),
+      bullet_concrete: () =>
+        r(
+          "bullet_concrete",
+          128,
+          128,
+          (v, g, x, y) => {
+            let b = v.createRadialGradient(64, 64, 20, 64, 64, 60);
+            (b.addColorStop(0, "rgba(176,172,162,0.5)"),
+              b.addColorStop(1, "rgba(176,172,162,0)"),
+              (v.fillStyle = b),
+              v.fillRect(0, 0, g, x),
+              (v.fillStyle = "rgba(168,164,154,0.95)"),
+              drawBlob(v, 64, 64, 32, y, 0.35, 13),
+              v.fill(),
+              (v.fillStyle = "rgba(120,116,108,0.95)"),
+              drawBlob(v, 65, 66, 20, y, 0.35, 11),
+              v.fill(),
+              (v.strokeStyle = "rgba(40,38,36,0.8)"),
+              (v.lineWidth = 1));
+            for (let A = 0; A < 6; A++) {
+              let _ = y() * 7,
+                M = 64 + Math.cos(_) * 14,
+                E = 64 + Math.sin(_) * 14;
+              (v.beginPath(), v.moveTo(M, E));
+              for (let w = 0; w < 5; w++)
+                ((_ += (y() - 0.5) * 0.9),
+                  (M += Math.cos(_) * 8),
+                  (E += Math.sin(_) * 8),
+                  v.lineTo(M, E));
+              v.stroke();
+            }
+            let m = v.createRadialGradient(64, 64, 1, 64, 64, 11);
+            (m.addColorStop(0, "rgba(18,17,16,1)"),
+              m.addColorStop(1, "rgba(60,58,54,0.95)"),
+              (v.fillStyle = m),
+              drawBlob(v, 64, 64, 10, y, 0.3, 9),
+              v.fill());
+            for (let A = 0; A < 40; A++) {
+              v.fillStyle = `rgba(${y() < 0.5 ? "90,86,80" : "190,186,176"},0.8)`;
+              let _ = y() * 7,
+                M = 10 + y() * 24;
+              v.fillRect(64 + Math.cos(_) * M, 64 + Math.sin(_) * M, 1 + y() * 2, 1 + y() * 2);
+            }
+          },
+          { rough: 0.95, bleed: [168, 164, 154] },
+        ),
+      scorch: () =>
+        r(
+          "scorch",
+          256,
+          256,
+          (v, g, x, y) => {
+            for (let b = 0; b < 40; b++) {
+              let m = y() * 7,
+                A = Math.pow(y(), 1.2) * g * 0.3,
+                _ = g / 2 + Math.cos(m) * A,
+                M = x / 2 + Math.sin(m) * A,
+                E = g * (0.07 + y() * 0.15) * (1.2 - A / (g * 0.4)),
+                w = v.createRadialGradient(_, M, 0, _, M, Math.max(4, E));
+              (w.addColorStop(0, `rgba(8,7,6,${0.3 + y() * 0.3})`),
+                w.addColorStop(1, "rgba(8,7,6,0)"),
+                (v.fillStyle = w),
+                v.fillRect(0, 0, g, x));
+            }
+            v.strokeStyle = "rgba(8,7,6,0.25)";
+            for (let b = 0; b < 50; b++) {
+              let m = y() * 7,
+                A = g * 0.1,
+                _ = g * (0.25 + y() * 0.22);
+              ((v.lineWidth = 1 + y() * 3),
+                v.beginPath(),
+                v.moveTo(g / 2 + Math.cos(m) * A, x / 2 + Math.sin(m) * A),
+                v.lineTo(g / 2 + Math.cos(m) * _, x / 2 + Math.sin(m) * _),
+                v.stroke());
+            }
+          },
+          { rough: 0.95, bleed: [8, 7, 6] },
+        ),
+      crack: () =>
+        r(
+          "crack",
+          256,
+          256,
+          (v, g, x, y) => {
+            ((v.lineCap = "round"), (v.lineJoin = "round"));
+            let b = (m, A, _, M, E, w) => {
+              ((v.strokeStyle = `rgba(20,19,18,${0.6 + 0.35 * Math.min(1, E / 2.5)})`),
+                (v.lineWidth = E),
+                v.beginPath(),
+                v.moveTo(m, A));
+              let S = Math.floor(M / 9);
+              for (let z = 0; z < S; z++)
+                ((_ += (y() - 0.5) * 0.8),
+                  (m += Math.cos(_) * 9),
+                  (A += Math.sin(_) * 9),
+                  v.lineTo(m, A),
+                  w > 0 &&
+                    y() < 0.22 &&
+                    (v.stroke(),
+                    b(
+                      m,
+                      A,
+                      _ + (y() < 0.5 ? 1 : -1) * (0.5 + y() * 0.7),
+                      M * (0.3 + y() * 0.3),
+                      E * 0.6,
+                      w - 1,
+                    ),
+                    (v.strokeStyle = `rgba(20,19,18,${0.6 + 0.35 * Math.min(1, E / 2.5)})`),
+                    (v.lineWidth = E),
+                    v.beginPath(),
+                    v.moveTo(m, A)));
+              v.stroke();
+            };
+            (b(g * 0.5, x * 0.5, y() * 7, g * 0.42, 2.6, 3),
+              b(g * 0.5, x * 0.5, y() * 7 + 2, g * 0.4, 2.2, 3),
+              b(g * 0.5, x * 0.5, y() * 7 + 4, g * 0.36, 1.8, 2));
+          },
+          { rough: 0.95, bleed: [20, 19, 18] },
+        ),
+      graffiti_tag: () =>
+        r(
+          "graffiti_tag",
+          384,
+          256,
+          (v, g, x, y) => {
+            ((v.lineCap = "round"), (v.lineJoin = "round"));
+            let b = (_, M, E) => {
+                ((v.strokeStyle = E), (v.lineWidth = M), v.beginPath(), v.moveTo(_[0][0], _[0][1]));
+                for (let w = 1; w < _.length - 1; w += 2)
+                  v.quadraticCurveTo(_[w][0], _[w][1], _[w + 1][0], _[w + 1][1]);
+                v.stroke();
+              },
+              m = "rgba(206,214,208,0.92)",
+              A = [
+                [
+                  [40, 60],
+                  [36, 130],
+                  [48, 200],
+                  [70, 150],
+                  [44, 128],
+                  [80, 110],
+                  [104, 70],
+                ],
+                [
+                  [104, 70],
+                  [76, 140],
+                  [108, 190],
+                  [150, 200],
+                  [150, 110],
+                  [140, 60],
+                  [112, 84],
+                ],
+                [
+                  [168, 196],
+                  [172, 120],
+                  [186, 62],
+                  [200, 110],
+                  [226, 92],
+                  [214, 150],
+                  [236, 196],
+                ],
+                [
+                  [250, 76],
+                  [300, 60],
+                  [318, 66],
+                  [282, 110],
+                  [262, 178],
+                  [300, 200],
+                  [334, 176],
+                ],
+              ];
+            for (let _ of A) (b(_, 12, "rgba(206,214,208,0.25)"), b(_, 7, m));
+            (b(
+              [
+                [30, 222],
+                [180, 236],
+                [352, 206],
+              ],
+              5,
+              m,
+            ),
+              b(
+                [
+                  [330, 40],
+                  [344, 30],
+                  [356, 44],
+                ],
+                5,
+                m,
+              ));
+            for (let _ = 0; _ < 7; _++) {
+              let M = 50 + y() * 290,
+                E = 150 + y() * 50,
+                w = 12 + y() * 46,
+                S = v.createLinearGradient(0, E, 0, E + w);
+              (S.addColorStop(0, m),
+                S.addColorStop(1, "rgba(206,214,208,0)"),
+                (v.fillStyle = S),
+                v.fillRect(M, E, 2 + y() * 2, w));
+            }
+            for (let _ = 0; _ < 260; _++)
+              ((v.fillStyle = `rgba(206,214,208,${y() * 0.5})`),
+                v.fillRect(30 + y() * 330, 40 + y() * 190, 1.2, 1.2));
+            applyDistress(v, g, x, 0.25, y);
+          },
+          { rough: 0.6, bleed: [206, 214, 208] },
+        ),
+      csc_plate: () =>
+        r(
+          "csc_plate",
+          288,
+          200,
+          (v, g, x, y) => {
+            let b = v.createLinearGradient(0, 0, g, x);
+            (b.addColorStop(0, "rgb(150,152,150)"),
+              b.addColorStop(0.5, "rgb(176,178,176)"),
+              b.addColorStop(1, "rgb(138,140,138)"),
+              (v.fillStyle = b),
+              v.beginPath(),
+              v.roundRect ? v.roundRect(3, 3, g - 6, x - 6, 8) : v.rect(3, 3, g - 6, x - 6),
+              v.fill(),
+              (v.strokeStyle = "rgba(40,42,44,0.8)"),
+              (v.lineWidth = 2),
+              v.strokeRect(11, 11, g - 22, x - 22));
+            for (let [_, M] of [
+              [20, 20],
+              [g - 20, 20],
+              [20, x - 20],
+              [g - 20, x - 20],
+            ])
+              ((v.fillStyle = "rgb(96,98,98)"),
+                v.beginPath(),
+                v.arc(_, M, 5, 0, 7),
+                v.fill(),
+                (v.fillStyle = "rgba(230,232,232,0.7)"),
+                v.beginPath(),
+                v.arc(_ - 1.2, M - 1.2, 2, 0, 7),
+                v.fill());
+            let m = "rgba(28,30,32,0.92)";
+            (drawText(v, "安全检验铭牌", g / 2, 46, 19, m, {
+              font: "sans",
+              weight: 600,
+              align: "center",
+              spacing: 1.5,
+              maxW: g - 60,
+            }),
+              [
+                "检验编号 SL/PA-4207/19",
+                "制造日期 2019年03月",
+                "设备编号 SLTU 402719 6",
+                "最大总重 30 480 千克",
+                "堆码载荷 192 000 千克",
+                "横向试验 150 千牛",
+                "下次检验 2027年09月",
+              ].forEach((_, M) => {
+                (drawText(v, _, 30, 70 + M * 16.5, 11, m, {
+                  font: "mono",
+                  weight: 500,
+                  spacing: 0,
+                  maxW: g - 60,
+                }),
+                  (v.fillStyle = "rgba(28,30,32,0.35)"),
+                  v.fillRect(30, 73 + M * 16.5, g - 60, 1));
+              }),
+              (v.fillStyle = "rgba(60,40,24,0.25)"));
+            for (let _ = 0; _ < 30; _++)
+              (drawBlob(v, y() * g, y() * x, 2 + y() * 9, y, 0.5, 7), v.fill());
+          },
+          { rough: 0.45, metal: 0.75, text: !0 },
+        ),
+      numbers_0_9: () =>
+        r(
+          "numbers_0_9",
+          640,
+          128,
+          (v, g, x, y) => {
+            for (let b = 0; b < 10; b++)
+              drawText(v, String(b), b * 64 + 32, x * 0.86, x * 0.92, rgba(PALETTE.white), {
+                align: "center",
+                weight: 900,
+                maxW: 54,
+              });
+            applyDistress(v, g, x, 0.3, y);
+          },
+          { bleed: PALETTE.white, text: !0 },
+        ),
+    },
+    u = Object.keys(c),
+    h = new Set();
+  function f(v) {
+    let g = t.get("d:" + v);
+    if (g) return g;
+    let x = c[v];
+    if (!x)
+      (h.has(v) || (h.add(v), console.warn(`[mats] unknown decal "${v}"`)),
+        (g = f("grime_streak")));
+    else {
+      let y = x();
+      ((g = { material: y.material, aspect: y.aspect }), (g.material.name = "decal_" + v));
+    }
+    return (t.set("d:" + v, g), g);
+  }
+  function p(v) {
+    let g = "n:" + v,
+      x = t.get(g);
+    if (x) return x;
+    let y = f("numbers_0_9").material,
+      b = y.map.clone();
+    (b.repeat.set(0.1, 1), b.offset.set((Math.abs(v | 0) % 10) / 10, 0), (b.needsUpdate = !0));
+    let m = y.clone();
+    return (
+      (m.map = b),
+      n.push(() => {
+        b.needsUpdate = !0;
+      }),
+      (x = { material: m, aspect: 0.5 }),
+      t.set(g, x),
+      x
+    );
+  }
+  function d(v, g = {}) {
+    v = String(v === void 0 ? "" : v).toUpperCase() || " ";
+    let x = PALETTE[g.color] ? g.color : "white",
+      y = g.font === "sans" ? "sans" : "stencil",
+      b = g.distress !== void 0 ? +g.distress : 0.35,
+      m = `l:${v}|${x}|${y}|${b}`,
+      A = t.get(m);
+    if (A) return A;
+    let _ = 128,
+      M = 100,
+      E = createCanvas(4, 4).getContext("2d"),
+      w = y === "sans" ? sansFontStack : stencilFontStack,
+      S = y === "sans" ? 600 : 700,
+      z = M * 0.06,
+      H = measureTextWidth(E, v, M, w, S, z),
+      O = Math.min(1, 2e3 / (H + 32)),
+      q = Math.max(48, Math.ceil((H + 32) * O)),
+      U = Math.ceil(_ * O),
+      T = r(
+        m,
+        q,
+        U,
+        (D, C, G, j) => {
+          (D.save(),
+            D.scale(O, O),
+            drawText(D, v, 16, _ * 0.84, M, rgba(PALETTE[x]), {
+              font: y,
+              weight: S,
+              spacing: z,
+              fitW: H,
+            }),
+            D.restore(),
+            applyDistress(D, C, G, b, j));
+        },
+        { bleed: PALETTE[x], text: !0, rough: 0.65 },
+      );
+    return (
+      (A = { material: T.material, aspect: T.aspect }),
+      (A.material.name = "label"),
+      t.set(m, A),
+      A
+    );
+  }
+  try {
+    if (typeof document < "u" && document.fonts && document.fonts.load) {
+      let v = 0,
+        g = () => {
+          v = 0;
+          for (let x of n)
+            try {
+              x();
+            } catch {}
+        };
+      for (let x of [
+        '700 20px "PingFang SC"',
+        '900 20px "PingFang SC"',
+        '600 20px "PingFang SC"',
+        '500 20px "PingFang SC"',
+      ])
+        document.fonts.load(x).then(
+          (y) => {
+            y && y.length && !v && (v = setTimeout(g, 120));
+          },
+          () => {},
+        );
+    }
+  } catch {}
+  return { decal: f, label: d, number: p, names: u, bytes: () => s };
+}
+var TEXTURE_SPECS = {
+    asphalt: { fn: "asphalt", size: 1, tile: 2, bump: 1.6, hero: !0 },
+    concrete: { fn: "concrete", size: 1, tile: 3, bump: 2.5 },
+    brick: { fn: "brick", size: 0.5, tile: 1.8, bump: 6 },
+    epoxy: { fn: "epoxy", size: 0.5, tile: 4, bump: 3 },
+    paint: { fn: "paint", size: 1, tile: 2.5, bump: 2.5, p: [0.5] },
+    hull: { fn: "hull", size: 0.5, tile: 4, bump: 12 },
+    galv: { fn: "galv", size: 0.5, tile: 1, bump: 0.8 },
+    metal: { fn: "metal", size: 0.5, tile: 1, bump: 0.5, p: [1] },
+    brushed: { fn: "brushed", size: 0.5, tile: 0.5, bump: 0.4 },
+    rust: { fn: "rust", size: 0.5, tile: 1.2, bump: 3 },
+    diamond: { fn: "diamond", size: 0.5, tile: 0.5, bump: 2 },
+    corrugated: { fn: "corrugated", size: 0.5, tile: [0.762, 2.286], bump: 19 },
+    chainlink: { fn: "chainlink", size: 0.5, tile: 0.5, bump: 5 },
+    hazard: { fn: "hazard", size: 0.5, tile: 1, bump: 2.5 },
+    gunmetal: { fn: "gunmetal", size: 0.5, tile: 0.25, bump: 0.3, p: [0.6] },
+    anodized: { fn: "gunmetal", size: 0.5, tile: 0.25, bump: 0.25, p: [0.2], seed: 11 },
+    polymer: { fn: "polymer", size: 0.25, tile: 0.1, bump: 0.4 },
+    carbon: { fn: "carbon", size: 0.25, tile: 0.05, bump: 0.5 },
+    fabric: { fn: "fabric", size: 0.25, tile: 0.05, bump: 0.4 },
+    armor: { fn: "armor", size: 0.5, tile: 0.5, bump: 0.8 },
+    wood: { fn: "wood", size: 0.5, tile: 1.2, bump: 2.6 },
+    plastic: { fn: "plastic", size: 0.5, tile: 1, bump: 1 },
+    tarp: { fn: "tarp", size: 0.5, tile: 1.5, bump: 20 },
+    cardboard: { fn: "cardboard", size: 0.5, tile: 1, bump: 0.8 },
+    rope: { fn: "rope", size: 0.25, tile: 0.1, bump: 4 },
+    tire: { fn: "tire", size: 0.5, tile: [0.5, 0.3], bump: 7 },
+    glass: { fn: "glass", size: 0.5, tile: 1.5, bump: 1.5, p: [0.3] },
+    glass_dirty: { fn: "glass", size: 0.5, tile: 1.5, bump: 1.5, p: [1], seed: 40 },
+    water: { fn: "water", size: 0.25, tile: 4, bump: 30 },
+  },
+  WET_DEFAULT = [0.42, 0.38, 0.5, 0],
+  WET_PAINT = [0.05, 0.62, 0.65, 0.7],
+  WET_STEEL = [0, 0.7, 0.55, 0.5],
+  WET_RUST = [0.3, 0.6, 0.55, 0],
+  WET_PLASTIC = [0.08, 0.62, 0.6, 0.5],
+  WET_WOOD = [0.4, 0.5, 0.6, 0],
+  WET_GLASS = [0, 1, 0, 0],
+  MACRO_CONCRETE = [0.22, 0.12, 0.35, 0.35],
+  MACRO_DEFAULT = [0.14, 0.1, 0.8, 0.2],
+  MACRO_METAL = [0.07, 0.06, 3, 0],
+  MACRO_GLASS = [0, 0, 1, 0],
+  createMaterialSpec = (i, e = {}) => ({
+    set: i,
+    tint: 0,
+    color: 16777215,
+    rough: 1,
+    metal: 1,
+    wet: WET_DEFAULT,
+    macro: MACRO_DEFAULT,
+    nrm: 1,
+    ...e,
+  }),
+  createPaintSpec = (i) =>
+    createMaterialSpec("paint", {
+      tint: 1,
+      color: i,
+      wet: WET_PAINT,
+      macro: [0.2, 0.16, 0.4, 0.45],
+    }),
+  MATERIAL_SPECS = {
+    asphalt: createMaterialSpec("asphalt", { wet: [0.45, 0.3, 0.5, 0], macro: MACRO_CONCRETE }),
+    concrete: createMaterialSpec("concrete", { macro: MACRO_CONCRETE }),
+    concrete_dirty: createMaterialSpec("concrete", {
+      color: 13616822,
+      macro: [0.3, 0.15, 0.35, 0.9],
+    }),
+    concrete_painted: createMaterialSpec("concrete", {
+      tint: 2,
+      color: 9343638,
+      rough: 0.9,
+      wet: [0.15, 0.55, 0.6, 0.3],
+      macro: [0.14, 0.1, 0.5, 0.3],
+    }),
+    brick: createMaterialSpec("brick"),
+    floor_epoxy: createMaterialSpec("epoxy", {
+      wet: [0.04, 0.75, 0.4, 0],
+      macro: [0.12, 0.2, 0.45, 0.25],
+    }),
+    paint_red: createPaintSpec(8200729),
+    paint_blue: createPaintSpec(2047846),
+    paint_green: createPaintSpec(2906692),
+    paint_yellow: createPaintSpec(12159516),
+    paint_orange: createPaintSpec(11751962),
+    paint_white: createPaintSpec(12172214),
+    paint_grey: createPaintSpec(5922920),
+    paint_teal: createPaintSpec(2055523),
+    steel_galv: createMaterialSpec("galv", { wet: WET_STEEL }),
+    steel_dark: createMaterialSpec("metal", {
+      tint: 1,
+      color: 4014406,
+      rough: 1.15,
+      wet: WET_STEEL,
+    }),
+    steel_worn: createMaterialSpec("metal", {
+      tint: 1,
+      color: 9080466,
+      rough: 0.9,
+      wet: WET_STEEL,
+    }),
+    steel_bare: createMaterialSpec("brushed", {
+      tint: 1,
+      color: 11843771,
+      wet: WET_STEEL,
+      macro: MACRO_METAL,
+    }),
+    steel_rust: createMaterialSpec("rust", { wet: WET_RUST }),
+    diamond_plate: createMaterialSpec("diamond", { wet: WET_STEEL }),
+    corrugated_roof: createMaterialSpec("corrugated", { wet: WET_STEEL }),
+    chainlink: createMaterialSpec("chainlink", {
+      tint: 3,
+      alphaCut: !0,
+      side: 2,
+      wet: WET_GLASS,
+      macro: MACRO_GLASS,
+    }),
+    aluminium: createMaterialSpec("brushed", {
+      tint: 1,
+      color: 12896459,
+      rough: 1.15,
+      wet: WET_STEEL,
+      macro: MACRO_METAL,
+    }),
+    brass: createMaterialSpec("brushed", {
+      tint: 1,
+      color: 12753477,
+      rough: 0.9,
+      wet: WET_STEEL,
+      macro: [0.1, 0.08, 20, 0],
+    }),
+    hazard_stripes: createMaterialSpec("hazard", { wet: WET_PAINT }),
+    gunmetal: createMaterialSpec("gunmetal", {
+      tint: 1,
+      color: 2764081,
+      wet: [0, 0.75, 0.6, 0.5],
+      macro: [0.08, 0.06, 6, 0],
+    }),
+    anodized_black: createMaterialSpec("anodized", {
+      tint: 1,
+      color: 1184790,
+      rough: 0.72,
+      metal: 0.9,
+      wet: [0, 0.75, 0.6, 0.5],
+      macro: [0.06, 0.05, 6, 0],
+    }),
+    polymer_black: createMaterialSpec("polymer", {
+      tint: 1,
+      color: 1513498,
+      wet: [0, 0.7, 0.6, 0.5],
+      macro: [0.06, 0.06, 6, 0],
+    }),
+    polymer_tan: createMaterialSpec("polymer", {
+      tint: 1,
+      color: 7299144,
+      wet: [0, 0.7, 0.6, 0.5],
+      macro: [0.06, 0.06, 6, 0],
+    }),
+    rubber: createMaterialSpec("polymer", {
+      tint: 1,
+      color: 1052688,
+      rough: 1.4,
+      wet: [0.05, 0.6, 0.6, 0.4],
+      macro: [0.06, 0.06, 6, 0],
+    }),
+    carbon: createMaterialSpec("carbon", { wet: [0, 0.8, 0.6, 0.5], macro: [0.05, 0.05, 6, 0] }),
+    glove_fabric: createMaterialSpec("fabric", {
+      tint: 1,
+      color: 2303530,
+      wet: [0.3, 0.7, 0.6, 0],
+      macro: [0.08, 0.04, 8, 0],
+    }),
+    armor_white: createMaterialSpec("armor", {
+      tint: 1,
+      color: 11449528,
+      wet: WET_PAINT,
+      macro: [0.08, 0.08, 2.5, 0.15],
+    }),
+    armor_orange: createMaterialSpec("armor", {
+      tint: 1,
+      color: 12670234,
+      wet: WET_PAINT,
+      macro: [0.08, 0.08, 2.5, 0.15],
+    }),
+    wood_pallet: createMaterialSpec("wood", { wet: WET_WOOD, macro: [0.2, 0.1, 0.9, 0.4] }),
+    wood_dark: createMaterialSpec("wood", {
+      color: 9074794,
+      wet: WET_WOOD,
+      macro: [0.2, 0.1, 0.9, 0.4],
+    }),
+    plastic_blue: createMaterialSpec("plastic", { tint: 1, color: 1920134, wet: WET_PLASTIC }),
+    plastic_red: createMaterialSpec("plastic", { tint: 1, color: 9314074, wet: WET_PLASTIC }),
+    plastic_grey: createMaterialSpec("plastic", { tint: 1, color: 4935508, wet: WET_PLASTIC }),
+    tarp: createMaterialSpec("tarp", {
+      tint: 1,
+      color: 3885626,
+      wet: WET_PLASTIC,
+      macro: [0.1, 0.1, 1.2, 0.2],
+    }),
+    cardboard: createMaterialSpec("cardboard", { wet: [0.4, 0.75, 0.6, 0] }),
+    rope: createMaterialSpec("rope", { macro: MACRO_METAL }),
+    tire: createMaterialSpec("tire", { wet: [0.1, 0.6, 0.6, 0.3], macro: MACRO_METAL }),
+    glass: createMaterialSpec("glass", {
+      tint: 3,
+      transparent: !0,
+      wet: WET_GLASS,
+      macro: MACRO_GLASS,
+    }),
+    glass_dirty: createMaterialSpec("glass_dirty", {
+      tint: 3,
+      transparent: !0,
+      wet: WET_GLASS,
+      macro: MACRO_GLASS,
+    }),
+    hull_paint: createMaterialSpec("hull", {
+      tint: 1,
+      color: 1778219,
+      wet: WET_PAINT,
+      macro: MACRO_CONCRETE,
+    }),
+    hull_red: createMaterialSpec("hull", {
+      tint: 1,
+      color: 6233880,
+      wet: WET_PAINT,
+      macro: MACRO_CONCRETE,
+    }),
+    water_dark: createMaterialSpec("water", { wet: WET_GLASS, macro: MACRO_GLASS }),
+  },
+  FALLBACK_MATERIAL_SPEC = createMaterialSpec("metal", { tint: 1, color: 8027520, wet: WET_STEEL }),
+  triplanarVertexCommon = `
 varying vec3 vSlPos;
 #ifdef SL_TRIPLANAR
 varying vec3 vSlONrm; varying vec3 vSlAx; varying vec3 vSlAy;
 #endif
-`,pA=`
+`,
+  triplanarVertexMain = `
 #ifdef SL_TRIPLANAR
   vSlPos = position; vSlONrm = normal;
   vec3 slAx = vec3(1.0, 0.0, 0.0), slAy = vec3(0.0, 1.0, 0.0);
@@ -618,7 +1950,8 @@ varying vec3 vSlONrm; varying vec3 vSlAx; varying vec3 vSlAy;
   #endif
   vSlPos = (modelMatrix * slWP).xyz;
 #endif
-`,mA=`
+`,
+  surfaceFragmentCommon = `
 uniform float uSlWet; uniform vec4 uSlWetP; uniform vec4 uSlMacro; uniform vec3 uSlUv; uniform vec2 uSlX;
 varying vec3 vSlPos;
 #ifdef SL_TRIPLANAR
@@ -633,7 +1966,8 @@ float slN3(vec3 x){
   return mix(mix(mix(slH(i), slH(i + vec3(1.0, 0.0, 0.0)), f.x), mix(slH(i + vec3(0.0, 1.0, 0.0)), slH(i + vec3(1.0, 1.0, 0.0)), f.x), f.y),
              mix(mix(slH(i + vec3(0.0, 0.0, 1.0)), slH(i + vec3(1.0, 0.0, 1.0)), f.x), mix(slH(i + vec3(0.0, 1.0, 1.0)), slH(i + vec3(1.0, 1.0, 1.0)), f.x), f.y), f.z);
 }
-`,gA=`
+`,
+  surfaceMapFragment = `
 #ifdef SL_TRIPLANAR
   { vec3 slOn = normalize(vSlONrm); vec3 slW3 = pow(abs(slOn), vec3(6.0)); slTw = slW3 / (slW3.x + slW3.y + slW3.z);
     vec3 slQ = vSlPos * uSlUv.z; slUx = slQ.zy; slUy = slQ.xz; slUz = slQ.xy; }
@@ -719,7 +2053,8 @@ float slN3(vec3 x){
     // sub-pixel wires: the surviving fragments stand in for a much thinner wire, so dim them (no white sheets in the sun)
     diffuseColor.rgb *= mix(1.0, 0.45, smoothstep(1.5, 4.5, slLod)); }
 #endif
-`,vA=`
+`,
+  surfaceRoughnessFragment = `
 float roughnessFactor = roughness * slORM.g;
 #ifdef SL_FX
   roughnessFactor += uSlMacro.y * ((slMac2 - 0.5) * 1.4 + (slMac - 0.5) * 0.8);
@@ -731,9 +2066,11 @@ float roughnessFactor = roughness * slORM.g;
     roughnessFactor = sqrt(roughnessFactor * roughnessFactor + clamp(1.0 - slNl, 0.0, 1.0) * 0.6); }
 #endif
 roughnessFactor = clamp(roughnessFactor, 0.045, 1.0);
-`,xA=`
+`,
+  surfaceMetalnessFragment = `
 float metalnessFactor = metalness * slORM.b;
-`,yA=`
+`,
+  surfaceNormalFragment = `
 #ifdef SL_TRIPLANAR
   { vec3 slOn = normalize(vSlONrm);
     vec3 slTx = texture2D(normalMap, slUx).xyz * 2.0 - 1.0, slTy = texture2D(normalMap, slUy).xyz * 2.0 - 1.0, slTz = texture2D(normalMap, slUz).xyz * 2.0 - 1.0;
@@ -751,12 +2088,397 @@ float metalnessFactor = metalness * slORM.b;
     mapN.xy *= normalScale * (1.0 - 0.45 * slWetK * slUp);
     normal = normalize(tbn * mapN); }
 #endif
-`,bA=It.aomap_fragment.replace("texture2D( aoMap, vAoMapUv ).r","slORM.r");function h3(i,e){Object.assign(i.uniforms,e),i.vertexShader=i.vertexShader.replace("#include <common>",`#include <common>
-`+dA).replace("#include <project_vertex>",`#include <project_vertex>
-`+pA),i.fragmentShader=i.fragmentShader.replace("#include <common>",`#include <common>
-`+mA).replace("#include <map_fragment>",gA).replace("#include <roughnessmap_fragment>",vA).replace("#include <metalnessmap_fragment>",xA).replace("#include <normal_fragment_maps>",yA).replace("#include <aomap_fragment>",bA)}async function Gg(i){let e=i.renderer||i.render&&i.render.renderer,t=i.params||{},n=+(t.tex||0)||i.quality&&i.quality.tex||1024,s=Math.min(n,1024),o=Math.min(8,e.capabilities.getMaxAnisotropy?e.capabilities.getMaxAnisotropy():1),r={wet:{value:t.wet!==void 0?+t.wet:1}},a={sets:0,bytes:0,ms:0},l=new cr(-1,1,1,-1,0,1),c=new ir,u=new Qe(new rn(2,2));u.frustumCulled=!1,c.add(u);let h=new Map,f=new Map,p=new Map,d=0,v=null,g=(O,q)=>new V0({glslVersion:Ac,vertexShader:Qy,fragmentShader:O,uniforms:q,depthTest:!1,depthWrite:!1});function x(){return v||(v={normal:g(i3,{tH:{value:null},uK:{value:new Ae},uTexel:{value:0}}),copy:g(s3,{tA:{value:null},uSq:{value:0}})}),v}function y(O,q){u.material=q,e.setRenderTarget(O),e.render(c,l)}function b(O,q){let U=new si(O,O,{depthBuffer:!1,generateMipmaps:!0,minFilter:Ln,magFilter:Zt,wrapS:Is,wrapT:Is,anisotropy:o,colorSpace:q?Vn:hi});return a.bytes+=O*O*4*1.34,U}function m(O){let q=Math.round(s*O.size);return O.hero&&n>=2048&&(q=2048),Math.max(32,q)}function A(O){let q=p.get(O);if(q)return q;let U=c3[O],T=performance.now(),D=m(U),C=Array.isArray(U.tile)?U.tile:[U.tile,U.tile],G=h.get(D);G||(G=new si(D,D,{count:3,depthBuffer:!1,generateMipmaps:!1,minFilter:Gn,magFilter:Gn,wrapS:Is,wrapT:Is}),h.set(D,G));let j=f.get(U.fn);j||(j=g(e3+Tn[U.fn]+t3,{uP:{value:new Dt},uSeed:{value:0},uTexel:{value:0}}),f.set(U.fn,j));let N=U.p||[];j.uniforms.uP.value.set(N[0]||0,N[1]||0,N[2]||0,N[3]||0),j.uniforms.uSeed.value=U.seed||0,j.uniforms.uTexel.value=1/D;let Q=x(),K=e.getRenderTarget(),ie=e.autoClear,F=e.xr.enabled,X=e.shadowMap.autoUpdate;e.autoClear=!0,e.xr.enabled=!1,e.shadowMap.autoUpdate=!1,y(G,j);let ne=b(D,!0),re=b(D,!1),$=b(D,!1);Q.copy.uniforms.tA.value=G.textures[0],Q.copy.uniforms.uSq.value=1,y(ne,Q.copy),Q.copy.uniforms.tA.value=G.textures[1],Q.copy.uniforms.uSq.value=0,y(re,Q.copy),Q.normal.uniforms.tH.value=G.textures[2],Q.normal.uniforms.uTexel.value=1/D,Q.normal.uniforms.uK.value.set(U.bump*.001*D/C[0],U.bump*.001*D/C[1]),y($,Q.normal),e.setRenderTarget(K),e.autoClear=ie,e.xr.enabled=F,e.shadowMap.autoUpdate=X;for(let ue of[ne,re,$])ue.texture.repeat.set(1/C[0],1/C[1]),ue.texture.name="sl_"+O;return q={key:O,albedo:ne.texture,orm:re.texture,normal:$.texture,tile:C,size:D,targets:[ne,re,$]},p.set(O,q),a.sets++,a.ms+=performance.now()-T,d=performance.now(),q}function _(){for(let O of h.values())O.dispose();h.clear();for(let O of f.values())O.dispose();f.clear()}let M=new Map,E=new Set;function w(O,q={}){let U=O+"|"+(q.vertexColors?"v":"")+(q.triplanar?"t"+(q.scale||1):"")+(q.doubleSide?"d":"")+(q.interior?"i":"")+(q.color!==void 0?"c"+q.color:""),T=M.get(U);if(T)return T;let D=l1[O];D||(E.has(O)||(E.add(O),console.warn(`[mats] unknown material "${O}" \u2014 using fallback`)),D=fA);let C;try{C=A(D.set)}catch(K){return E.has("gen:"+D.set)||(E.add("gen:"+D.set),console.error(`[mats] texture set "${D.set}" failed: ${K&&K.message||K}`)),T=new Qt({color:q.color!==void 0?q.color:D.tint?D.color:8421504,roughness:.6,metalness:0,vertexColors:!!q.vertexColors}),T.name=O,M.set(U,T),T}let G=!!q.triplanar,j=!D.transparent&&!D.alphaCut;T=new Qt({map:C.albedo,normalMap:C.normal,roughnessMap:C.orm,metalnessMap:C.orm,aoMap:C.orm,color:q.color!==void 0?q.color:D.color,roughness:D.rough,metalness:D.metal,vertexColors:!!q.vertexColors}),T.normalScale.set(D.nrm,D.nrm),T.name=O,(q.doubleSide||D.side===2)&&(T.side=Sn),D.transparent&&(T.transparent=!0,T.depthWrite=!1,T.envMapIntensity=1.4),D.alphaCut&&(T.alphaTest=.5),T.defines={...T.defines,SL_TINT:D.tint},G&&(T.defines.SL_TRIPLANAR=""),j&&(T.defines.SL_FX=""),D.alphaCut&&!G&&(T.defines.SL_ACUT="");let N={uSlWet:r.wet,uSlWetP:{value:new Dt(...D.wet)},uSlMacro:{value:new Dt(...D.macro)},uSlUv:{value:new W(1,1,G?(q.scale||1)/C.tile[0]:C.size)},uSlX:{value:new Ae(q.interior?.12:1,0)}};T.userData.sl=N,T.userData.set=C.key,T.userData.tile=C.tile,q.interior&&(T.userData.interior=!0),T.onBeforeCompile=K=>h3(K,N);let Q="sl2|"+D.tint+(G?"t":"")+(j?"f":"")+(D.alphaCut?"a":"");return T.customProgramCacheKey=()=>Q,M.set(U,T),T}function S(O=16777215,q=4){let U="em|"+O+"|"+q;if(M.has(U))return M.get(U);let T=new Nn({color:new Ve(O).multiplyScalar(q),toneMapped:!0});return T.name="emissive",M.set(U,T),T}let z=l3(i,o);return{get:w,emissive:S,decal:z.decal,label:z.label,number:z.number,names:Object.keys(l1),decalNames:z.names,uniforms:r,update(O){h.size&&performance.now()-d>4e3&&_()},prewarm(O){for(let q of O||Object.keys(l1))w(q)},stats(){return{sets:a.sets,textureMB:+(a.bytes/1048576).toFixed(1),genMs:+a.ms.toFixed(0),decalMB:+(z.bytes()/1048576).toFixed(1)}},tileOf(O){let q=l1[O];return q?c3[q.set].tile:1}}}var _A=new Set(["gunmetal","anodized_black","polymer_black","polymer_tan","rubber","carbon","glove_fabric","armor_white","armor_orange"]);function MA(i){let e=new ls(i,48,32),t=e.attributes.uv;for(let n=0;n<t.count;n++)t.setXY(n,t.getX(n)*2*Math.PI*i,t.getY(n)*Math.PI*i);return e}function c1(i,e){let t=new rn(i,e),n=t.attributes.uv;for(let s=0;s<n.count;s++)n.setXY(s,n.getX(s)*i,n.getY(s)*e);return t}function wA(i){let e=i.mats,t=new wt;i.scene.add(t);let n=i.params.only?String(i.params.only).split(",").filter(Boolean):null,s=!n||n.includes("decals"),o=n?n.filter(g=>g!=="decals"):e.names,r=n?Math.max(1,o.length):10,a=1.9,l=3.6,c=MA(.42),u=c1(1.5,1.5),h=c1(1.5,1.5).rotateX(-Math.PI/2),f=(g,x,y,b,m)=>{let A=new Qe(g,x);return A.position.set(y,b,m),A.castShadow=A.receiveShadow=!0,t.add(A),A};o.forEach((g,x)=>{let y=(x%r-(r-1)/2)*a,b=-Math.floor(x/r)*l,m=e.get(g,g.startsWith("glass")||g==="chainlink"?{doubleSide:!0}:{});f(u,m,y,.76,b),f(h,m,y,.012,b+1.1),f(c,_A.has(g)?e.get(g,{triplanar:!0}):m,y,.46,b+1.25)});let p,d,v=r*a;if(n&&o.length?(p=[.25*v,1.5,2.6+v*.42],d=[0,.62,.5]):(p=[0,9.5,12],d=[0,0,-7]),s){let g=n&&!o.length?0:v/2+5.5,x=8.4,y=3.3,b=f(c1(x,y),e.get("paint_blue"),g,y/2,-1),m=f(c1(x,y),e.get("concrete"),g,y/2,-1.01);m.position.x+=x;let A=e.decalNames,_=-x/2+.25,M=y-.75,E=.62,w=(z,H,O)=>{let q=H*z.aspect;if(_+q>x*1.5-.2)return;_<x/2&&_+q>x/2-.15&&(_=x/2+.25);let U=new Qe(new rn(q,H),z.material);U.position.set(g+_+q/2,M+H/2,-.996),U.renderOrder=2,t.add(U),_+=q+.14};[A.slice(0,9),A.slice(9,17),A.slice(17)].forEach((z,H)=>{_=-x/2+.25,M=y-.75-H*.78,z.forEach(O=>w(e.decal(O),E))}),_=-x/2+.25,M=y-.75-3*.78-.05,w(e.label("几猫港区  B4-0271",{color:"white"}),.3),w(e.label("最大总重 30480 千克",{color:"yellow",distress:.6}),.22),w(e.label("危险",{color:"red",distress:.2}),.3),w(e.label("请勿靠近",{color:"black",font:"sans"}),.25),w(e.number(4),.3),w(e.number(7),.3),n&&!o.length&&(p=[x/2,1.7,7.2],d=[x/2,1.6,-1])}return i.params.wet!==void 0&&(e.uniforms.wet.value=+i.params.wet),console.log("[mats] "+JSON.stringify(e.stats())),{cam:p,target:d,update(){}}}
+`,
+  aoMapFragmentPatch = ShaderChunk.aomap_fragment.replace(
+    "texture2D( aoMap, vAoMapUv ).r",
+    "slORM.r",
+  );
+function applyMaterialPatch(material, uniforms) {
+  (Object.assign(material.uniforms, uniforms),
+    (material.vertexShader = material.vertexShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+` + triplanarVertexCommon,
+      )
+      .replace(
+        "#include <project_vertex>",
+        `#include <project_vertex>
+` + triplanarVertexMain,
+      )),
+    (material.fragmentShader = material.fragmentShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+` + surfaceFragmentCommon,
+      )
+      .replace("#include <map_fragment>", surfaceMapFragment)
+      .replace("#include <roughnessmap_fragment>", surfaceRoughnessFragment)
+      .replace("#include <metalnessmap_fragment>", surfaceMetalnessFragment)
+      .replace("#include <normal_fragment_maps>", surfaceNormalFragment)
+      .replace("#include <aomap_fragment>", aoMapFragmentPatch)));
+}
+/**
+ * 创建程序化 PBR 材质管理器：GPU 贴图集生成、材质缓存、雨水湿润补丁、
+ * 贴花/铭牌/编号图集与展示厅支持。
+ * @param {import('./types').EngineContext} engineContext
+ * @returns {Promise<import('./types').MaterialsManager>}
+ */
+async function buildMaterialsManager(engineContext) {
+  let e = engineContext.renderer || (engineContext.render && engineContext.render.renderer),
+    t = engineContext.params || {},
+    n = +(t.tex || 0) || (engineContext.quality && engineContext.quality.tex) || 1024,
+    s = Math.min(n, 1024),
+    o = Math.min(8, e.capabilities.getMaxAnisotropy ? e.capabilities.getMaxAnisotropy() : 1),
+    r = { wet: { value: t.wet !== void 0 ? +t.wet : 1 } },
+    a = { sets: 0, bytes: 0, ms: 0 },
+    l = new OrthographicCamera(-1, 1, 1, -1, 0, 1),
+    c = new Scene(),
+    u = new Mesh(new PlaneGeometry(2, 2));
+  ((u.frustumCulled = !1), c.add(u));
+  let h = new Map(),
+    f = new Map(),
+    p = new Map(),
+    d = 0,
+    v = null,
+    g = (O, q) =>
+      new RawShaderMaterial({
+        glslVersion: GLSL3,
+        vertexShader: fullscreenVertexShader,
+        fragmentShader: O,
+        uniforms: q,
+        depthTest: !1,
+        depthWrite: !1,
+      });
+  function x() {
+    return (
+      v ||
+        (v = {
+          normal: g(normalMapFragmentShader, {
+            tH: { value: null },
+            uK: { value: new Vector2() },
+            uTexel: { value: 0 },
+          }),
+          copy: g(srgbCopyFragmentShader, { tA: { value: null }, uSq: { value: 0 } }),
+        }),
+      v
+    );
+  }
+  function y(O, q) {
+    ((u.material = q), e.setRenderTarget(O), e.render(c, l));
+  }
+  function b(O, q) {
+    let U = new WebGLRenderTarget(O, O, {
+      depthBuffer: !1,
+      generateMipmaps: !0,
+      minFilter: LinearMipmapLinearFilter,
+      magFilter: LinearFilter,
+      wrapS: RepeatWrapping,
+      wrapT: RepeatWrapping,
+      anisotropy: o,
+      colorSpace: q ? SRGBColorSpace : NoColorSpace,
+    });
+    return ((a.bytes += O * O * 4 * 1.34), U);
+  }
+  function m(O) {
+    let q = Math.round(s * O.size);
+    return (O.hero && n >= 2048 && (q = 2048), Math.max(32, q));
+  }
+  function A(O) {
+    let q = p.get(O);
+    if (q) return q;
+    let U = TEXTURE_SPECS[O],
+      T = performance.now(),
+      D = m(U),
+      C = Array.isArray(U.tile) ? U.tile : [U.tile, U.tile],
+      G = h.get(D);
+    G ||
+      ((G = new WebGLRenderTarget(D, D, {
+        count: 3,
+        depthBuffer: !1,
+        generateMipmaps: !1,
+        minFilter: NearestFilter,
+        magFilter: NearestFilter,
+        wrapS: RepeatWrapping,
+        wrapT: RepeatWrapping,
+      })),
+      h.set(D, G));
+    let j = f.get(U.fn);
+    j ||
+      ((j = g(surfaceShaderPrelude + surfaceShaderLibrary[U.fn] + surfaceShaderEntry, {
+        uP: { value: new Vector4() },
+        uSeed: { value: 0 },
+        uTexel: { value: 0 },
+      })),
+      f.set(U.fn, j));
+    let N = U.p || [];
+    (j.uniforms.uP.value.set(N[0] || 0, N[1] || 0, N[2] || 0, N[3] || 0),
+      (j.uniforms.uSeed.value = U.seed || 0),
+      (j.uniforms.uTexel.value = 1 / D));
+    let Q = x(),
+      K = e.getRenderTarget(),
+      autoClear = e.autoClear,
+      F = e.xr.enabled,
+      X = e.shadowMap.autoUpdate;
+    ((e.autoClear = !0), (e.xr.enabled = !1), (e.shadowMap.autoUpdate = !1), y(G, j));
+    let albedoTarget = b(D, !0),
+      ormTarget = b(D, !1),
+      $ = b(D, !1);
+    ((Q.copy.uniforms.tA.value = G.textures[0]),
+      (Q.copy.uniforms.uSq.value = 1),
+      y(albedoTarget, Q.copy),
+      (Q.copy.uniforms.tA.value = G.textures[1]),
+      (Q.copy.uniforms.uSq.value = 0),
+      y(ormTarget, Q.copy),
+      (Q.normal.uniforms.tH.value = G.textures[2]),
+      (Q.normal.uniforms.uTexel.value = 1 / D),
+      Q.normal.uniforms.uK.value.set((U.bump * 0.001 * D) / C[0], (U.bump * 0.001 * D) / C[1]),
+      y($, Q.normal),
+      e.setRenderTarget(K),
+      (e.autoClear = autoClear),
+      (e.xr.enabled = F),
+      (e.shadowMap.autoUpdate = X));
+    for (let target of [albedoTarget, ormTarget, $])
+      (target.texture.repeat.set(1 / C[0], 1 / C[1]), (target.texture.name = "sl_" + O));
+    return (
+      (q = {
+        key: O,
+        albedo: albedoTarget.texture,
+        orm: ormTarget.texture,
+        normal: $.texture,
+        tile: C,
+        size: D,
+        targets: [albedoTarget, ormTarget, $],
+      }),
+      p.set(O, q),
+      a.sets++,
+      (a.ms += performance.now() - T),
+      (d = performance.now()),
+      q
+    );
+  }
+  function _() {
+    for (let O of h.values()) O.dispose();
+    h.clear();
+    for (let O of f.values()) O.dispose();
+    f.clear();
+  }
+  let M = new Map(),
+    E = new Set();
+  function w(O, q = {}) {
+    let U =
+        O +
+        "|" +
+        (q.vertexColors ? "v" : "") +
+        (q.triplanar ? "t" + (q.scale || 1) : "") +
+        (q.doubleSide ? "d" : "") +
+        (q.interior ? "i" : "") +
+        (q.color !== void 0 ? "c" + q.color : ""),
+      T = M.get(U);
+    if (T) return T;
+    let D = MATERIAL_SPECS[O];
+    D ||
+      (E.has(O) || (E.add(O), console.warn(`[mats] unknown material "${O}" \u2014 using fallback`)),
+      (D = FALLBACK_MATERIAL_SPEC));
+    let C;
+    try {
+      C = A(D.set);
+    } catch (K) {
+      return (
+        E.has("gen:" + D.set) ||
+          (E.add("gen:" + D.set),
+          console.error(`[mats] texture set "${D.set}" failed: ${(K && K.message) || K}`)),
+        (T = new MeshStandardMaterial({
+          color: q.color !== void 0 ? q.color : D.tint ? D.color : 8421504,
+          roughness: 0.6,
+          metalness: 0,
+          vertexColors: !!q.vertexColors,
+        })),
+        (T.name = O),
+        M.set(U, T),
+        T
+      );
+    }
+    let G = !!q.triplanar,
+      j = !D.transparent && !D.alphaCut;
+    ((T = new MeshStandardMaterial({
+      map: C.albedo,
+      normalMap: C.normal,
+      roughnessMap: C.orm,
+      metalnessMap: C.orm,
+      aoMap: C.orm,
+      color: q.color !== void 0 ? q.color : D.color,
+      roughness: D.rough,
+      metalness: D.metal,
+      vertexColors: !!q.vertexColors,
+    })),
+      T.normalScale.set(D.nrm, D.nrm),
+      (T.name = O),
+      (q.doubleSide || D.side === 2) && (T.side = DoubleSide),
+      D.transparent && ((T.transparent = !0), (T.depthWrite = !1), (T.envMapIntensity = 1.4)),
+      D.alphaCut && (T.alphaTest = 0.5),
+      (T.defines = { ...T.defines, SL_TINT: D.tint }),
+      G && (T.defines.SL_TRIPLANAR = ""),
+      j && (T.defines.SL_FX = ""),
+      D.alphaCut && !G && (T.defines.SL_ACUT = ""));
+    let N = {
+      uSlWet: r.wet,
+      uSlWetP: { value: new Vector4(...D.wet) },
+      uSlMacro: { value: new Vector4(...D.macro) },
+      uSlUv: { value: new Vector3(1, 1, G ? (q.scale || 1) / C.tile[0] : C.size) },
+      uSlX: { value: new Vector2(q.interior ? 0.12 : 1, 0) },
+    };
+    ((T.userData.sl = N),
+      (T.userData.set = C.key),
+      (T.userData.tile = C.tile),
+      q.interior && (T.userData.interior = !0),
+      (T.onBeforeCompile = (K) => applyMaterialPatch(K, N)));
+    let Q = "sl2|" + D.tint + (G ? "t" : "") + (j ? "f" : "") + (D.alphaCut ? "a" : "");
+    return ((T.customProgramCacheKey = () => Q), M.set(U, T), T);
+  }
+  function S(O = 16777215, q = 4) {
+    let U = "em|" + O + "|" + q;
+    if (M.has(U)) return M.get(U);
+    let T = new MeshBasicMaterial({ color: new Color(O).multiplyScalar(q), toneMapped: !0 });
+    return ((T.name = "emissive"), M.set(U, T), T);
+  }
+  let z = createDecalFactory(engineContext, o);
+  return {
+    get: w,
+    emissive: S,
+    decal: z.decal,
+    label: z.label,
+    number: z.number,
+    names: Object.keys(MATERIAL_SPECS),
+    decalNames: z.names,
+    uniforms: r,
+    update(O) {
+      h.size && performance.now() - d > 4e3 && _();
+    },
+    prewarm(O) {
+      for (let q of O || Object.keys(MATERIAL_SPECS)) w(q);
+    },
+    stats() {
+      return {
+        sets: a.sets,
+        textureMB: +(a.bytes / 1048576).toFixed(1),
+        genMs: +a.ms.toFixed(0),
+        decalMB: +(z.bytes() / 1048576).toFixed(1),
+      };
+    },
+    tileOf(O) {
+      let q = MATERIAL_SPECS[O];
+      return q ? TEXTURE_SPECS[q.set].tile : 1;
+    },
+  };
+}
+var TRIPLANAR_SHOWCASE_MATERIALS = new Set([
+  "gunmetal",
+  "anodized_black",
+  "polymer_black",
+  "polymer_tan",
+  "rubber",
+  "carbon",
+  "glove_fabric",
+  "armor_white",
+  "armor_orange",
+]);
+function createScaledSphereGeometry(radius) {
+  let e = new SphereGeometry(radius, 48, 32),
+    t = e.attributes.uv;
+  for (let n = 0; n < t.count; n++)
+    t.setXY(n, t.getX(n) * 2 * Math.PI * radius, t.getY(n) * Math.PI * radius);
+  return e;
+}
+function createScaledPlaneGeometry(width, height) {
+  let t = new PlaneGeometry(width, height),
+    n = t.attributes.uv;
+  for (let s = 0; s < n.count; s++) n.setXY(s, n.getX(s) * width, n.getY(s) * height);
+  return t;
+}
+function buildMaterialsShowcase(engineContext) {
+  let e = engineContext.mats,
+    t = new Group();
+  engineContext.scene.add(t);
+  let n = engineContext.params.only
+      ? String(engineContext.params.only).split(",").filter(Boolean)
+      : null,
+    s = !n || n.includes("decals"),
+    o = n ? n.filter((g) => g !== "decals") : e.names,
+    r = n ? Math.max(1, o.length) : 10,
+    a = 1.9,
+    l = 3.6,
+    c = createScaledSphereGeometry(0.42),
+    u = createScaledPlaneGeometry(1.5, 1.5),
+    h = createScaledPlaneGeometry(1.5, 1.5).rotateX(-Math.PI / 2),
+    f = (g, x, y, b, m) => {
+      let A = new Mesh(g, x);
+      return (A.position.set(y, b, m), (A.castShadow = A.receiveShadow = !0), t.add(A), A);
+    };
+  o.forEach((g, x) => {
+    let y = ((x % r) - (r - 1) / 2) * a,
+      b = -Math.floor(x / r) * l,
+      m = e.get(g, g.startsWith("glass") || g === "chainlink" ? { doubleSide: !0 } : {});
+    (f(u, m, y, 0.76, b),
+      f(h, m, y, 0.012, b + 1.1),
+      f(
+        c,
+        TRIPLANAR_SHOWCASE_MATERIALS.has(g) ? e.get(g, { triplanar: !0 }) : m,
+        y,
+        0.46,
+        b + 1.25,
+      ));
+  });
+  let p,
+    d,
+    v = r * a;
+  if (
+    (n && o.length
+      ? ((p = [0.25 * v, 1.5, 2.6 + v * 0.42]), (d = [0, 0.62, 0.5]))
+      : ((p = [0, 9.5, 12]), (d = [0, 0, -7])),
+    s)
+  ) {
+    let g = n && !o.length ? 0 : v / 2 + 5.5,
+      x = 8.4,
+      y = 3.3,
+      b = f(createScaledPlaneGeometry(x, y), e.get("paint_blue"), g, y / 2, -1),
+      m = f(createScaledPlaneGeometry(x, y), e.get("concrete"), g, y / 2, -1.01);
+    m.position.x += x;
+    let A = e.decalNames,
+      _ = -x / 2 + 0.25,
+      M = y - 0.75,
+      E = 0.62,
+      w = (z, H, O) => {
+        let q = H * z.aspect;
+        if (_ + q > x * 1.5 - 0.2) return;
+        _ < x / 2 && _ + q > x / 2 - 0.15 && (_ = x / 2 + 0.25);
+        let U = new Mesh(new PlaneGeometry(q, H), z.material);
+        (U.position.set(g + _ + q / 2, M + H / 2, -0.996),
+          (U.renderOrder = 2),
+          t.add(U),
+          (_ += q + 0.14));
+      };
+    ([A.slice(0, 9), A.slice(9, 17), A.slice(17)].forEach((z, H) => {
+      ((_ = -x / 2 + 0.25), (M = y - 0.75 - H * 0.78), z.forEach((O) => w(e.decal(O), E)));
+    }),
+      (_ = -x / 2 + 0.25),
+      (M = y - 0.75 - 3 * 0.78 - 0.05),
+      w(e.label("几猫港区  B4-0271", { color: "white" }), 0.3),
+      w(e.label("最大总重 30480 千克", { color: "yellow", distress: 0.6 }), 0.22),
+      w(e.label("危险", { color: "red", distress: 0.2 }), 0.3),
+      w(e.label("请勿靠近", { color: "black", font: "sans" }), 0.25),
+      w(e.number(4), 0.3),
+      w(e.number(7), 0.3),
+      n && !o.length && ((p = [x / 2, 1.7, 7.2]), (d = [x / 2, 1.6, -1])));
+  }
+  return (
+    engineContext.params.wet !== void 0 && (e.uniforms.wet.value = +engineContext.params.wet),
+    console.log("[mats] " + JSON.stringify(e.stats())),
+    { cam: p, target: d, update() {} }
+  );
+}
 
-export const applyPatch = h3;
-export const create = Gg;
-export const showcase = wA;
-export { qg };
+export const applyPatch = applyMaterialPatch;
+export const create = buildMaterialsManager;
+export const showcase = buildMaterialsShowcase;
+export { MaterialsModule as qg };

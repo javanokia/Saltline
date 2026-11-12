@@ -1,8 +1,10 @@
-import * as THREE from 'three';
+import * as THREE from "three";
 
 const lt = THREE;
 const _M = Object.defineProperty;
-const br = (i, e) => { for (var t in e) _M(i, t, { get: e[t], enumerable: true }); };
+const br = (i, e) => {
+  for (var t in e) _M(i, t, { get: e[t], enumerable: true });
+};
 
 const {
   ACESFilmicToneMapping: xc,
@@ -429,17 +431,12 @@ const {
   createCanvasElement: dg,
 } = THREE;
 
-import {
-  oi, Mn, en, Pi, vf, zc, Pr, zy, Dy, il,
-  Zn, bi, Fo, sl, kn, Wt, dr
-} from './constants.js';
+import { oi, Mn, en, Pi, vf, zc, Pr, zy, Dy, il, Zn, bi, Fo, sl, kn, Wt, dr } from "./constants.js";
 
-import {
-  sa, Ly, oa, $e, Wi, ot, Fn, ky, Fy, Uy, Ny, Fg, Dc, Lc, Ii, By, Qi
-} from './geo.js';
+import { sa, Ly, oa, $e, Wi, ot, Fn, ky, Fy, Uy, Ny, Fg, Dc, Lc, Ii, By, Qi } from "./geo.js";
 
-
-var ex={};br(ex,{TUNE:()=>Ui,create:()=>Em,showcase:()=>VC});
+var ex = {};
+br(ex, { TUNE: () => Ui, create: () => Em, showcase: () => VC });
 /**
  * 程序化骨骼装配器 (Procedural Skeleton Rig Builder)
  * 动态定义骨骼树形拓扑结构，为几何构件赋予顶点权重与蒙皮索引 (Skinning Weights)
@@ -463,7 +460,7 @@ class SkeletonRig {
   bone(name, parentName, localX = 0, localY = 0, localZ = 0) {
     const parent = parentName ? this.bones[this.index[parentName]] : null;
     if (parentName && !parent) {
-      throw new Error('rig: unknown parent bone ' + parentName);
+      throw new Error("rig: unknown parent bone " + parentName);
     }
     const record = {
       name,
@@ -472,9 +469,9 @@ class SkeletonRig {
       world: [
         localX + (parent ? parent.world[0] : 0),
         localY + (parent ? parent.world[1] : 0),
-        localZ + (parent ? parent.world[2] : 0)
+        localZ + (parent ? parent.world[2] : 0),
       ],
-      i: this.bones.length
+      i: this.bones.length,
     };
     this.index[name] = record.i;
     this.bones.push(record);
@@ -492,7 +489,7 @@ class SkeletonRig {
   add(slotName, boneName, geometry, tint = [1, 1, 1], applyDiffuseShading = true) {
     const bone = this.bones[this.index[boneName]];
     if (!bone) {
-      throw new Error('rig: unknown bone ' + boneName);
+      throw new Error("rig: unknown bone " + boneName);
     }
 
     const geo = geometry;
@@ -500,14 +497,14 @@ class SkeletonRig {
 
     // 清理冗余属性
     for (const key of Object.keys(geo.attributes)) {
-      if (key !== 'position' && key !== 'normal' && key !== 'uv') {
+      if (key !== "position" && key !== "normal" && key !== "uv") {
         geo.deleteAttribute(key);
       }
     }
 
     const vertexCount = geo.attributes.position.count;
     if (!geo.attributes.uv) {
-      geo.setAttribute('uv', new et(new Float32Array(vertexCount * 2), 2));
+      geo.setAttribute("uv", new et(new Float32Array(vertexCount * 2), 2));
     }
 
     // 变换到该骨骼的世界坐标系起点
@@ -529,9 +526,9 @@ class SkeletonRig {
       skinWeights[i * 4] = 1.0;
     }
 
-    geo.setAttribute('color', new et(colors, 3));
-    geo.setAttribute('skinIndex', new et(skinIndices, 4));
-    geo.setAttribute('skinWeight', new et(skinWeights, 4));
+    geo.setAttribute("color", new et(colors, 3));
+    geo.setAttribute("skinIndex", new et(skinIndices, 4));
+    geo.setAttribute("skinWeight", new et(skinWeights, 4));
 
     if (!this.slots[slotName]) {
       this.slots[slotName] = [];
@@ -547,11 +544,13 @@ class SkeletonRig {
    * @returns {{ geometry: THREE.BufferGeometry, slots: string[], bones: object[], tris: number }}
    */
   build(orderOverride) {
-    const activeSlots = (orderOverride || this.order).filter(s => this.slots[s] && this.slots[s].length);
-    const mergedSlotGeos = activeSlots.map(slot => {
+    const activeSlots = (orderOverride || this.order).filter(
+      (s) => this.slots[s] && this.slots[s].length,
+    );
+    const mergedSlotGeos = activeSlots.map((slot) => {
       const geos = this.slots[slot];
-      const normalizedGeos = geos.some(g => !g.index)
-        ? geos.map(g => (g.index ? g.toNonIndexed() : g))
+      const normalizedGeos = geos.some((g) => !g.index)
+        ? geos.map((g) => (g.index ? g.toNonIndexed() : g))
         : geos;
       const merged = sa(normalizedGeos, false);
       return merged.index ? merged.toNonIndexed() : merged;
@@ -565,7 +564,7 @@ class SkeletonRig {
       geometry: finalMergedGeometry,
       slots: activeSlots,
       bones: this.bones,
-      tris: finalMergedGeometry.attributes.position.count / 3
+      tris: finalMergedGeometry.attributes.position.count / 3,
     };
   }
 
@@ -582,15 +581,19 @@ const iu = SkeletonRig;
  * @param {object} materials 材质映射字典
  * @param {object} options
  */
-function createSkinnedMesh(rigDef, materials, {
-  castShadow = true,
-  receiveShadow = true,
-  radius = 1.5,
-  center = [0, 0.5, 0],
-  extra = null
-} = {}) {
+function createSkinnedMesh(
+  rigDef,
+  materials,
+  {
+    castShadow = true,
+    receiveShadow = true,
+    radius = 1.5,
+    center = [0, 0.5, 0],
+    extra = null,
+  } = {},
+) {
   // 1. 实例化 Three.js Bone 对象
-  const boneInstances = rigDef.bones.map(b => {
+  const boneInstances = rigDef.bones.map((b) => {
     const bone = new Fa();
     bone.name = b.name;
     bone.position.set(b.local[0], b.local[1], b.local[2]);
@@ -606,7 +609,7 @@ function createSkinnedMesh(rigDef, materials, {
 
   // 3. 构建多材质蒙皮网格 (Multi-material SkinnedMesh)
   const rootGroup = new wt();
-  const materialList = rigDef.slots.map(s => materials[s]);
+  const materialList = rigDef.slots.map((s) => materials[s]);
   const skinnedMesh = new ka(rigDef.geometry, materialList);
   skinnedMesh.castShadow = castShadow;
   skinnedMesh.receiveShadow = receiveShadow;
@@ -624,11 +627,11 @@ function createSkinnedMesh(rigDef, materials, {
   skinnedMesh.boundingSphere = new Dn(new W(center[0], center[1], center[2]), radius);
   skinnedMesh.boundingBox = new $n(
     new W(center[0] - radius, center[1] - radius, center[2] - radius),
-    new W(center[0] + radius, center[1] + radius, center[2] + radius)
+    new W(center[0] + radius, center[1] + radius, center[2] + radius),
   );
 
   const boneMap = {};
-  boneInstances.forEach(b => {
+  boneInstances.forEach((b) => {
     boneMap[b.name] = b;
   });
 
@@ -637,12 +640,12 @@ function createSkinnedMesh(rigDef, materials, {
     mesh: skinnedMesh,
     bones: boneMap,
     skeleton,
-    extraMesh: null
+    extraMesh: null,
   };
 
   // 可选附加外层特效网格 (如能量护罩、警示外罩)
   if (extra) {
-    const extraMatList = extra.def.slots.map(s => materials[s]);
+    const extraMatList = extra.def.slots.map((s) => materials[s]);
     const extraMesh = new ka(extra.def.geometry, extraMatList);
     extraMesh.castShadow = false;
     extraMesh.receiveShadow = false;
@@ -654,7 +657,7 @@ function createSkinnedMesh(rigDef, materials, {
     extraMesh.boundingSphere = new Dn(new W(center[0], center[1], center[2]), extraRadius);
     extraMesh.boundingBox = new $n().setFromCenterAndSize(
       extraMesh.boundingSphere.center,
-      new W(1, 1, 1).multiplyScalar(2 * extraRadius)
+      new W(1, 1, 1).multiplyScalar(2 * extraRadius),
     );
     result.extraMesh = extraMesh;
   }
@@ -718,19 +721,19 @@ function solveLegIK(outAngles, targetX, targetY, targetZ, legSide, l0, L1, L2) {
 const q_ = solveLegIK;
 
 // 装甲与机体表面着色调色板 (Color Tint Profiles)
-const COLOR_SHELL_WHITE    = [1.15, 1.15, 1.15];
-const COLOR_SHELL_WARM     = [0.95, 0.96, 0.97];
-const COLOR_HAZARD_ORANGE  = [1.0, 0.34, 0.08];
-const COLOR_DARK_ALLOY     = [0.1, 0.11, 0.12];
-const COLOR_CHASSIS_BLACK  = [0.035, 0.035, 0.038];
-const COLOR_AMBER_WARNING  = [1.0, 0.7, 0.07];
-const COLOR_NEUTRAL_WHITE  = [1.0, 1.0, 1.0];
-const COLOR_CHROME_BRIGHT  = [2.4, 2.5, 2.6];
-const COLOR_GUNMETAL_GREY  = [0.45, 0.46, 0.48];
+const COLOR_SHELL_WHITE = [1.15, 1.15, 1.15];
+const COLOR_SHELL_WARM = [0.95, 0.96, 0.97];
+const COLOR_HAZARD_ORANGE = [1.0, 0.34, 0.08];
+const COLOR_DARK_ALLOY = [0.1, 0.11, 0.12];
+const COLOR_CHASSIS_BLACK = [0.035, 0.035, 0.038];
+const COLOR_AMBER_WARNING = [1.0, 0.7, 0.07];
+const COLOR_NEUTRAL_WHITE = [1.0, 1.0, 1.0];
+const COLOR_CHROME_BRIGHT = [2.4, 2.5, 2.6];
+const COLOR_GUNMETAL_GREY = [0.45, 0.46, 0.48];
 
 // 镜头光学发光色彩 (Lens Illumination Color Profiles)
-const LENS_COLOR_AMBER_PATROL = [8.0, 4.0, 0.7];     // 巡逻与搜寻状态: 警戒琥珀黄
-const LENS_COLOR_RED_ALERT    = [14.0, 1.0, 0.35];   // 锁定与开火状态: 战术激怒高亮红
+const LENS_COLOR_AMBER_PATROL = [8.0, 4.0, 0.7]; // 巡逻与搜寻状态: 警戒琥珀黄
+const LENS_COLOR_RED_ALERT = [14.0, 1.0, 0.35]; // 锁定与开火状态: 战术激怒高亮红
 
 const HALF_PI = Math.PI / 2;
 
@@ -764,7 +767,7 @@ function createPipeBetweenPoints(pointA, pointB, rTop, rBottom = rTop, radialSeg
   scratchMatrix.compose(
     scratchVec1.clone().add(scratchVec2).multiplyScalar(0.5),
     scratchQuat,
-    UNIT_SCALE
+    UNIT_SCALE,
   );
   cylinder.applyMatrix4(scratchMatrix);
   return cylinder;
@@ -787,7 +790,7 @@ const createBoltZ = (x, y, z) => placeGeometry(createCylinderZ(0.0075, 0.0075, 0
 
 const HOUND_RIG_SPEC = {
   stand: 0.72,
-  L1: 0.40,
+  L1: 0.4,
   L2: 0.42,
   l0: 0.075,
   hipX: 0.165,
@@ -795,12 +798,12 @@ const HOUND_RIG_SPEC = {
   hipZ: 0.4,
   footX: 0.275,
   footZ: [0.37, 0.37, -0.42, -0.42],
-  legs: ['FL', 'FR', 'RL', 'RR'],
+  legs: ["FL", "FR", "RL", "RR"],
   side: [1, -1, 1, -1],
   fore: [1, 1, -1, -1],
   muzzle: [0, 0, 0.43],
   eye: [0, 0, 0.14],
-  footR: 0.046
+  footR: 0.046,
 };
 
 const $v = HOUND_RIG_SPEC;
@@ -813,148 +816,536 @@ function buildHoundRig() {
   const rig = new SkeletonRig();
 
   // 1. 骨骼拓扑树 (Hierarchy)
-  rig.bone('root', null, 0, 0, 0);
-  rig.bone('body', 'root', 0, spec.stand, 0);
-  rig.bone('neck', 'body', 0, 0.06, 0.49);
-  rig.bone('head', 'neck', 0, 0.13, 0.12);
-  rig.bone('turret', 'body', 0, 0.152, -0.03);
-  rig.bone('gun', 'turret', 0, 0.095, 0.02);
-  rig.bone('antenna', 'body', -0.105, 0.15, -0.46);
-  rig.bone('beacon', 'body', 0.105, 0.2, -0.455);
+  rig.bone("root", null, 0, 0, 0);
+  rig.bone("body", "root", 0, spec.stand, 0);
+  rig.bone("neck", "body", 0, 0.06, 0.49);
+  rig.bone("head", "neck", 0, 0.13, 0.12);
+  rig.bone("turret", "body", 0, 0.152, -0.03);
+  rig.bone("gun", "turret", 0, 0.095, 0.02);
+  rig.bone("antenna", "body", -0.105, 0.15, -0.46);
+  rig.bone("beacon", "body", 0.105, 0.2, -0.455);
 
   // 四足肢体链
   for (let i = 0; i < 4; i++) {
     const leg = spec.legs[i];
     const side = spec.side[i];
-    rig.bone('abd' + leg, 'body', side * spec.hipX, spec.hipY, spec.fore[i] * spec.hipZ);
-    rig.bone('thigh' + leg, 'abd' + leg, side * spec.l0, 0, 0);
-    rig.bone('shin' + leg, 'thigh' + leg, 0, -spec.L1, 0);
+    rig.bone("abd" + leg, "body", side * spec.hipX, spec.hipY, spec.fore[i] * spec.hipZ);
+    rig.bone("thigh" + leg, "abd" + leg, side * spec.l0, 0, 0);
+    rig.bone("shin" + leg, "thigh" + leg, 0, -spec.L1, 0);
   }
 
   const add = (slot, bone, geo, tint, applyShading) => rig.add(slot, bone, geo, tint, applyShading);
 
   // 主体躯干与动力舱
-  add('metal', 'body', placeGeometry(createBeveledBox(0.27, 0.2, 0.98, 0.02), 0, -0.01, 0), COLOR_GUNMETAL_GREY);
-  add('shell', 'body', placeGeometry(createBeveledBox(0.35, 0.05, 0.3, 0.014), 0, 0.125, 0.33), COLOR_SHELL_WHITE);
-  add('shell', 'body', placeGeometry(createBeveledBox(0.35, 0.05, 0.36, 0.014), 0, 0.125, -0.012), COLOR_SHELL_WHITE);
-  add('shell', 'body', placeGeometry(createBeveledBox(0.1, 0.052, 0.36, 0.01), 0, 0.126, -0.012), COLOR_SHELL_WARM);
+  add(
+    "metal",
+    "body",
+    placeGeometry(createBeveledBox(0.27, 0.2, 0.98, 0.02), 0, -0.01, 0),
+    COLOR_GUNMETAL_GREY,
+  );
+  add(
+    "shell",
+    "body",
+    placeGeometry(createBeveledBox(0.35, 0.05, 0.3, 0.014), 0, 0.125, 0.33),
+    COLOR_SHELL_WHITE,
+  );
+  add(
+    "shell",
+    "body",
+    placeGeometry(createBeveledBox(0.35, 0.05, 0.36, 0.014), 0, 0.125, -0.012),
+    COLOR_SHELL_WHITE,
+  );
+  add(
+    "shell",
+    "body",
+    placeGeometry(createBeveledBox(0.1, 0.052, 0.36, 0.01), 0, 0.126, -0.012),
+    COLOR_SHELL_WARM,
+  );
 
   for (const x of [-0.15, 0.15]) {
     for (const z of [0.21, 0.45, -0.17, 0.145]) {
-      add('metal', 'body', createBoltY(x, 0.152, z), COLOR_CHROME_BRIGHT);
+      add("metal", "body", createBoltY(x, 0.152, z), COLOR_CHROME_BRIGHT);
     }
   }
 
   // 尾部散热散热鳍片组
-  add('metal', 'body', placeGeometry(createBeveledBox(0.31, 0.03, 0.25, 0.006), 0, 0.112, -0.335), COLOR_NEUTRAL_WHITE);
+  add(
+    "metal",
+    "body",
+    placeGeometry(createBeveledBox(0.31, 0.03, 0.25, 0.006), 0, 0.112, -0.335),
+    COLOR_NEUTRAL_WHITE,
+  );
   for (let i = 0; i < 10; i++) {
-    add('metal', 'body', placeGeometry(createBeveledBox(0.007, 0.062, 0.225, 0.002), -0.126 + i * 0.028, 0.155, -0.335), COLOR_CHROME_BRIGHT);
+    add(
+      "metal",
+      "body",
+      placeGeometry(
+        createBeveledBox(0.007, 0.062, 0.225, 0.002),
+        -0.126 + i * 0.028,
+        0.155,
+        -0.335,
+      ),
+      COLOR_CHROME_BRIGHT,
+    );
   }
-  add('metal', 'body', placeGeometry(createBeveledBox(0.3, 0.012, 0.02, 0.003), 0, 0.186, -0.24), COLOR_GUNMETAL_GREY);
-  add('metal', 'body', placeGeometry(createBeveledBox(0.3, 0.012, 0.02, 0.003), 0, 0.186, -0.43), COLOR_GUNMETAL_GREY);
+  add(
+    "metal",
+    "body",
+    placeGeometry(createBeveledBox(0.3, 0.012, 0.02, 0.003), 0, 0.186, -0.24),
+    COLOR_GUNMETAL_GREY,
+  );
+  add(
+    "metal",
+    "body",
+    placeGeometry(createBeveledBox(0.3, 0.012, 0.02, 0.003), 0, 0.186, -0.43),
+    COLOR_GUNMETAL_GREY,
+  );
 
   // 侧向复合装甲与警示涂装
   for (const s of [1, -1]) {
-    add('shell', 'body', placeGeometry(createBeveledBox(0.032, 0.15, 0.31, 0.012), s * 0.15, 0.022, -0.075), COLOR_SHELL_WHITE);
-    add('shell', 'body', placeGeometry(createBeveledBox(0.032, 0.15, 0.135, 0.012), s * 0.15, 0.022, 0.1625), COLOR_SHELL_WARM);
-    add('metal', 'body', Fn([[s * 0.168, 0.06, 0.125], [s * 0.182, 0.06, 0.135], [s * 0.182, 0.06, 0.19], [s * 0.168, 0.06, 0.2]], 0.005, 5), COLOR_CHROME_BRIGHT);
-    add('shell', 'body', placeGeometry(createBeveledBox(0.034, 0.016, 0.135, 0.004), s * 0.151, -0.035, 0.1625), COLOR_AMBER_WARNING);
-    add('shell', 'body', placeGeometry(createBeveledBox(0.034, 0.042, 0.46, 0.008), s * 0.151, -0.078, 0), COLOR_HAZARD_ORANGE);
-    add('shell', 'body', placeGeometry(createBeveledBox(0.028, 0.1, 0.11, 0.008), s * 0.146, 0.01, 0.305), COLOR_DARK_ALLOY);
+    add(
+      "shell",
+      "body",
+      placeGeometry(createBeveledBox(0.032, 0.15, 0.31, 0.012), s * 0.15, 0.022, -0.075),
+      COLOR_SHELL_WHITE,
+    );
+    add(
+      "shell",
+      "body",
+      placeGeometry(createBeveledBox(0.032, 0.15, 0.135, 0.012), s * 0.15, 0.022, 0.1625),
+      COLOR_SHELL_WARM,
+    );
+    add(
+      "metal",
+      "body",
+      Fn(
+        [
+          [s * 0.168, 0.06, 0.125],
+          [s * 0.182, 0.06, 0.135],
+          [s * 0.182, 0.06, 0.19],
+          [s * 0.168, 0.06, 0.2],
+        ],
+        0.005,
+        5,
+      ),
+      COLOR_CHROME_BRIGHT,
+    );
+    add(
+      "shell",
+      "body",
+      placeGeometry(createBeveledBox(0.034, 0.016, 0.135, 0.004), s * 0.151, -0.035, 0.1625),
+      COLOR_AMBER_WARNING,
+    );
+    add(
+      "shell",
+      "body",
+      placeGeometry(createBeveledBox(0.034, 0.042, 0.46, 0.008), s * 0.151, -0.078, 0),
+      COLOR_HAZARD_ORANGE,
+    );
+    add(
+      "shell",
+      "body",
+      placeGeometry(createBeveledBox(0.028, 0.1, 0.11, 0.008), s * 0.146, 0.01, 0.305),
+      COLOR_DARK_ALLOY,
+    );
     for (let l = 0; l < 4; l++) {
-      add('metal', 'body', placeGeometry(createBeveledBox(0.004, 0.012, 0.085, 0.001), s * 0.161, -0.02 + l * 0.022, 0.305), COLOR_GUNMETAL_GREY);
+      add(
+        "metal",
+        "body",
+        placeGeometry(
+          createBeveledBox(0.004, 0.012, 0.085, 0.001),
+          s * 0.161,
+          -0.02 + l * 0.022,
+          0.305,
+        ),
+        COLOR_GUNMETAL_GREY,
+      );
     }
     for (const y of [-0.035, 0.08]) {
       for (const z of [-0.21, 0.06, 0.115, 0.21]) {
-        add('metal', 'body', createBoltX(s * 0.167, y, z), COLOR_CHROME_BRIGHT);
+        add("metal", "body", createBoltX(s * 0.167, y, z), COLOR_CHROME_BRIGHT);
       }
     }
-    add('metal', 'body', Fn([[s * 0.135, 0.148, -0.19], [s * 0.135, 0.205, -0.16], [s * 0.135, 0.212, 0], [s * 0.135, 0.205, 0.43], [s * 0.135, 0.148, 0.465]], 0.0105, 6), COLOR_CHROME_BRIGHT);
+    add(
+      "metal",
+      "body",
+      Fn(
+        [
+          [s * 0.135, 0.148, -0.19],
+          [s * 0.135, 0.205, -0.16],
+          [s * 0.135, 0.212, 0],
+          [s * 0.135, 0.205, 0.43],
+          [s * 0.135, 0.148, 0.465],
+        ],
+        0.0105,
+        6,
+      ),
+      COLOR_CHROME_BRIGHT,
+    );
     for (const z of [0, 0.26]) {
-      add('metal', 'body', placeGeometry(createCylinderY(0.008, 0.008, 0.06, 6), s * 0.135, 0.178, z), COLOR_CHROME_BRIGHT);
+      add(
+        "metal",
+        "body",
+        placeGeometry(createCylinderY(0.008, 0.008, 0.06, 6), s * 0.135, 0.178, z),
+        COLOR_CHROME_BRIGHT,
+      );
     }
-    add('shell', 'body', Fn([[s * 0.118, -0.105, -0.36], [s * 0.132, -0.118, -0.2], [s * 0.13, -0.112, 0.1], [s * 0.118, -0.1, 0.36]], 0.009, 5), COLOR_CHASSIS_BLACK);
-    add('metal', 'body', placeGeometry(new Ci(0.02, 0.005, 5, 10), s * 0.17, 0.085, -0.335, 0, HALF_PI, 0), COLOR_CHROME_BRIGHT);
+    add(
+      "shell",
+      "body",
+      Fn(
+        [
+          [s * 0.118, -0.105, -0.36],
+          [s * 0.132, -0.118, -0.2],
+          [s * 0.13, -0.112, 0.1],
+          [s * 0.118, -0.1, 0.36],
+        ],
+        0.009,
+        5,
+      ),
+      COLOR_CHASSIS_BLACK,
+    );
+    add(
+      "metal",
+      "body",
+      placeGeometry(new Ci(0.02, 0.005, 5, 10), s * 0.17, 0.085, -0.335, 0, HALF_PI, 0),
+      COLOR_CHROME_BRIGHT,
+    );
   }
 
   // 前胸与机盖撞角
-  add('shell', 'body', placeGeometry(createBeveledBox(0.3, 0.15, 0.075, 0.018), 0, -0.005, 0.505), COLOR_HAZARD_ORANGE);
-  add('shell', 'body', placeGeometry(createBeveledBox(0.2, 0.07, 0.02, 0.006), 0, 0.012, 0.545), COLOR_DARK_ALLOY);
+  add(
+    "shell",
+    "body",
+    placeGeometry(createBeveledBox(0.3, 0.15, 0.075, 0.018), 0, -0.005, 0.505),
+    COLOR_HAZARD_ORANGE,
+  );
+  add(
+    "shell",
+    "body",
+    placeGeometry(createBeveledBox(0.2, 0.07, 0.02, 0.006), 0, 0.012, 0.545),
+    COLOR_DARK_ALLOY,
+  );
   for (let i = 0; i < 6; i++) {
-    add('shell', 'body', placeGeometry(createBeveledBox(0.05, 0.034, 0.014, 0.003), -0.125 + i * 0.05, -0.098, 0.538), i % 2 ? COLOR_DARK_ALLOY : COLOR_AMBER_WARNING);
+    add(
+      "shell",
+      "body",
+      placeGeometry(createBeveledBox(0.05, 0.034, 0.014, 0.003), -0.125 + i * 0.05, -0.098, 0.538),
+      i % 2 ? COLOR_DARK_ALLOY : COLOR_AMBER_WARNING,
+    );
   }
   for (const x of [-0.115, 0.115]) {
-    add('metal', 'body', placeGeometry(createCylinderZ(0.021, 0.021, 0.014, 10), x, 0.012, 0.547), COLOR_GUNMETAL_GREY);
-    add('glow', 'body', placeGeometry(createCylinderZ(0.015, 0.015, 0.004, 10), x, 0.012, 0.556), [6.5, 4.6, 2.2], false);
+    add(
+      "metal",
+      "body",
+      placeGeometry(createCylinderZ(0.021, 0.021, 0.014, 10), x, 0.012, 0.547),
+      COLOR_GUNMETAL_GREY,
+    );
+    add(
+      "glow",
+      "body",
+      placeGeometry(createCylinderZ(0.015, 0.015, 0.004, 10), x, 0.012, 0.556),
+      [6.5, 4.6, 2.2],
+      false,
+    );
   }
 
   // 腹部液力传动与底盘护板
-  add('metal', 'body', placeGeometry(createBeveledBox(0.24, 0.095, 0.56, 0.02), 0, -0.145, 0), COLOR_NEUTRAL_WHITE);
-  add('shell', 'body', placeGeometry(createBeveledBox(0.246, 0.03, 0.09, 0.006), 0, -0.14, 0.12), COLOR_HAZARD_ORANGE);
-  add('shell', 'body', placeGeometry(createBeveledBox(0.246, 0.03, 0.09, 0.006), 0, -0.14, -0.12), COLOR_HAZARD_ORANGE);
-  add('shell', 'body', placeGeometry(createBeveledBox(0.29, 0.15, 0.05, 0.014), 0, 0, -0.495), COLOR_SHELL_WHITE);
-  add('shell', 'body', placeGeometry(createBeveledBox(0.17, 0.05, 0.012, 0.004), 0, 0.03, -0.523), COLOR_DARK_ALLOY);
-  add('glow', 'body', placeGeometry(createBeveledBox(0.13, 0.012, 0.004, 0.001), 0, 0.03, -0.531), [5, 0.3, 0.1], false);
-  add('metal', 'body', placeGeometry(createCylinderZ(0.022, 0.022, 0.02, 10), 0.085, -0.035, -0.525), COLOR_CHROME_BRIGHT);
-  add('metal', 'body', placeGeometry(new Ci(0.024, 0.006, 5, 10), -0.07, -0.05, -0.528, HALF_PI, 0, 0), COLOR_CHROME_BRIGHT);
+  add(
+    "metal",
+    "body",
+    placeGeometry(createBeveledBox(0.24, 0.095, 0.56, 0.02), 0, -0.145, 0),
+    COLOR_NEUTRAL_WHITE,
+  );
+  add(
+    "shell",
+    "body",
+    placeGeometry(createBeveledBox(0.246, 0.03, 0.09, 0.006), 0, -0.14, 0.12),
+    COLOR_HAZARD_ORANGE,
+  );
+  add(
+    "shell",
+    "body",
+    placeGeometry(createBeveledBox(0.246, 0.03, 0.09, 0.006), 0, -0.14, -0.12),
+    COLOR_HAZARD_ORANGE,
+  );
+  add(
+    "shell",
+    "body",
+    placeGeometry(createBeveledBox(0.29, 0.15, 0.05, 0.014), 0, 0, -0.495),
+    COLOR_SHELL_WHITE,
+  );
+  add(
+    "shell",
+    "body",
+    placeGeometry(createBeveledBox(0.17, 0.05, 0.012, 0.004), 0, 0.03, -0.523),
+    COLOR_DARK_ALLOY,
+  );
+  add(
+    "glow",
+    "body",
+    placeGeometry(createBeveledBox(0.13, 0.012, 0.004, 0.001), 0, 0.03, -0.531),
+    [5, 0.3, 0.1],
+    false,
+  );
+  add(
+    "metal",
+    "body",
+    placeGeometry(createCylinderZ(0.022, 0.022, 0.02, 10), 0.085, -0.035, -0.525),
+    COLOR_CHROME_BRIGHT,
+  );
+  add(
+    "metal",
+    "body",
+    placeGeometry(new Ci(0.024, 0.006, 5, 10), -0.07, -0.05, -0.528, HALF_PI, 0, 0),
+    COLOR_CHROME_BRIGHT,
+  );
 
   for (const x of [-0.125, 0.125]) {
     for (const y of [-0.055, 0.055]) {
-      add('metal', 'body', createBoltZ(x, y, -0.523), COLOR_CHROME_BRIGHT);
+      add("metal", "body", createBoltZ(x, y, -0.523), COLOR_CHROME_BRIGHT);
     }
   }
 
   // 柔性颈部液压软管与铰链
-  add('shell', 'body', Fn([[0.09, 0.15, -0.2], [0.13, 0.2, -0.16], [0.12, 0.2, -0.08], [0.09, 0.165, -0.05]], 0.009, 5), COLOR_CHASSIS_BLACK);
-  add('metal', 'neck', createPipeBetweenPoints([0, -0.02, -0.02], [0, 0.11, 0.1], 0.045, 0.036, 10), COLOR_GUNMETAL_GREY);
+  add(
+    "shell",
+    "body",
+    Fn(
+      [
+        [0.09, 0.15, -0.2],
+        [0.13, 0.2, -0.16],
+        [0.12, 0.2, -0.08],
+        [0.09, 0.165, -0.05],
+      ],
+      0.009,
+      5,
+    ),
+    COLOR_CHASSIS_BLACK,
+  );
+  add(
+    "metal",
+    "neck",
+    createPipeBetweenPoints([0, -0.02, -0.02], [0, 0.11, 0.1], 0.045, 0.036, 10),
+    COLOR_GUNMETAL_GREY,
+  );
   for (let i = 0; i < 3; i++) {
     const t = 0.2 + i * 0.28;
-    add('shell', 'neck', createPipeBetweenPoints([0, -0.02 + 0.13 * t, -0.02 + 0.12 * t], [0, -0.02 + 0.13 * (t + 0.09), -0.02 + 0.12 * (t + 0.09)], 0.049, 0.047, 10), COLOR_SHELL_WHITE);
+    add(
+      "shell",
+      "neck",
+      createPipeBetweenPoints(
+        [0, -0.02 + 0.13 * t, -0.02 + 0.12 * t],
+        [0, -0.02 + 0.13 * (t + 0.09), -0.02 + 0.12 * (t + 0.09)],
+        0.049,
+        0.047,
+        10,
+      ),
+      COLOR_SHELL_WHITE,
+    );
   }
   for (const s of [1, -1]) {
-    add('metal', 'neck', Fn([[s * 0.042, 0.01, -0.02], [s * 0.055, 0.05, 0.03], [s * 0.045, 0.1, 0.09]], 0.006, 6), COLOR_CHROME_BRIGHT);
+    add(
+      "metal",
+      "neck",
+      Fn(
+        [
+          [s * 0.042, 0.01, -0.02],
+          [s * 0.055, 0.05, 0.03],
+          [s * 0.045, 0.1, 0.09],
+        ],
+        0.006,
+        6,
+      ),
+      COLOR_CHROME_BRIGHT,
+    );
   }
 
   // 头部传感器舱 (Head Sensor Pod)
-  add('shell', 'head', placeGeometry(createBeveledBox(0.2, 0.13, 0.22, 0.016), 0, 0.005, 0), COLOR_SHELL_WHITE);
-  add('shell', 'head', placeGeometry(createBeveledBox(0.08, 0.04, 0.22, 0.008), 0, 0.072, 0.005), COLOR_SHELL_WARM);
-  add('shell', 'head', placeGeometry(createBeveledBox(0.18, 0.025, 0.07, 0.004), 0, -0.065, 0.035), COLOR_HAZARD_ORANGE);
-  add('metal', 'head', placeGeometry(createBeveledBox(0.16, 0.09, 0.04, 0.006), 0, 0.005, 0.115), COLOR_DARK_ALLOY);
-  add('metal', 'head', placeGeometry(createCylinderZ(0.045, 0.045, 0.012, 16), 0, 0.005, 0.135), COLOR_GUNMETAL_GREY);
-  add('lens', 'head', placeGeometry(createCylinderZ(0.038, 0.038, 0.006, 16), 0, 0.005, 0.14), [1, 1, 1], false);
+  add(
+    "shell",
+    "head",
+    placeGeometry(createBeveledBox(0.2, 0.13, 0.22, 0.016), 0, 0.005, 0),
+    COLOR_SHELL_WHITE,
+  );
+  add(
+    "shell",
+    "head",
+    placeGeometry(createBeveledBox(0.08, 0.04, 0.22, 0.008), 0, 0.072, 0.005),
+    COLOR_SHELL_WARM,
+  );
+  add(
+    "shell",
+    "head",
+    placeGeometry(createBeveledBox(0.18, 0.025, 0.07, 0.004), 0, -0.065, 0.035),
+    COLOR_HAZARD_ORANGE,
+  );
+  add(
+    "metal",
+    "head",
+    placeGeometry(createBeveledBox(0.16, 0.09, 0.04, 0.006), 0, 0.005, 0.115),
+    COLOR_DARK_ALLOY,
+  );
+  add(
+    "metal",
+    "head",
+    placeGeometry(createCylinderZ(0.045, 0.045, 0.012, 16), 0, 0.005, 0.135),
+    COLOR_GUNMETAL_GREY,
+  );
+  add(
+    "lens",
+    "head",
+    placeGeometry(createCylinderZ(0.038, 0.038, 0.006, 16), 0, 0.005, 0.14),
+    [1, 1, 1],
+    false,
+  );
 
   for (const s of [1, -1]) {
-    add('metal', 'head', placeGeometry(createCylinderX(0.012, 0.012, 0.006, 8), s * 0.06, 0.04, 0.135), COLOR_GUNMETAL_GREY);
-    add('metal', 'head', placeGeometry(createCylinderX(0.012, 0.012, 0.006, 8), s * 0.06, -0.03, 0.135), COLOR_GUNMETAL_GREY);
-    add('glow', 'head', placeGeometry(createCylinderZ(0.007, 0.007, 0.004, 8), s * 0.06, 0.04, 0.14), [5, 0.3, 0.1], false);
-    add('glow', 'head', placeGeometry(createCylinderZ(0.007, 0.007, 0.004, 8), s * 0.06, -0.03, 0.14), [5, 0.3, 0.1], false);
-    add('shell', 'head', placeGeometry(createBeveledBox(0.015, 0.07, 0.16, 0.006), s * 0.105, 0.01, -0.01), COLOR_AMBER_WARNING);
-    add('metal', 'head', placeGeometry(createCylinderX(0.02, 0.02, 0.012, 10), s * 0.108, -0.01, -0.03), COLOR_CHROME_BRIGHT);
-    add('metal', 'head', createBoltX(s * 0.108, 0.055, 0.05), COLOR_CHROME_BRIGHT);
-    add('metal', 'head', createBoltX(s * 0.108, 0.055, -0.07), COLOR_CHROME_BRIGHT);
+    add(
+      "metal",
+      "head",
+      placeGeometry(createCylinderX(0.012, 0.012, 0.006, 8), s * 0.06, 0.04, 0.135),
+      COLOR_GUNMETAL_GREY,
+    );
+    add(
+      "metal",
+      "head",
+      placeGeometry(createCylinderX(0.012, 0.012, 0.006, 8), s * 0.06, -0.03, 0.135),
+      COLOR_GUNMETAL_GREY,
+    );
+    add(
+      "glow",
+      "head",
+      placeGeometry(createCylinderZ(0.007, 0.007, 0.004, 8), s * 0.06, 0.04, 0.14),
+      [5, 0.3, 0.1],
+      false,
+    );
+    add(
+      "glow",
+      "head",
+      placeGeometry(createCylinderZ(0.007, 0.007, 0.004, 8), s * 0.06, -0.03, 0.14),
+      [5, 0.3, 0.1],
+      false,
+    );
+    add(
+      "shell",
+      "head",
+      placeGeometry(createBeveledBox(0.015, 0.07, 0.16, 0.006), s * 0.105, 0.01, -0.01),
+      COLOR_AMBER_WARNING,
+    );
+    add(
+      "metal",
+      "head",
+      placeGeometry(createCylinderX(0.02, 0.02, 0.012, 10), s * 0.108, -0.01, -0.03),
+      COLOR_CHROME_BRIGHT,
+    );
+    add("metal", "head", createBoltX(s * 0.108, 0.055, 0.05), COLOR_CHROME_BRIGHT);
+    add("metal", "head", createBoltX(s * 0.108, 0.055, -0.07), COLOR_CHROME_BRIGHT);
   }
 
   // 顶部速射机枪炮塔 (Top Turret & Autocannon)
-  add('metal', 'turret', placeGeometry(createCylinderY(0.085, 0.095, 0.05, 14), 0, 0.025, 0), COLOR_DARK_ALLOY);
-  add('shell', 'turret', placeGeometry(createBeveledBox(0.18, 0.09, 0.22, 0.012), 0, 0.085, -0.01), COLOR_SHELL_WHITE);
-  add('shell', 'turret', placeGeometry(createBeveledBox(0.185, 0.025, 0.14, 0.004), 0, 0.132, -0.02), COLOR_HAZARD_ORANGE);
-  add('metal', 'turret', placeGeometry(createBeveledBox(0.14, 0.07, 0.03, 0.004), 0, 0.085, -0.125), COLOR_CHASSIS_BLACK);
-  add('metal', 'turret', placeGeometry(createCylinderZ(0.018, 0.018, 0.016, 8), 0.045, 0.085, -0.14), COLOR_CHROME_BRIGHT);
+  add(
+    "metal",
+    "turret",
+    placeGeometry(createCylinderY(0.085, 0.095, 0.05, 14), 0, 0.025, 0),
+    COLOR_DARK_ALLOY,
+  );
+  add(
+    "shell",
+    "turret",
+    placeGeometry(createBeveledBox(0.18, 0.09, 0.22, 0.012), 0, 0.085, -0.01),
+    COLOR_SHELL_WHITE,
+  );
+  add(
+    "shell",
+    "turret",
+    placeGeometry(createBeveledBox(0.185, 0.025, 0.14, 0.004), 0, 0.132, -0.02),
+    COLOR_HAZARD_ORANGE,
+  );
+  add(
+    "metal",
+    "turret",
+    placeGeometry(createBeveledBox(0.14, 0.07, 0.03, 0.004), 0, 0.085, -0.125),
+    COLOR_CHASSIS_BLACK,
+  );
+  add(
+    "metal",
+    "turret",
+    placeGeometry(createCylinderZ(0.018, 0.018, 0.016, 8), 0.045, 0.085, -0.14),
+    COLOR_CHROME_BRIGHT,
+  );
 
   // 枪管与消焰制退器
-  add('metal', 'gun', placeGeometry(createBeveledBox(0.07, 0.075, 0.13, 0.006), 0, 0, 0), COLOR_DARK_ALLOY);
-  add('metal', 'gun', placeGeometry(createCylinderZ(0.014, 0.014, 0.32, 10), 0, 0, 0.22), COLOR_CHROME_BRIGHT);
-  add('metal', 'gun', placeGeometry(createCylinderZ(0.019, 0.019, 0.04, 10), 0, 0, 0.4), COLOR_DARK_ALLOY);
-  add('metal', 'gun', placeGeometry(createCylinderZ(0.014, 0.014, 0.025, 10), 0, 0, 0.425), COLOR_CHASSIS_BLACK);
-  add('metal', 'gun', placeGeometry(createCylinderY(0.008, 0.008, 0.06, 6), 0, 0.03, 0.2), COLOR_CHROME_BRIGHT);
-  add('metal', 'gun', placeGeometry(createBeveledBox(0.06, 0.05, 0.08, 0.004), -0.06, -0.01, -0.01), COLOR_DARK_ALLOY);
+  add(
+    "metal",
+    "gun",
+    placeGeometry(createBeveledBox(0.07, 0.075, 0.13, 0.006), 0, 0, 0),
+    COLOR_DARK_ALLOY,
+  );
+  add(
+    "metal",
+    "gun",
+    placeGeometry(createCylinderZ(0.014, 0.014, 0.32, 10), 0, 0, 0.22),
+    COLOR_CHROME_BRIGHT,
+  );
+  add(
+    "metal",
+    "gun",
+    placeGeometry(createCylinderZ(0.019, 0.019, 0.04, 10), 0, 0, 0.4),
+    COLOR_DARK_ALLOY,
+  );
+  add(
+    "metal",
+    "gun",
+    placeGeometry(createCylinderZ(0.014, 0.014, 0.025, 10), 0, 0, 0.425),
+    COLOR_CHASSIS_BLACK,
+  );
+  add(
+    "metal",
+    "gun",
+    placeGeometry(createCylinderY(0.008, 0.008, 0.06, 6), 0, 0.03, 0.2),
+    COLOR_CHROME_BRIGHT,
+  );
+  add(
+    "metal",
+    "gun",
+    placeGeometry(createBeveledBox(0.06, 0.05, 0.08, 0.004), -0.06, -0.01, -0.01),
+    COLOR_DARK_ALLOY,
+  );
 
   // 柔性通信天线与战术指示灯
-  add('metal', 'antenna', placeGeometry(createCylinderY(0.01, 0.014, 0.03, 8), 0, 0.015, 0), COLOR_GUNMETAL_GREY);
-  add('metal', 'antenna', placeGeometry(createCylinderY(0.0018, 0.0035, 0.42, 6), 0, 0.24, 0), COLOR_CHROME_BRIGHT);
-  add('glow', 'antenna', placeGeometry(createScaledSphere(0.007, 8, 6), 0, 0.45, 0), [6.5, 4.6, 2.2], false);
-  add('metal', 'beacon', placeGeometry(createCylinderY(0.012, 0.014, 0.025, 8), 0, 0.012, 0), COLOR_GUNMETAL_GREY);
-  add('glow', 'beacon', placeGeometry(createCylinderY(0.011, 0.011, 0.02, 10), 0, 0.032, 0), [14, 1, 0.35], false);
+  add(
+    "metal",
+    "antenna",
+    placeGeometry(createCylinderY(0.01, 0.014, 0.03, 8), 0, 0.015, 0),
+    COLOR_GUNMETAL_GREY,
+  );
+  add(
+    "metal",
+    "antenna",
+    placeGeometry(createCylinderY(0.0018, 0.0035, 0.42, 6), 0, 0.24, 0),
+    COLOR_CHROME_BRIGHT,
+  );
+  add(
+    "glow",
+    "antenna",
+    placeGeometry(createScaledSphere(0.007, 8, 6), 0, 0.45, 0),
+    [6.5, 4.6, 2.2],
+    false,
+  );
+  add(
+    "metal",
+    "beacon",
+    placeGeometry(createCylinderY(0.012, 0.014, 0.025, 8), 0, 0.012, 0),
+    COLOR_GUNMETAL_GREY,
+  );
+  add(
+    "glow",
+    "beacon",
+    placeGeometry(createCylinderY(0.011, 0.011, 0.02, 10), 0, 0.032, 0),
+    [14, 1, 0.35],
+    false,
+  );
 
   // 四足机械腿关节构型 (Abduction, Thigh, Shin & Foot)
   for (let i = 0; i < 4; i++) {
@@ -963,33 +1354,148 @@ function buildHoundRig() {
     const f = spec.fore[i];
 
     // 外展电机舱 (Abduction Hip Casing)
-    add('metal', 'abd' + leg, placeGeometry(createCylinderX(0.052, 0.052, 0.075, 12), s * 0.035, 0, 0), COLOR_DARK_ALLOY);
-    add('shell', 'abd' + leg, placeGeometry(createBeveledBox(0.055, 0.09, 0.1, 0.008), s * 0.035, 0, 0), COLOR_SHELL_WHITE);
-    add('metal', 'abd' + leg, placeGeometry(createCylinderX(0.025, 0.025, 0.01, 10), s * 0.076, 0, 0), COLOR_CHROME_BRIGHT);
-    add('metal', 'abd' + leg, createBoltX(s * 0.076, 0.03, 0.025), COLOR_CHROME_BRIGHT);
-    add('metal', 'abd' + leg, createBoltX(s * 0.076, -0.03, 0.025), COLOR_CHROME_BRIGHT);
-    add('metal', 'abd' + leg, createBoltX(s * 0.076, 0, -0.035), COLOR_CHROME_BRIGHT);
+    add(
+      "metal",
+      "abd" + leg,
+      placeGeometry(createCylinderX(0.052, 0.052, 0.075, 12), s * 0.035, 0, 0),
+      COLOR_DARK_ALLOY,
+    );
+    add(
+      "shell",
+      "abd" + leg,
+      placeGeometry(createBeveledBox(0.055, 0.09, 0.1, 0.008), s * 0.035, 0, 0),
+      COLOR_SHELL_WHITE,
+    );
+    add(
+      "metal",
+      "abd" + leg,
+      placeGeometry(createCylinderX(0.025, 0.025, 0.01, 10), s * 0.076, 0, 0),
+      COLOR_CHROME_BRIGHT,
+    );
+    add("metal", "abd" + leg, createBoltX(s * 0.076, 0.03, 0.025), COLOR_CHROME_BRIGHT);
+    add("metal", "abd" + leg, createBoltX(s * 0.076, -0.03, 0.025), COLOR_CHROME_BRIGHT);
+    add("metal", "abd" + leg, createBoltX(s * 0.076, 0, -0.035), COLOR_CHROME_BRIGHT);
 
     // 大腿连杆与双液压杆 (Thigh / Femur)
-    add('metal', 'thigh' + leg, placeGeometry(createCylinderX(0.046, 0.046, 0.04, 12), s * 0.015, 0, 0), COLOR_GUNMETAL_GREY);
-    add('shell', 'thigh' + leg, createPipeBetweenPoints([0, 0, 0], [0, -spec.L1, 0], 0.045, 0.032, 10), COLOR_SHELL_WHITE);
-    add('shell', 'thigh' + leg, placeGeometry(createBeveledBox(0.065, 0.22, 0.06, 0.008), 0, -spec.L1 * 0.42, 0.01), COLOR_SHELL_WHITE);
-    add('shell', 'thigh' + leg, placeGeometry(createBeveledBox(0.068, 0.04, 0.062, 0.004), 0, -spec.L1 * 0.3, 0.01), COLOR_HAZARD_ORANGE);
-    add('metal', 'thigh' + leg, placeGeometry(createBeveledBox(0.02, 0.18, 0.025, 0.003), s * 0.038, -spec.L1 * 0.45, -0.01), COLOR_DARK_ALLOY);
-    add('metal', 'thigh' + leg, createPipeBetweenPoints([s * 0.025, -0.04, -0.025], [s * 0.02, -spec.L1 * 0.85, -0.015], 0.007, 0.007, 6), COLOR_CHROME_BRIGHT);
-    add('metal', 'thigh' + leg, createPipeBetweenPoints([s * 0.02, -spec.L1 * 0.85, -0.015], [s * 0.02, -spec.L1 + 0.02, 0], 0.005, 0.005, 6), COLOR_GUNMETAL_GREY);
+    add(
+      "metal",
+      "thigh" + leg,
+      placeGeometry(createCylinderX(0.046, 0.046, 0.04, 12), s * 0.015, 0, 0),
+      COLOR_GUNMETAL_GREY,
+    );
+    add(
+      "shell",
+      "thigh" + leg,
+      createPipeBetweenPoints([0, 0, 0], [0, -spec.L1, 0], 0.045, 0.032, 10),
+      COLOR_SHELL_WHITE,
+    );
+    add(
+      "shell",
+      "thigh" + leg,
+      placeGeometry(createBeveledBox(0.065, 0.22, 0.06, 0.008), 0, -spec.L1 * 0.42, 0.01),
+      COLOR_SHELL_WHITE,
+    );
+    add(
+      "shell",
+      "thigh" + leg,
+      placeGeometry(createBeveledBox(0.068, 0.04, 0.062, 0.004), 0, -spec.L1 * 0.3, 0.01),
+      COLOR_HAZARD_ORANGE,
+    );
+    add(
+      "metal",
+      "thigh" + leg,
+      placeGeometry(createBeveledBox(0.02, 0.18, 0.025, 0.003), s * 0.038, -spec.L1 * 0.45, -0.01),
+      COLOR_DARK_ALLOY,
+    );
+    add(
+      "metal",
+      "thigh" + leg,
+      createPipeBetweenPoints(
+        [s * 0.025, -0.04, -0.025],
+        [s * 0.02, -spec.L1 * 0.85, -0.015],
+        0.007,
+        0.007,
+        6,
+      ),
+      COLOR_CHROME_BRIGHT,
+    );
+    add(
+      "metal",
+      "thigh" + leg,
+      createPipeBetweenPoints(
+        [s * 0.02, -spec.L1 * 0.85, -0.015],
+        [s * 0.02, -spec.L1 + 0.02, 0],
+        0.005,
+        0.005,
+        6,
+      ),
+      COLOR_GUNMETAL_GREY,
+    );
 
     // 膝关节阻尼铰链 (Knee Hinge)
-    add('metal', 'shin' + leg, placeGeometry(createCylinderX(0.034, 0.034, 0.042, 10), s * 0.005, 0, 0), COLOR_GUNMETAL_GREY);
-    add('metal', 'shin' + leg, placeGeometry(new Ci(0.026, 0.006, 5, 8), s * 0.028, 0, 0, 0, HALF_PI, 0), COLOR_CHROME_BRIGHT);
+    add(
+      "metal",
+      "shin" + leg,
+      placeGeometry(createCylinderX(0.034, 0.034, 0.042, 10), s * 0.005, 0, 0),
+      COLOR_GUNMETAL_GREY,
+    );
+    add(
+      "metal",
+      "shin" + leg,
+      placeGeometry(new Ci(0.026, 0.006, 5, 8), s * 0.028, 0, 0, 0, HALF_PI, 0),
+      COLOR_CHROME_BRIGHT,
+    );
 
     // 小腿复合碳纤杆与缓冲脚垫 (Shin / Tibia & Rubber Foot)
-    add('metal', 'shin' + leg, createPipeBetweenPoints([0, 0, 0], [0, -spec.L2 + spec.footR * 0.5, 0], 0.026, 0.018, 8), COLOR_DARK_ALLOY);
-    add('shell', 'shin' + leg, placeGeometry(createBeveledBox(0.042, 0.18, 0.034, 0.005), 0, -spec.L2 * 0.35, f * 0.012), COLOR_SHELL_WARM);
-    add('shell', 'shin' + leg, placeGeometry(createBeveledBox(0.044, 0.03, 0.036, 0.003), 0, -spec.L2 * 0.22, f * 0.012), COLOR_AMBER_WARNING);
-    add('metal', 'shin' + leg, placeGeometry(createCylinderY(0.012, 0.016, 0.05, 8), 0, -spec.L2 + spec.footR + 0.02, 0), COLOR_GUNMETAL_GREY);
-    add('metal', 'shin' + leg, placeGeometry(createScaledSphere(spec.footR, 12, 8, 1, 0.85, 1), 0, -spec.L2 + spec.footR * 0.6, 0), COLOR_DARK_ALLOY);
-    add('shell', 'shin' + leg, placeGeometry(new Ci(spec.footR * 0.95, 0.005, 5, 10), 0, -spec.L2 + spec.footR * 0.8, 0, HALF_PI, 0, 0), COLOR_HAZARD_ORANGE);
+    add(
+      "metal",
+      "shin" + leg,
+      createPipeBetweenPoints([0, 0, 0], [0, -spec.L2 + spec.footR * 0.5, 0], 0.026, 0.018, 8),
+      COLOR_DARK_ALLOY,
+    );
+    add(
+      "shell",
+      "shin" + leg,
+      placeGeometry(createBeveledBox(0.042, 0.18, 0.034, 0.005), 0, -spec.L2 * 0.35, f * 0.012),
+      COLOR_SHELL_WARM,
+    );
+    add(
+      "shell",
+      "shin" + leg,
+      placeGeometry(createBeveledBox(0.044, 0.03, 0.036, 0.003), 0, -spec.L2 * 0.22, f * 0.012),
+      COLOR_AMBER_WARNING,
+    );
+    add(
+      "metal",
+      "shin" + leg,
+      placeGeometry(createCylinderY(0.012, 0.016, 0.05, 8), 0, -spec.L2 + spec.footR + 0.02, 0),
+      COLOR_GUNMETAL_GREY,
+    );
+    add(
+      "metal",
+      "shin" + leg,
+      placeGeometry(
+        createScaledSphere(spec.footR, 12, 8, 1, 0.85, 1),
+        0,
+        -spec.L2 + spec.footR * 0.6,
+        0,
+      ),
+      COLOR_DARK_ALLOY,
+    );
+    add(
+      "shell",
+      "shin" + leg,
+      placeGeometry(
+        new Ci(spec.footR * 0.95, 0.005, 5, 10),
+        0,
+        -spec.L2 + spec.footR * 0.8,
+        0,
+        HALF_PI,
+        0,
+        0,
+      ),
+      COLOR_HAZARD_ORANGE,
+    );
   }
 
   return rig.build();
@@ -1003,16 +1509,16 @@ const Z_ = buildHoundRig;
 
 const GULL_RIG_SPEC = {
   rotors: [
-    [0.33, 0.035, 0.30],
-    [-0.33, 0.035, 0.30],
-    [0.33, 0.035, -0.30],
-    [-0.33, 0.035, -0.30]
+    [0.33, 0.035, 0.3],
+    [-0.33, 0.035, 0.3],
+    [0.33, 0.035, -0.3],
+    [-0.33, 0.035, -0.3],
   ],
   gimbal: [0, -0.095, 0.275],
   ball: [0, -0.072, 0],
   gun: [0, -0.085, -0.1],
   muzzle: [0, -0.032, 0.27],
-  lamp: [0, -0.066, 0.025]
+  lamp: [0, -0.066, 0.025],
 };
 
 const xm = GULL_RIG_SPEC;
@@ -1026,11 +1532,11 @@ function buildGullPropellerBlade() {
     [0.196, -0.032],
     [0.206, 0],
     [0.202, 0.03],
-    [0.190, 0.04],
+    [0.19, 0.04],
     [0.178, 0.032],
     [0.173, 0],
-    [0.176, -0.036]
-  ].map(p => new Ae(p[0], p[1]));
+    [0.176, -0.036],
+  ].map((p) => new Ae(p[0], p[1]));
   return new ar(profilePoints, 28);
 }
 
@@ -1050,30 +1556,60 @@ function buildGullRig() {
   };
 
   // 1. 骨骼拓扑树
-  addBoneBoth('root', null, 0, 0, 0);
-  addBoneBoth('body', 'root', 0, 0, 0);
+  addBoneBoth("root", null, 0, 0, 0);
+  addBoneBoth("body", "root", 0, 0, 0);
 
   for (let i = 0; i < 4; i++) {
-    addBoneBoth('rotor' + i, 'body', spec.rotors[i][0], spec.rotors[i][1], spec.rotors[i][2]);
+    addBoneBoth("rotor" + i, "body", spec.rotors[i][0], spec.rotors[i][1], spec.rotors[i][2]);
   }
 
-  addBoneBoth('gimbalYaw', 'body', spec.gimbal[0], spec.gimbal[1], spec.gimbal[2]);
-  addBoneBoth('ball', 'gimbalYaw', spec.ball[0], spec.ball[1], spec.ball[2]);
-  addBoneBoth('lamp', 'ball', spec.lamp[0], spec.lamp[1], spec.lamp[2]);
-  addBoneBoth('gun', 'body', spec.gun[0], spec.gun[1], spec.gun[2]);
-  addBoneBoth('strobeG', 'body', 0, 0, 0);
-  addBoneBoth('strobeR', 'body', 0, 0, 0);
-  addBoneBoth('strobeW', 'body', 0, 0, 0);
+  addBoneBoth("gimbalYaw", "body", spec.gimbal[0], spec.gimbal[1], spec.gimbal[2]);
+  addBoneBoth("ball", "gimbalYaw", spec.ball[0], spec.ball[1], spec.ball[2]);
+  addBoneBoth("lamp", "ball", spec.lamp[0], spec.lamp[1], spec.lamp[2]);
+  addBoneBoth("gun", "body", spec.gun[0], spec.gun[1], spec.gun[2]);
+  addBoneBoth("strobeG", "body", 0, 0, 0);
+  addBoneBoth("strobeR", "body", 0, 0, 0);
+  addBoneBoth("strobeW", "body", 0, 0, 0);
 
   const add = (slot, bone, geo, tint, applyShading) => rig.add(slot, bone, geo, tint, applyShading);
 
   // 流线型机身外壳与航空碳纤维结构
-  add('shell', 'body', placeGeometry(createScaledSphere(1, 20, 12, 0.118, 0.074, 0.27), 0, 0.02, 0), COLOR_SHELL_WHITE);
-  add('shell', 'body', placeGeometry(ot(1, 0.9, 1, 20), 0, 0.02, 0.165, HALF_PI, 0, 0, [0.094, 0.05, 0.06]), COLOR_HAZARD_ORANGE);
-  add('shell', 'body', placeGeometry(ot(1, 1, 1, 20), 0, 0.02, -0.02, HALF_PI, 0, 0, [0.121, 0.012, 0.0765]), COLOR_DARK_ALLOY);
-  add('shell', 'body', placeGeometry(createBeveledBox(0.118, 0.014, 0.2, 0.005), 0, 0.089, -0.03), COLOR_SHELL_WARM);
-  add('metal', 'body', placeGeometry(createBeveledBox(0.09, 0.05, 0.16, 0.008), 0, -0.045, -0.01), COLOR_GUNMETAL_GREY);
-  add('shell', 'body', placeGeometry(createBeveledBox(0.095, 0.02, 0.12, 0.004), 0, -0.072, -0.01), COLOR_HAZARD_ORANGE);
+  add(
+    "shell",
+    "body",
+    placeGeometry(createScaledSphere(1, 20, 12, 0.118, 0.074, 0.27), 0, 0.02, 0),
+    COLOR_SHELL_WHITE,
+  );
+  add(
+    "shell",
+    "body",
+    placeGeometry(ot(1, 0.9, 1, 20), 0, 0.02, 0.165, HALF_PI, 0, 0, [0.094, 0.05, 0.06]),
+    COLOR_HAZARD_ORANGE,
+  );
+  add(
+    "shell",
+    "body",
+    placeGeometry(ot(1, 1, 1, 20), 0, 0.02, -0.02, HALF_PI, 0, 0, [0.121, 0.012, 0.0765]),
+    COLOR_DARK_ALLOY,
+  );
+  add(
+    "shell",
+    "body",
+    placeGeometry(createBeveledBox(0.118, 0.014, 0.2, 0.005), 0, 0.089, -0.03),
+    COLOR_SHELL_WARM,
+  );
+  add(
+    "metal",
+    "body",
+    placeGeometry(createBeveledBox(0.09, 0.05, 0.16, 0.008), 0, -0.045, -0.01),
+    COLOR_GUNMETAL_GREY,
+  );
+  add(
+    "shell",
+    "body",
+    placeGeometry(createBeveledBox(0.095, 0.02, 0.12, 0.004), 0, -0.072, -0.01),
+    COLOR_HAZARD_ORANGE,
+  );
 
   // 四向碳纤机臂与无刷电机机舱 (Carbon Arms & Rotor Nacelles)
   for (let i = 0; i < 4; i++) {
@@ -1081,39 +1617,117 @@ function buildGullRig() {
     const ry = spec.rotors[i][1];
     const rz = spec.rotors[i][2];
     const armGeo = createPipeBetweenPoints([0, 0.01, 0], [rx, ry - 0.01, rz], 0.014, 0.011, 8);
-    add('metal', 'body', armGeo, COLOR_CHROME_BRIGHT);
+    add("metal", "body", armGeo, COLOR_CHROME_BRIGHT);
 
     // 电机罩与支柱
-    add('metal', 'body', placeGeometry(createCylinderY(0.028, 0.024, 0.035, 12), rx, ry - 0.01, rz), COLOR_DARK_ALLOY);
-    add('shell', 'body', placeGeometry(createCylinderY(0.03, 0.029, 0.016, 12), rx, ry - 0.005, rz), COLOR_SHELL_WHITE);
-    add('metal', 'rotor' + i, placeGeometry(createCylinderY(0.012, 0.012, 0.02, 10), 0, 0.01, 0), COLOR_CHROME_BRIGHT);
+    add(
+      "metal",
+      "body",
+      placeGeometry(createCylinderY(0.028, 0.024, 0.035, 12), rx, ry - 0.01, rz),
+      COLOR_DARK_ALLOY,
+    );
+    add(
+      "shell",
+      "body",
+      placeGeometry(createCylinderY(0.03, 0.029, 0.016, 12), rx, ry - 0.005, rz),
+      COLOR_SHELL_WHITE,
+    );
+    add(
+      "metal",
+      "rotor" + i,
+      placeGeometry(createCylinderY(0.012, 0.012, 0.02, 10), 0, 0.01, 0),
+      COLOR_CHROME_BRIGHT,
+    );
 
     // 旋翼桨叶几何
     const bladeGeo = buildGullPropellerBlade();
-    add('metal', 'rotor' + i, placeGeometry(bladeGeo, 0, 0.005, 0), COLOR_GUNMETAL_GREY);
+    add("metal", "rotor" + i, placeGeometry(bladeGeo, 0, 0.005, 0), COLOR_GUNMETAL_GREY);
 
     // 旋转半透明高升力气动虚拟圆盘 (Rotor Motion Blur Disc)
-    extraRig.add('disc', 'rotor' + i, placeGeometry(new Bu(0.208, 24), 0, 0.018, 0, -HALF_PI, 0, 0));
+    extraRig.add(
+      "disc",
+      "rotor" + i,
+      placeGeometry(new Bu(0.208, 24), 0, 0.018, 0, -HALF_PI, 0, 0),
+    );
   }
 
   // 腹部双轴侦察光电球 (2-Axis Surveillance Gimbal)
-  add('metal', 'gimbalYaw', placeGeometry(createCylinderY(0.04, 0.04, 0.016, 12), 0, 0, 0), COLOR_DARK_ALLOY);
-  add('metal', 'ball', placeGeometry(createScaledSphere(0.048, 14, 10), 0, 0, 0), COLOR_GUNMETAL_GREY);
-  add('shell', 'ball', placeGeometry(createBeveledBox(0.055, 0.055, 0.025, 0.006), 0, 0, 0.032), COLOR_SHELL_WHITE);
-  add('lens', 'lamp', placeGeometry(createCylinderZ(0.026, 0.026, 0.008, 14), 0, 0, 0.045), [1, 1, 1], false);
+  add(
+    "metal",
+    "gimbalYaw",
+    placeGeometry(createCylinderY(0.04, 0.04, 0.016, 12), 0, 0, 0),
+    COLOR_DARK_ALLOY,
+  );
+  add(
+    "metal",
+    "ball",
+    placeGeometry(createScaledSphere(0.048, 14, 10), 0, 0, 0),
+    COLOR_GUNMETAL_GREY,
+  );
+  add(
+    "shell",
+    "ball",
+    placeGeometry(createBeveledBox(0.055, 0.055, 0.025, 0.006), 0, 0, 0.032),
+    COLOR_SHELL_WHITE,
+  );
+  add(
+    "lens",
+    "lamp",
+    placeGeometry(createCylinderZ(0.026, 0.026, 0.008, 14), 0, 0, 0.045),
+    [1, 1, 1],
+    false,
+  );
 
   // 侦察锥形警示探照光束 (Searchlight Visual Cone)
-  extraRig.add('cone', 'lamp', placeGeometry(ot(0.02, 0.65, 4.5, 16, true), 0, 0, 2.25, HALF_PI, 0, 0));
+  extraRig.add(
+    "cone",
+    "lamp",
+    placeGeometry(ot(0.02, 0.65, 4.5, 16, true), 0, 0, 2.25, HALF_PI, 0, 0),
+  );
 
   // 机头等离子速射炮 (Plasma Auto-Pulse Cannon)
-  add('metal', 'gun', placeGeometry(createBeveledBox(0.038, 0.038, 0.22, 0.004), 0, 0, 0.1), COLOR_DARK_ALLOY);
-  add('metal', 'gun', placeGeometry(createCylinderZ(0.009, 0.009, 0.18, 8), 0, 0, 0.24), COLOR_CHROME_BRIGHT);
-  add('glow', 'gun', placeGeometry(createCylinderZ(0.007, 0.007, 0.02, 8), 0, 0, 0.32), [14, 1, 0.35], false);
+  add(
+    "metal",
+    "gun",
+    placeGeometry(createBeveledBox(0.038, 0.038, 0.22, 0.004), 0, 0, 0.1),
+    COLOR_DARK_ALLOY,
+  );
+  add(
+    "metal",
+    "gun",
+    placeGeometry(createCylinderZ(0.009, 0.009, 0.18, 8), 0, 0, 0.24),
+    COLOR_CHROME_BRIGHT,
+  );
+  add(
+    "glow",
+    "gun",
+    placeGeometry(createCylinderZ(0.007, 0.007, 0.02, 8), 0, 0, 0.32),
+    [14, 1, 0.35],
+    false,
+  );
 
   // 国际民航标准红/绿/白三色导航频闪灯 (Aviation Navigation Strobes)
-  add('glow', 'strobeR', placeGeometry(createScaledSphere(0.012, 8, 6), -0.33, 0.04, 0.3), [14, 0.5, 0.2], false); // 左翼尖红灯
-  add('glow', 'strobeG', placeGeometry(createScaledSphere(0.012, 8, 6), 0.33, 0.04, 0.3), [0.3, 12, 1], false);   // 右翼尖绿灯
-  add('glow', 'strobeW', placeGeometry(createScaledSphere(0.014, 8, 6), 0, 0.08, -0.31), [12, 12, 12], false);    // 尾部防撞白频闪
+  add(
+    "glow",
+    "strobeR",
+    placeGeometry(createScaledSphere(0.012, 8, 6), -0.33, 0.04, 0.3),
+    [14, 0.5, 0.2],
+    false,
+  ); // 左翼尖红灯
+  add(
+    "glow",
+    "strobeG",
+    placeGeometry(createScaledSphere(0.012, 8, 6), 0.33, 0.04, 0.3),
+    [0.3, 12, 1],
+    false,
+  ); // 右翼尖绿灯
+  add(
+    "glow",
+    "strobeW",
+    placeGeometry(createScaledSphere(0.014, 8, 6), 0, 0.08, -0.31),
+    [12, 12, 12],
+    false,
+  ); // 尾部防撞白频闪
 
   const rigDef = rig.build();
   rigDef.extra = extraRig.build();
@@ -1145,7 +1759,7 @@ const GULL_CONFIG = {
   spreadNear: 0.015,
   spreadFar: 0.04,
   explodeRadius: 4.5,
-  explodeDamage: 45
+  explodeDamage: 45,
 };
 
 const Zv = GULL_CONFIG;
@@ -1169,7 +1783,7 @@ const HOUND_CONFIG = {
   rangeMin: 7,
   rangeMax: 18,
   smokeBelow: 0.45,
-  replan: 0.35
+  replan: 0.35,
 };
 
 const Kv = HOUND_CONFIG;
@@ -1214,24 +1828,24 @@ function createGull(hiveCtx, rigDef, materials, index) {
       glow: materials.glow,
       lens: lensMat,
       disc: materials.disc,
-      cone: materials.cone
+      cone: materials.cone,
     },
     {
       radius: 0.9,
       center: [0, 0, 0],
-      extra: { def: rigDef.extra, radius: 10 }
-    }
+      extra: { def: rigDef.extra, radius: 10 },
+    },
   );
 
   const bones = skinnedMeshWrapper.bones;
-  skinnedMeshWrapper.group.rotation.order = 'YXZ';
+  skinnedMeshWrapper.group.rotation.order = "YXZ";
   skinnedMeshWrapper.group.visible = false;
 
   // 编号与军规战术铭牌 (ID Tactical Label)
-  const labelDef = engineCtx.mats.label('G-' + String(index + 11), {
-    color: 'black',
-    font: 'stencil',
-    distress: 0.35
+  const labelDef = engineCtx.mats.label("G-" + String(index + 11), {
+    color: "black",
+    font: "stencil",
+    distress: 0.35,
   });
   const labelWidth = 0.105;
   const labelHeight = Math.min(0.045, labelWidth / (labelDef.aspect || 3));
@@ -1247,7 +1861,7 @@ function createGull(hiveCtx, rigDef, materials, index) {
   // 实体属性与状态
   const gull = {
     id: 0,
-    type: 'gull',
+    type: "gull",
     pos: skinnedMeshWrapper.group.position,
     alive: false,
     hp: GULL_CONFIG.hp,
@@ -1263,7 +1877,7 @@ function createGull(hiveCtx, rigDef, materials, index) {
     sensor: new W(),
     fwd: new W(0, 0, 1),
     muzzle: new W(),
-    mode: 'patrol',
+    mode: "patrol",
     los: false,
     seeT: 0,
     noSeeT: 0,
@@ -1282,7 +1896,7 @@ function createGull(hiveCtx, rigDef, materials, index) {
     ceilT: 0,
     flipT: 0,
     avoid: new W(),
-    atk: 'idle',
+    atk: "idle",
     atkT: 0,
     cool: 1,
     shots: 0,
@@ -1303,10 +1917,10 @@ function createGull(hiveCtx, rigDef, materials, index) {
     damage(amount, hitPoint, impulse, hitPart) {
       if (!gull.alive) return false;
       gull.hp -= amount;
-      engineCtx.events.emit('enemy:hit', {
+      engineCtx.events.emit("enemy:hit", {
         enemy: gull,
         point: hitPoint,
-        part: hitPart || 'body'
+        part: hitPart || "body",
       });
 
       if (impulse) {
@@ -1333,7 +1947,7 @@ function createGull(hiveCtx, rigDef, materials, index) {
       gull.vel.set(0, 0, 0);
       gull.yaw = options.yaw ?? rng() * 6.283;
       gull.pitch = gull.roll = 0;
-      gull.mode = options.state === 'alert' ? 'investigate' : 'patrol';
+      gull.mode = options.state === "alert" ? "investigate" : "patrol";
       gull.modeT = 8;
       gull.lastKnown.copy(options.target || (engineCtx.player ? engineCtx.player.pos : spawnPos));
       gull.los = false;
@@ -1342,15 +1956,18 @@ function createGull(hiveCtx, rigDef, materials, index) {
       gull.senseT = rng() * 0.2;
       gull.hasToken = false;
       gull.orbitDir = rng() < 0.5 ? 1 : -1;
-      gull.orbitR = GULL_CONFIG.rangeMin + 2 + rng() * (GULL_CONFIG.rangeMax - GULL_CONFIG.rangeMin - 5);
-      gull.alt = options.hover ?? GULL_CONFIG.altMin + 0.8 + rng() * (GULL_CONFIG.altMax - GULL_CONFIG.altMin - 1.6);
+      gull.orbitR =
+        GULL_CONFIG.rangeMin + 2 + rng() * (GULL_CONFIG.rangeMax - GULL_CONFIG.rangeMin - 5);
+      gull.alt =
+        options.hover ??
+        GULL_CONFIG.altMin + 0.8 + rng() * (GULL_CONFIG.altMax - GULL_CONFIG.altMin - 1.6);
       gull.hoverFixed = options.hover != null;
       gull.patrolR = options.patrolRadius ?? 4 + rng() * 5;
       gull.phase = rng() * 6.283;
       gull.orbitA = rng() * 6.283;
       gull.ceil = 1e9;
       gull.flipT = 3 + rng() * 4;
-      gull.atk = 'idle';
+      gull.atk = "idle";
       gull.cool = 1 + rng() * 1.5;
       gull.dieT = 0;
       gull.spin = 0;
@@ -1358,7 +1975,7 @@ function createGull(hiveCtx, rigDef, materials, index) {
       gull.flare = 0;
       gull.thr = 1;
 
-      for (let m = 0; m < 4; m++) bones['rotor' + m].scale.setScalar(1);
+      for (let m = 0; m < 4; m++) bones["rotor" + m].scale.setScalar(1);
       bones.lamp.scale.setScalar(1);
       bones.body.rotation.set(0, 0, 0);
       skinnedMeshWrapper.group.visible = true;
@@ -1366,7 +1983,7 @@ function createGull(hiveCtx, rigDef, materials, index) {
 
       if (engineCtx.audio && engineCtx.audio.loop && !gull.loop) {
         try {
-          gull.loop = engineCtx.audio.loop('gull_rotor', { pos: gull.pos, gain: 0.5 });
+          gull.loop = engineCtx.audio.loop("gull_rotor", { pos: gull.pos, gain: 0.5 });
         } catch {
           gull.loop = null;
         }
@@ -1379,7 +1996,9 @@ function createGull(hiveCtx, rigDef, materials, index) {
       skinnedMeshWrapper.group.visible = false;
       hiveCtx.releaseToken(gull);
       if (gull.loop) {
-        try { gull.loop.stop(); } catch {}
+        try {
+          gull.loop.stop();
+        } catch {}
         gull.loop = null;
       }
     },
@@ -1405,7 +2024,7 @@ function createGull(hiveCtx, rigDef, materials, index) {
       if (t < 0 || t > maxDist || t >= outHit.dist) return false;
 
       outHit.dist = t;
-      outHit.part = 'body';
+      outHit.part = "body";
       outHit.enemy = gull;
       outHit.point.copy(rayOrigin).addScaledVector(rayDir, t);
       outHit.normal.copy(outHit.point).sub(gull.pos);
@@ -1417,7 +2036,7 @@ function createGull(hiveCtx, rigDef, materials, index) {
     _update(dt) {
       if (gull.alive) updateAliveGull(dt);
       else updateDeadGull(dt);
-    }
+    },
   };
 
   /**
@@ -1428,7 +2047,7 @@ function createGull(hiveCtx, rigDef, materials, index) {
     hiveCtx.releaseToken(gull);
     gull.dieT = 0;
     gull.lostRotor = Math.floor(rng() * 4);
-    bones['rotor' + gull.lostRotor].scale.setScalar(1e-4);
+    bones["rotor" + gull.lostRotor].scale.setScalar(1e-4);
 
     tempSparkPos
       .set(GULL_RIG_SPEC.rotors[gull.lostRotor][0], 0.05, GULL_RIG_SPEC.rotors[gull.lostRotor][2])
@@ -1449,7 +2068,7 @@ function createGull(hiveCtx, rigDef, materials, index) {
     bones.strobeW.scale.setScalar(1e-4);
     lensMat.color.setRGB(0.3, 0.05, 0.02);
 
-    engineCtx.events.emit('enemy:killed', { enemy: gull, pos: gull.pos, type: 'gull' });
+    engineCtx.events.emit("enemy:killed", { enemy: gull, pos: gull.pos, type: "gull" });
   }
 
   /**
@@ -1487,7 +2106,7 @@ function createGull(hiveCtx, rigDef, materials, index) {
 
     for (let r = 0; r < 4; r++) {
       if (r !== gull.lostRotor) {
-        bones['rotor' + r].rotation.y +=
+        bones["rotor" + r].rotation.y +=
           (r % 3 === 0 ? 1 : -1) * 30 * Math.max(0.2, 1 - gull.dieT * 0.5) * dt;
       }
     }
@@ -1515,7 +2134,7 @@ function createGull(hiveCtx, rigDef, materials, index) {
           gull.pos,
           GULL_CONFIG.explodeRadius,
           GULL_CONFIG.explodeDamage,
-          'enemy'
+          "enemy",
         );
       }
       hiveCtx.retire(gull);
@@ -1530,14 +2149,11 @@ function createGull(hiveCtx, rigDef, materials, index) {
     const simTime = hiveCtx.t;
 
     gull.fwd.set(Math.sin(gull.yaw), 0, Math.cos(gull.yaw));
-    gull.sensor
-      .set(0, -0.17, 0.27)
-      .applyAxisAngle(UP_DIR_Y, gull.yaw)
-      .add(gull.pos);
+    gull.sensor.set(0, -0.17, 0.27).applyAxisAngle(UP_DIR_Y, gull.yaw).add(gull.pos);
 
     hiveCtx.think(gull, dt, 0.4);
 
-    const isEngaging = gull.mode === 'engage';
+    const isEngaging = gull.mode === "engage";
     const isDamaged = gull.hp < GULL_CONFIG.hp * 0.5;
     let targetSpeed = GULL_CONFIG.patrolSpeed;
     let destX, destY, destZ;
@@ -1545,7 +2161,7 @@ function createGull(hiveCtx, rigDef, materials, index) {
     // 1. 战术飞行轨迹规划 (Orbit / Investigate / Patrol Trajectory)
     if (isEngaging && player) {
       targetSpeed = GULL_CONFIG.maxSpeed;
-      const isAttacking = gull.atk !== 'idle';
+      const isAttacking = gull.atk !== "idle";
       gull.flipT -= dt;
       if (gull.flipT <= 0) {
         gull.flipT = 3 + rng() * 5;
@@ -1553,7 +2169,7 @@ function createGull(hiveCtx, rigDef, materials, index) {
         gull.orbitR = clampValue(
           gull.orbitR + (rng() - 0.5) * 6,
           GULL_CONFIG.rangeMin + 1,
-          GULL_CONFIG.rangeMax - 2
+          GULL_CONFIG.rangeMax - 2,
         );
       }
 
@@ -1563,12 +2179,12 @@ function createGull(hiveCtx, rigDef, materials, index) {
         destY = gull.lastKnown.y + gull.alt + 1;
         gull.orbitA = Math.atan2(gull.pos.z - gull.lastKnown.z, gull.pos.x - gull.lastKnown.x);
       } else {
-        gull.orbitA += (gull.orbitDir * (isAttacking ? 0.9 : 3.6) / gull.orbitR) * dt;
+        gull.orbitA += ((gull.orbitDir * (isAttacking ? 0.9 : 3.6)) / gull.orbitR) * dt;
         destX = player.pos.x + Math.cos(gull.orbitA) * gull.orbitR;
         destZ = player.pos.z + Math.sin(gull.orbitA) * gull.orbitR;
         destY = player.pos.y + gull.alt;
       }
-    } else if (gull.mode === 'investigate' || gull.mode === 'search') {
+    } else if (gull.mode === "investigate" || gull.mode === "search") {
       targetSpeed = 5.5;
       gull.orbitA += 0.5 * dt;
       destX = gull.lastKnown.x + Math.cos(gull.orbitA) * 4.5;
@@ -1588,7 +2204,7 @@ function createGull(hiveCtx, rigDef, materials, index) {
     tempAccVec.set(
       (destX - gull.pos.x) * 2.2 - gull.vel.x * 2.4,
       (destY - gull.pos.y) * 5.0 - gull.vel.y * 3.6,
-      (destZ - gull.pos.z) * 2.2 - gull.vel.z * 2.4
+      (destZ - gull.pos.z) * 2.2 - gull.vel.z * 2.4,
     );
 
     // 3. 多触角多层次环境光线避障 (Multi-Feeler Raycast Obstacle Avoidance)
@@ -1613,7 +2229,7 @@ function createGull(hiveCtx, rigDef, materials, index) {
       if (groundHit && !gull.hoverFixed) {
         gull.avoid.y += (2.4 - groundHit.dist) * 10;
       }
-    } else if (gull.feeler === 2 && (gull.ceilT -= dt * 3, gull.ceilT <= 0)) {
+    } else if (gull.feeler === 2 && ((gull.ceilT -= dt * 3), gull.ceilT <= 0)) {
       gull.ceilT = 0.35;
       const ceilHit = engineCtx.physics.raycast(gull.pos, UP_DIR_Y, 4.0);
       gull.ceil = ceilHit ? gull.pos.y + ceilHit.dist - 1.3 : 1e9;
@@ -1647,12 +2263,19 @@ function createGull(hiveCtx, rigDef, materials, index) {
       const hullRadius = axis === 1 ? 0.35 : 0.62;
 
       tempRayDir.set(axis === 0 ? dirSign : 0, axis === 1 ? dirSign : 0, axis === 2 ? dirSign : 0);
-      const hit = engineCtx.physics.raycast(gull.pos, tempRayDir, Math.abs(vComp) * dt + hullRadius);
+      const hit = engineCtx.physics.raycast(
+        gull.pos,
+        tempRayDir,
+        Math.abs(vComp) * dt + hullRadius,
+      );
       if (hit) {
         gull.vel.setComponent(axis, -vComp * 0.25);
         gull.avoid.setComponent(axis, gull.avoid.getComponent(axis) - dirSign * 8);
         if (hit.dist < hullRadius) {
-          gull.pos.setComponent(axis, gull.pos.getComponent(axis) - dirSign * (hullRadius - hit.dist));
+          gull.pos.setComponent(
+            axis,
+            gull.pos.getComponent(axis) - dirSign * (hullRadius - hit.dist),
+          );
         }
       }
     }
@@ -1660,7 +2283,8 @@ function createGull(hiveCtx, rigDef, materials, index) {
     gull.pos.addScaledVector(gull.vel, dt);
 
     if (!gull.hoverFixed) {
-      const groundFloor = engineCtx.physics.groundHeight(gull.pos.x, gull.pos.z, gull.pos.y + 0.5) + 1.1;
+      const groundFloor =
+        engineCtx.physics.groundHeight(gull.pos.x, gull.pos.z, gull.pos.y + 0.5) + 1.1;
       if (gull.pos.y < groundFloor) {
         gull.pos.y = groundFloor;
         if (gull.vel.y < 0) gull.vel.y = 0;
@@ -1669,7 +2293,7 @@ function createGull(hiveCtx, rigDef, materials, index) {
 
     // 5. 偏航角与机动侧倾姿态学 (Yaw Steering, Pitch & Roll Banking)
     let desiredYaw = gull.yaw;
-    if ((isEngaging || gull.mode === 'search' || gull.mode === 'investigate') && player) {
+    if ((isEngaging || gull.mode === "search" || gull.mode === "investigate") && player) {
       const aimTarget = isEngaging && gull.noSeeT < 1.5 ? player.pos : gull.lastKnown;
       desiredYaw = Math.atan2(aimTarget.x - gull.pos.x, aimTarget.z - gull.pos.z);
     } else if (horizontalSpeed > 0.4) {
@@ -1684,19 +2308,19 @@ function createGull(hiveCtx, rigDef, materials, index) {
 
     // 转换至无人机体坐标系以计算飞行机动姿态俯仰与滚转
     const forwardForce = tempAccVec.x * sinYaw + tempAccVec.z * cosYaw;
-    const rightForce   = tempAccVec.x * cosYaw - tempAccVec.z * sinYaw;
+    const rightForce = tempAccVec.x * cosYaw - tempAccVec.z * sinYaw;
 
     let targetPitch = clampValue(forwardForce * 0.04, -0.42, 0.42);
-    let targetRoll  = clampValue(-rightForce * 0.04, -0.42, 0.42);
+    let targetRoll = clampValue(-rightForce * 0.04, -0.42, 0.42);
 
     if (isDamaged) {
       targetPitch += Math.sin(simTime * 11 + gull.phase) * 0.1;
-      targetRoll  += Math.cos(simTime * 8.7 + gull.phase * 2) * 0.13;
+      targetRoll += Math.cos(simTime * 8.7 + gull.phase * 2) * 0.13;
     }
 
     const bankSmoothing = 1 - Math.exp(-7 * dt);
     gull.pitch += (targetPitch - gull.pitch) * bankSmoothing;
-    gull.roll  += (targetRoll - gull.roll) * bankSmoothing;
+    gull.roll += (targetRoll - gull.roll) * bankSmoothing;
 
     skinnedMeshWrapper.group.rotation.set(gull.pitch, gull.yaw, gull.roll);
     bones.body.position.y =
@@ -1704,7 +2328,9 @@ function createGull(hiveCtx, rigDef, materials, index) {
       Math.sin(simTime * 3.7 + gull.phase * 1.7) * 0.018;
 
     // 旋翼油门转速自适应 (Throttle Speed)
-    gull.thr += (1 + clampValue(tempAccVec.y * 0.03, -0.25, 0.4) + horizontalSpeed * 0.02 - gull.thr) * bankSmoothing;
+    gull.thr +=
+      (1 + clampValue(tempAccVec.y * 0.03, -0.25, 0.4) + horizontalSpeed * 0.02 - gull.thr) *
+      bankSmoothing;
     const rotorSpeed = 41 * gull.thr * dt;
     bones.rotor0.rotation.y += rotorSpeed;
     bones.rotor1.rotation.y -= rotorSpeed * 1.03;
@@ -1723,12 +2349,12 @@ function createGull(hiveCtx, rigDef, materials, index) {
     // 7. 双轴光电瞄准吊舱跟踪 (Gimbal Tracking Player / Search Sweep)
     if (isEngaging && player) {
       tempTargetPos.set(player.pos.x, player.pos.y + 1.1, player.pos.z);
-    } else if (gull.mode !== 'patrol') {
+    } else if (gull.mode !== "patrol") {
       gull.sweep += dt;
       tempTargetPos.set(
         gull.lastKnown.x + Math.sin(gull.sweep * 0.9) * 3,
         gull.lastKnown.y,
-        gull.lastKnown.z + Math.cos(gull.sweep * 0.7) * 3
+        gull.lastKnown.z + Math.cos(gull.sweep * 0.7) * 3,
       );
     } else {
       gull.sweep += dt;
@@ -1736,7 +2362,7 @@ function createGull(hiveCtx, rigDef, materials, index) {
       tempTargetPos.set(
         gull.pos.x + Math.sin(sweepYaw) * 5,
         gull.pos.y - (gull.hoverFixed ? 1.6 : 5.0),
-        gull.pos.z + Math.cos(sweepYaw) * 5
+        gull.pos.z + Math.cos(sweepYaw) * 5,
       );
     }
 
@@ -1749,7 +2375,7 @@ function createGull(hiveCtx, rigDef, materials, index) {
     const gimbalTargetPitch = clampValue(
       Math.atan2(-localTargetY, Math.hypot(localTargetX, localTargetZ)),
       -0.5,
-      1.5
+      1.5,
     );
 
     const gimbalSmoothing = 1 - Math.exp(-9 * dt);
@@ -1762,7 +2388,8 @@ function createGull(hiveCtx, rigDef, materials, index) {
 
     // 8. 战术镜头辉光颜色与充能过载 (Lens Color & Flare)
     const targetLensColor = isEngaging ? LENS_COLOR_RED_ALERT : LENS_COLOR_AMBER_PATROL;
-    const lensBrightness = 1 + gull.flare * 3.2 + (isEngaging ? 0 : Math.sin(simTime * 3 + gull.phase) * 0.15);
+    const lensBrightness =
+      1 + gull.flare * 3.2 + (isEngaging ? 0 : Math.sin(simTime * 3 + gull.phase) * 0.15);
 
     for (let c = 0; c < 3; c++) {
       gull.lensC[c] += (targetLensColor[c] - gull.lensC[c]) * (1 - Math.exp(-8 * dt));
@@ -1770,19 +2397,16 @@ function createGull(hiveCtx, rigDef, materials, index) {
     lensMat.color.setRGB(
       gull.lensC[0] * lensBrightness,
       gull.lensC[1] * lensBrightness,
-      gull.lensC[2] * lensBrightness
+      gull.lensC[2] * lensBrightness,
     );
     gull.flare = Math.max(0, gull.flare - dt * 1.5);
 
     // 9. 射击攻击状态机 (Attack State Machine: idle -> tele -> burst)
-    gull.muzzle
-      .set(0, -0.12, 0.17)
-      .applyAxisAngle(UP_DIR_Y, gull.yaw)
-      .add(gull.pos);
+    gull.muzzle.set(0, -0.12, 0.17).applyAxisAngle(UP_DIR_Y, gull.yaw).add(gull.pos);
 
     gull.cool -= dt;
 
-    if (gull.atk === 'idle') {
+    if (gull.atk === "idle") {
       if (
         isEngaging &&
         gull.los &&
@@ -1793,31 +2417,31 @@ function createGull(hiveCtx, rigDef, materials, index) {
         gull.pos.distanceTo(player.pos) < GULL_CONFIG.fireRange &&
         hiveCtx.requestToken(gull)
       ) {
-        gull.atk = 'tele';
+        gull.atk = "tele";
         gull.atkT = GULL_CONFIG.telegraph;
-        engineCtx.events.emit('enemy:telegraph', {
+        engineCtx.events.emit("enemy:telegraph", {
           enemy: gull,
-          type: 'gull',
+          type: "gull",
           time: GULL_CONFIG.telegraph,
-          pos: gull.pos
+          pos: gull.pos,
         });
       }
-    } else if (gull.atk === 'tele') {
+    } else if (gull.atk === "tele") {
       gull.atkT -= dt;
       gull.flare = Math.min(1, gull.flare + dt * 4.5);
 
       if (isEngaging) {
         if (gull.atkT <= 0) {
-          gull.atk = 'burst';
+          gull.atk = "burst";
           gull.shots = GULL_CONFIG.burst;
           gull.atkT = 0;
           gull.lead = 0.2 + rng() * 0.65; // 前置提前量随机补偿
         }
       } else {
-        gull.atk = 'idle';
+        gull.atk = "idle";
         hiveCtx.releaseToken(gull);
       }
-    } else if (gull.atk === 'burst') {
+    } else if (gull.atk === "burst") {
       gull.atkT -= dt;
       gull.flare = 1.0;
 
@@ -1833,14 +2457,15 @@ function createGull(hiveCtx, rigDef, materials, index) {
           tempTargetPos.set(
             player.pos.x + player.vel.x * flightTime * gull.lead,
             player.pos.y + 1.05,
-            player.pos.z + player.vel.z * flightTime * gull.lead
+            player.pos.z + player.vel.z * flightTime * gull.lead,
           );
 
           tempRayDir.copy(tempTargetPos).sub(gull.muzzle).normalize();
 
           // 弹道散布 (Ballistic Spread)
           const spreadFactor =
-            (GULL_CONFIG.spreadFar + (GULL_CONFIG.spreadNear - GULL_CONFIG.spreadFar) * gull.exposure) *
+            (GULL_CONFIG.spreadFar +
+              (GULL_CONFIG.spreadNear - GULL_CONFIG.spreadFar) * gull.exposure) *
             (1 + hiveCtx.playerSpeed * 0.45) *
             (isDamaged ? 1.5 : 1.0);
 
@@ -1851,11 +2476,11 @@ function createGull(hiveCtx, rigDef, materials, index) {
 
           hiveCtx.fireBolt(gull.muzzle, tempRayDir, gull);
           engineCtx.fx.muzzleFlash(gull.muzzle, tempRayDir, { scale: 0.55 });
-          engineCtx.events.emit('enemy:fire', {
+          engineCtx.events.emit("enemy:fire", {
             enemy: gull,
             pos: gull.muzzle,
             dir: tempRayDir,
-            type: 'gull'
+            type: "gull",
           });
 
           // 射击后坐力冲量 (Recoil Impulse)
@@ -1863,8 +2488,9 @@ function createGull(hiveCtx, rigDef, materials, index) {
         }
 
         if (gull.shots <= 0) {
-          gull.atk = 'idle';
-          gull.cool = GULL_CONFIG.cooldown[0] + rng() * (GULL_CONFIG.cooldown[1] - GULL_CONFIG.cooldown[0]);
+          gull.atk = "idle";
+          gull.cool =
+            GULL_CONFIG.cooldown[0] + rng() * (GULL_CONFIG.cooldown[1] - GULL_CONFIG.cooldown[0]);
           hiveCtx.releaseToken(gull);
         }
       }
@@ -1907,7 +2533,10 @@ function springDamper(spring, target, stiffness, damping, dt) {
 const xa = springDamper;
 
 // 猎犬对角步态足端配对 (Diagonal Foot Pairs: [FL, RR] and [FR, RL])
-const DIAGONAL_LEG_PAIRS = [[0, 3], [1, 2]];
+const DIAGONAL_LEG_PAIRS = [
+  [0, 3],
+  [1, 2],
+];
 const wm = DIAGONAL_LEG_PAIRS;
 
 const footScratchPos = new W();
@@ -1931,12 +2560,12 @@ function createHound(hiveCtx, rigDef, materials, index) {
       shell: materials.shell,
       metal: materials.metal,
       glow: materials.glow,
-      lens: lensMat
+      lens: lensMat,
     },
     {
       radius: 1.5,
-      center: [0, 0.6, 0]
-    }
+      center: [0, 0.6, 0],
+    },
   );
 
   const bones = skinnedMeshWrapper.bones;
@@ -1948,16 +2577,16 @@ function createHound(hiveCtx, rigDef, materials, index) {
 
   for (let i = 0; i < 4; i++) {
     const legName = HOUND_RIG_SPEC.legs[i];
-    abdJoints.push(bones['abd' + legName]);
-    thighJoints.push(bones['thigh' + legName]);
-    shinJoints.push(bones['shin' + legName]);
+    abdJoints.push(bones["abd" + legName]);
+    thighJoints.push(bones["thigh" + legName]);
+    shinJoints.push(bones["shin" + legName]);
   }
 
   // 编号与军规战术铭牌
-  const labelDef = engineCtx.mats.label('H-' + String(index + 3).padStart(2, '0'), {
-    color: 'black',
-    font: 'stencil',
-    distress: 0.3
+  const labelDef = engineCtx.mats.label("H-" + String(index + 3).padStart(2, "0"), {
+    color: "black",
+    font: "stencil",
+    distress: 0.3,
   });
   const labelWidth = 0.2;
   const labelHeight = Math.min(0.085, labelWidth / (labelDef.aspect || 3));
@@ -1981,12 +2610,12 @@ function createHound(hiveCtx, rigDef, materials, index) {
     p: new W(),
     from: new W(),
     to: new W(),
-    slide: new W()
+    slide: new W(),
   }));
 
   const hound = {
     id: 0,
-    type: 'hound',
+    type: "hound",
     pos: skinnedMeshWrapper.group.position,
     alive: false,
     hp: HOUND_CONFIG.hp,
@@ -2007,7 +2636,7 @@ function createHound(hiveCtx, rigDef, materials, index) {
     muzzle: new W(),
     headPos: new W(),
     push: new W(),
-    mode: 'patrol',
+    mode: "patrol",
     los: false,
     seeT: 0,
     noSeeT: 0,
@@ -2016,7 +2645,7 @@ function createHound(hiveCtx, rigDef, materials, index) {
     modeT: 0,
     passive: false,
     hasToken: false,
-    es: 'move', // engage state: move, aim, tele, burst, wind, lunge, recover, cool
+    es: "move", // engage state: move, aim, tele, burst, wind, lunge, recover, cool
     esT: 0,
     cool: 1,
     shots: 0,
@@ -2029,7 +2658,7 @@ function createHound(hiveCtx, rigDef, materials, index) {
     waitT: 0,
     moveT: 0,
     stuckT: 0,
-    sw: -1,     // current swinging foot pair (0 or 1, -1 = all stance)
+    sw: -1, // current swinging foot pair (0 or 1, -1 = all stance)
     swT: 0,
     swDur: 0.2,
     lastPair: 1,
@@ -2037,12 +2666,12 @@ function createHound(hiveCtx, rigDef, materials, index) {
     lift: 0.08,
 
     // 底盘悬挂与天线动力学弹簧 (Suspension & Recoil Springs)
-    sY: { x: 0, v: 0 },   // 纵向颠簸 (Vertical Heave)
-    sP: { x: 0, v: 0 },   // 俯仰角 (Pitch)
-    sR: { x: 0, v: 0 },   // 滚转角 (Roll)
-    sL: { x: 0, v: 0 },   // 横向横移 (Lateral Sway)
-    sA: { x: 0, v: 0 },   // 天线俯仰抖动 (Antenna Pitch)
-    sA2: { x: 0, v: 0 },  // 天线横向抖动 (Antenna Yaw)
+    sY: { x: 0, v: 0 }, // 纵向颠簸 (Vertical Heave)
+    sP: { x: 0, v: 0 }, // 俯仰角 (Pitch)
+    sR: { x: 0, v: 0 }, // 滚转角 (Roll)
+    sL: { x: 0, v: 0 }, // 横向横移 (Lateral Sway)
+    sA: { x: 0, v: 0 }, // 天线俯仰抖动 (Antenna Pitch)
+    sA2: { x: 0, v: 0 }, // 天线横向抖动 (Antenna Yaw)
 
     crouch: 0,
     tyaw: 0,
@@ -2067,10 +2696,10 @@ function createHound(hiveCtx, rigDef, materials, index) {
     damage(amount, hitPoint, impulse, hitPart) {
       if (!hound.alive) return false;
       hound.hp -= amount;
-      engineCtx.events.emit('enemy:hit', {
+      engineCtx.events.emit("enemy:hit", {
         enemy: hound,
         point: hitPoint,
-        part: hitPart || 'body'
+        part: hitPart || "body",
       });
 
       if (impulse) {
@@ -2082,7 +2711,7 @@ function createHound(hiveCtx, rigDef, materials, index) {
 
         hound.sL.v += lateralImpulse * 1.4 * impulseMag;
         hound.sR.v += -lateralImpulse * 3.2 * impulseMag;
-        hound.sP.v += forwardImpulse * 2.4 * impulseMag * (hitPart === 'weak' ? 1.6 : 1.0);
+        hound.sP.v += forwardImpulse * 2.4 * impulseMag * (hitPart === "weak" ? 1.6 : 1.0);
         hound.sY.v -= 0.5 * impulseMag;
       }
 
@@ -2108,7 +2737,7 @@ function createHound(hiveCtx, rigDef, materials, index) {
       hound.speed = 0;
       hound.yawRate = 0;
       hound.push.set(0, 0, 0);
-      hound.mode = options.state === 'alert' ? 'investigate' : 'patrol';
+      hound.mode = options.state === "alert" ? "investigate" : "patrol";
       hound.modeT = 10;
       hound.modeSeen = hound.mode;
       hound.lastKnown.copy(options.target || (engineCtx.player ? engineCtx.player.pos : spawnPos));
@@ -2120,7 +2749,7 @@ function createHound(hiveCtx, rigDef, materials, index) {
       hound.patrolR = options.patrolRadius ?? 7;
       hound.patrolLine = options.patrolLine || null;
       hound.patrolI = 0;
-      hound.es = 'move';
+      hound.es = "move";
       hound.cool = 0.6 + rng();
       hound.lungeCd = 0.3;
       hound.path = null;
@@ -2154,7 +2783,7 @@ function createHound(hiveCtx, rigDef, materials, index) {
 
       if (engineCtx.audio && engineCtx.audio.loop && !hound.loop) {
         try {
-          hound.loop = engineCtx.audio.loop('hound_servo', { pos: hound.pos, gain: 0 });
+          hound.loop = engineCtx.audio.loop("hound_servo", { pos: hound.pos, gain: 0 });
         } catch {
           hound.loop = null;
         }
@@ -2168,7 +2797,9 @@ function createHound(hiveCtx, rigDef, materials, index) {
       skinnedMeshWrapper.group.visible = false;
       hiveCtx.releaseToken(hound);
       if (hound.loop) {
-        try { hound.loop.stop(); } catch {}
+        try {
+          hound.loop.stop();
+        } catch {}
         hound.loop = null;
       }
     },
@@ -2178,7 +2809,7 @@ function createHound(hiveCtx, rigDef, materials, index) {
 
       // 1. 弱点：头部光电感知舱爆头相交检测 (Head Weakspot Sphere)
       if (intersectRaySphere(rayOrigin, rayDir, hound.headPos, 0.155, maxDist, outHit)) {
-        outHit.part = 'weak';
+        outHit.part = "weak";
         outHit.enemy = hound;
         isHit = true;
       }
@@ -2191,15 +2822,19 @@ function createHound(hiveCtx, rigDef, materials, index) {
       footScratchPos.set(hound.pos.x - sinY * 0.45, bodyHeight + 0.03, hound.pos.z - cosY * 0.45);
       tempSparkPos.set(hound.pos.x + sinY * 0.47, bodyHeight + 0.03, hound.pos.z + cosY * 0.47);
 
-      if (intersectRayCapsule(rayOrigin, rayDir, footScratchPos, tempSparkPos, 0.27, maxDist, outHit)) {
-        outHit.part = 'body';
+      if (
+        intersectRayCapsule(rayOrigin, rayDir, footScratchPos, tempSparkPos, 0.27, maxDist, outHit)
+      ) {
+        outHit.part = "body";
         outHit.enemy = hound;
         isHit = true;
       }
 
       footScratchPos.y = tempSparkPos.y = hound.pos.y + (bodyHeight - hound.pos.y) * 0.45;
-      if (intersectRayCapsule(rayOrigin, rayDir, footScratchPos, tempSparkPos, 0.25, maxDist, outHit)) {
-        outHit.part = 'body';
+      if (
+        intersectRayCapsule(rayOrigin, rayDir, footScratchPos, tempSparkPos, 0.25, maxDist, outHit)
+      ) {
+        outHit.part = "body";
         outHit.enemy = hound;
         isHit = true;
       }
@@ -2210,7 +2845,7 @@ function createHound(hiveCtx, rigDef, materials, index) {
     _update(dt) {
       if (hound.alive) updateAliveHound(dt);
       else updateDeadHound(dt);
-    }
+    },
   };
 
   /**
@@ -2221,11 +2856,7 @@ function createHound(hiveCtx, rigDef, materials, index) {
     const offsetZ = HOUND_RIG_SPEC.footZ[legIdx];
     const cosY = Math.cos(rootYaw);
     const sinY = Math.sin(rootYaw);
-    outVec.set(
-      rootX + offsetX * cosY + offsetZ * sinY,
-      0,
-      rootZ - offsetX * sinY + offsetZ * cosY
-    );
+    outVec.set(rootX + offsetX * cosY + offsetZ * sinY, 0, rootZ - offsetX * sinY + offsetZ * cosY);
     return outVec;
   }
 
@@ -2334,8 +2965,13 @@ function createHound(hiveCtx, rigDef, materials, index) {
     if (bestScore === Infinity) {
       for (let i = 0; i < 8; i++) {
         const angle = rng() * Math.PI * 2;
-        const radius = HOUND_CONFIG.rangeMin + 1 + rng() * (HOUND_CONFIG.rangeMax - HOUND_CONFIG.rangeMin - 2);
-        footScratchPos.set(player.pos.x + Math.cos(angle) * radius, 0, player.pos.z + Math.sin(angle) * radius);
+        const radius =
+          HOUND_CONFIG.rangeMin + 1 + rng() * (HOUND_CONFIG.rangeMax - HOUND_CONFIG.rangeMin - 2);
+        footScratchPos.set(
+          player.pos.x + Math.cos(angle) * radius,
+          0,
+          player.pos.z + Math.sin(angle) * radius,
+        );
         evaluatePoint(footScratchPos, false);
       }
     }
@@ -2343,11 +2979,11 @@ function createHound(hiveCtx, rigDef, materials, index) {
     if (bestScore !== Infinity) {
       setGoal(hound.firePos, true);
       hound.firePlayer.copy(player.pos);
-      hound.es = 'move';
+      hound.es = "move";
       hound.moveT = 0;
       hound.bursts = 0;
     } else {
-      hound.es = 'aim';
+      hound.es = "aim";
       hound.esT = 0;
     }
   }
@@ -2363,7 +2999,7 @@ function createHound(hiveCtx, rigDef, materials, index) {
     hound.muzzle.set(
       houndEyeMuzzle.x + sinY * 0.12,
       houndEyeMuzzle.y - 0.01,
-      houndEyeMuzzle.z + cosY * 0.12
+      houndEyeMuzzle.z + cosY * 0.12,
     );
 
     const targetEye = player.eye || player.pos;
@@ -2378,20 +3014,16 @@ function createHound(hiveCtx, rigDef, materials, index) {
     const hit = engineCtx.physics.raycast(hound.muzzle, muzzleAimDir, 200);
     const playerHit = engineCtx.combat.enemyShot(hound.muzzle, muzzleAimDir, {
       damage: HOUND_CONFIG.shotDamage,
-      range: 200
+      range: 200,
     });
 
-    const maxDist = playerHit
-      ? hound.muzzle.distanceTo(targetEye)
-      : hit
-      ? hit.dist
-      : 90;
+    const maxDist = playerHit ? hound.muzzle.distanceTo(targetEye) : hit ? hit.dist : 90;
 
     bulletTracerEnd.copy(hound.muzzle).addScaledVector(muzzleAimDir, maxDist);
     engineCtx.fx.tracer(hound.muzzle, bulletTracerEnd, {
       color: 0xffbd30,
       speed: 260,
-      width: 0.035
+      width: 0.035,
     });
     engineCtx.fx.muzzleFlash(hound.muzzle, muzzleAimDir, { scale: 0.9 });
 
@@ -2399,11 +3031,11 @@ function createHound(hiveCtx, rigDef, materials, index) {
       engineCtx.render.lightPool.flash(hound.muzzle, 0xffad20, 22, 7, 0.05);
     }
 
-    engineCtx.events.emit('enemy:fire', {
+    engineCtx.events.emit("enemy:fire", {
       enemy: hound,
       pos: hound.muzzle,
       dir: muzzleAimDir,
-      type: 'hound'
+      type: "hound",
     });
 
     // 枪管后坐力与底盘俯仰振动 (Turret Recoil Kick)
@@ -2428,11 +3060,11 @@ function createHound(hiveCtx, rigDef, materials, index) {
       hound.hasGoal = false;
       hound.path = null;
       hound.waitT = 0;
-      if (hound.mode === 'engage') {
+      if (hound.mode === "engage") {
         seekCoverOrFlank();
-      } else if (hound.es === 'tele' || hound.es === 'burst') {
+      } else if (hound.es === "tele" || hound.es === "burst") {
         hiveCtx.releaseToken(hound);
-        hound.es = 'move';
+        hound.es = "move";
       }
     }
 
@@ -2450,7 +3082,7 @@ function createHound(hiveCtx, rigDef, materials, index) {
       : 1e9;
 
     // 1. 状态分支 (State Transitions)
-    if (hound.mode === 'patrol') {
+    if (hound.mode === "patrol") {
       if (hound.hasGoal) {
         if (followPath(dt, HOUND_CONFIG.patrolSpeed)) {
           hound.waitT = 1.5 + rng() * 3.0;
@@ -2465,9 +3097,12 @@ function createHound(hiveCtx, rigDef, materials, index) {
           else hound.waitT = 1.0;
         }
       }
-    } else if (hound.mode === 'investigate' || hound.mode === 'search') {
+    } else if (hound.mode === "investigate" || hound.mode === "search") {
       headLookTarget = hound.lastKnown;
-      const distToInvestigate = Math.hypot(hound.lastKnown.x - hound.pos.x, hound.lastKnown.z - hound.pos.z);
+      const distToInvestigate = Math.hypot(
+        hound.lastKnown.x - hound.pos.x,
+        hound.lastKnown.z - hound.pos.z,
+      );
       if (distToInvestigate > 2.2) {
         setGoal(hound.lastKnown);
         followPath(dt, distToInvestigate < 8 ? HOUND_CONFIG.stalkSpeed : HOUND_CONFIG.runSpeed);
@@ -2484,37 +3119,36 @@ function createHound(hiveCtx, rigDef, materials, index) {
 
       // 近身判定：触发致命飞扑冲刺 (Pounce / Lunge Attack Check)
       if (
-        (hound.es === 'move' || hound.es === 'aim' || hound.es === 'cool') &&
+        (hound.es === "move" || hound.es === "aim" || hound.es === "cool") &&
         distToPlayer < HOUND_CONFIG.lungeRange &&
         hound.lungeCd <= 0 &&
         player.alive
       ) {
-        hound.es = 'wind';
+        hound.es = "wind";
         hound.esT = 0.28;
         hiveCtx.releaseToken(hound);
-        engineCtx.events.emit('enemy:telegraph', {
+        engineCtx.events.emit("enemy:telegraph", {
           enemy: hound,
-          type: 'hound',
+          type: "hound",
           time: 0.28,
           pos: hound.pos,
-          melee: true
+          melee: true,
         });
       }
 
       switch (hound.es) {
-        case 'move': {
+        case "move": {
           hound.moveT += dt;
           const reached = followPath(dt, HOUND_CONFIG.runSpeed);
           const inIdealRange =
-            distToPlayer > HOUND_CONFIG.rangeMin - 1 &&
-            distToPlayer < HOUND_CONFIG.rangeMax + 2;
+            distToPlayer > HOUND_CONFIG.rangeMin - 1 && distToPlayer < HOUND_CONFIG.rangeMax + 2;
 
           if (
             reached ||
             (hound.moveT > 1.4 && hound.los && inIdealRange && rng() < dt * 0.7) ||
             hound.moveT > 7.0
           ) {
-            hound.es = 'aim';
+            hound.es = "aim";
             hound.esT = 0;
             hound.hasGoal = false;
           } else if (player.pos.distanceToSquared(hound.firePlayer) > 49) {
@@ -2523,8 +3157,8 @@ function createHound(hiveCtx, rigDef, materials, index) {
           break;
         }
 
-        case 'aim':
-        case 'cool': {
+        case "aim":
+        case "cool": {
           hound.wantYaw = angleToPlayer;
           hound.esT += dt;
           if (hound.los) {
@@ -2536,13 +3170,13 @@ function createHound(hiveCtx, rigDef, materials, index) {
               Math.abs(diffAngle(angleToPlayer - hound.yaw, hound.tyaw)) < 0.14 &&
               hiveCtx.requestToken(hound)
             ) {
-              hound.es = 'tele';
+              hound.es = "tele";
               hound.esT = HOUND_CONFIG.telegraph;
-              engineCtx.events.emit('enemy:telegraph', {
+              engineCtx.events.emit("enemy:telegraph", {
                 enemy: hound,
-                type: 'hound',
+                type: "hound",
                 time: HOUND_CONFIG.telegraph,
-                pos: hound.pos
+                pos: hound.pos,
               });
             }
           } else if (hound.noSeeT > 1.1 || hound.esT > 3.0) {
@@ -2551,20 +3185,20 @@ function createHound(hiveCtx, rigDef, materials, index) {
           break;
         }
 
-        case 'tele': {
+        case "tele": {
           hound.wantYaw = angleToPlayer;
           hound.esT -= dt;
           hound.flare = Math.min(1, hound.flare + dt * 5);
           crouchTarget = 0.05;
           if (hound.esT <= 0) {
-            hound.es = 'burst';
+            hound.es = "burst";
             hound.shots = HOUND_CONFIG.burst;
             hound.esT = 0;
           }
           break;
         }
 
-        case 'burst': {
+        case "burst": {
           hound.wantYaw = angleToPlayer;
           hound.esT -= dt;
           hound.flare = 1.0;
@@ -2576,25 +3210,27 @@ function createHound(hiveCtx, rigDef, materials, index) {
           }
           if (hound.shots <= 0) {
             hiveCtx.releaseToken(hound);
-            hound.cool = HOUND_CONFIG.cooldown[0] + rng() * (HOUND_CONFIG.cooldown[1] - HOUND_CONFIG.cooldown[0]);
+            hound.cool =
+              HOUND_CONFIG.cooldown[0] +
+              rng() * (HOUND_CONFIG.cooldown[1] - HOUND_CONFIG.cooldown[0]);
             hound.bursts++;
             if (hound.bursts >= 1 + (rng() < 0.4 ? 1 : 0)) {
               seekCoverOrFlank();
             } else {
-              hound.es = 'cool';
+              hound.es = "cool";
               hound.esT = 0;
             }
           }
           break;
         }
 
-        case 'wind': {
+        case "wind": {
           hound.wantYaw = angleToPlayer;
           hound.esT -= dt;
           crouchTarget = 0.16;
           hound.sP.v += 3.0 * dt;
           if (hound.esT <= 0) {
-            hound.es = 'lunge';
+            hound.es = "lunge";
             hound.esT = 0.36;
             hound.speed = HOUND_CONFIG.lungeSpeed;
             hound.yaw = angleToPlayer;
@@ -2602,7 +3238,7 @@ function createHound(hiveCtx, rigDef, materials, index) {
           break;
         }
 
-        case 'lunge': {
+        case "lunge": {
           isLunging = true;
           hound.esT -= dt;
           hound.wantYaw = angleToPlayer;
@@ -2611,13 +3247,13 @@ function createHound(hiveCtx, rigDef, materials, index) {
 
           if (distToPlayer < 1.35 && player.alive) {
             player.damage(HOUND_CONFIG.lungeDamage, hound.pos);
-            engineCtx.events.emit('enemy:melee', { enemy: hound, pos: hound.pos });
+            engineCtx.events.emit("enemy:melee", { enemy: hound, pos: hound.pos });
             hound.esT = 0;
             hound.sP.v -= 4.0;
           }
 
           if (hound.esT <= 0) {
-            hound.es = 'recover';
+            hound.es = "recover";
             hound.esT = 0.55;
             hound.lungeCd = HOUND_CONFIG.lungeCooldown;
             hound.speed *= 0.3;
@@ -2625,7 +3261,7 @@ function createHound(hiveCtx, rigDef, materials, index) {
           break;
         }
 
-        case 'recover': {
+        case "recover": {
           hound.esT -= dt;
           hound.wantYaw = angleToPlayer;
           if (hound.esT <= 0) seekCoverOrFlank();
@@ -2636,11 +3272,9 @@ function createHound(hiveCtx, rigDef, materials, index) {
 
     // 2. 转向速率阻尼积分 (Steering Dynamics)
     const yawError = diffAngle(hound.wantYaw, hound.yaw);
-    const targetYawRate = clampValue(
-      yawError * 6.0,
-      -HOUND_CONFIG.turnRate,
-      HOUND_CONFIG.turnRate
-    ) * (isLunging ? 2.0 : 1.0);
+    const targetYawRate =
+      clampValue(yawError * 6.0, -HOUND_CONFIG.turnRate, HOUND_CONFIG.turnRate) *
+      (isLunging ? 2.0 : 1.0);
 
     hound.yawRate += (targetYawRate - hound.yawRate) * (1 - Math.exp(-10 * dt));
     hound.yaw += hound.yawRate * dt;
@@ -2661,19 +3295,19 @@ function createHound(hiveCtx, rigDef, materials, index) {
     const cosYaw = Math.cos(hound.yaw);
 
     for (const other of hiveCtx.list) {
-      if (other === hound || other.type !== 'hound' || !other.active) continue;
+      if (other === hound || other.type !== "hound" || !other.active) continue;
       const sepX = hound.pos.x - other.pos.x;
       const sepZ = hound.pos.z - other.pos.z;
       const sepDist = Math.hypot(sepX, sepZ);
       if (sepDist < 1.7 && sepDist > 0.001) {
-        const force = (1.7 - sepDist) * 2.2 / sepDist;
+        const force = ((1.7 - sepDist) * 2.2) / sepDist;
         hound.push.x += sepX * force * dt * 6;
         hound.push.z += sepZ * force * dt * 6;
       }
     }
 
     if (player && !isLunging && distToPlayer < 1.25 && distToPlayer > 0.001) {
-      const force = (1.25 - distToPlayer) * 3.0 / distToPlayer;
+      const force = ((1.25 - distToPlayer) * 3.0) / distToPlayer;
       hound.push.x += (hound.pos.x - player.pos.x) * force * dt * 6;
       hound.push.z += (hound.pos.z - player.pos.z) * force * dt * 6;
     }
@@ -2690,14 +3324,19 @@ function createHound(hiveCtx, rigDef, materials, index) {
       hound.feelT = 0.12;
       houndEyeMuzzle.set(hound.pos.x, hound.pos.y + 0.55, hound.pos.z);
       muzzleAimDir.set(sinYaw, 0, cosYaw);
-      const hit = engineCtx.physics.raycast(houndEyeMuzzle, muzzleAimDir, 0.75 + hound.speed * 0.12);
+      const hit = engineCtx.physics.raycast(
+        houndEyeMuzzle,
+        muzzleAimDir,
+        0.75 + hound.speed * 0.12,
+      );
       hound.blocked = !!hit;
     } else if (hound.speed <= 0.3) {
       hound.blocked = false;
     }
 
     const isOffNav = navmesh.isWalkable && !navmesh.isWalkable(nextX, nextZ);
-    const isObstructed = (hound.blocked && !isLunging) || (hound.blocked && isLunging && hound.esT < 0.3);
+    const isObstructed =
+      (hound.blocked && !isLunging) || (hound.blocked && isLunging && hound.esT < 0.3);
 
     if (isOffNav || isObstructed) {
       if (hound.blocked) {
@@ -2718,14 +3357,16 @@ function createHound(hiveCtx, rigDef, materials, index) {
       if (hound.stuckT > 0.5) {
         hound.stuckT = 0;
         hound.planT = 0;
-        if (hound.mode === 'engage' && hound.es === 'move') seekCoverOrFlank();
-        else if (hound.mode === 'patrol') hound.hasGoal = false;
+        if (hound.mode === "engage" && hound.es === "move") seekCoverOrFlank();
+        else if (hound.mode === "patrol") hound.hasGoal = false;
       }
     }
 
     hound.pos.x = nextX;
     hound.pos.z = nextZ;
-    hound.pos.y += (engineCtx.physics.groundHeight(nextX, nextZ, hound.pos.y + 0.6) - hound.pos.y) * (1 - Math.exp(-12 * dt));
+    hound.pos.y +=
+      (engineCtx.physics.groundHeight(nextX, nextZ, hound.pos.y + 0.6) - hound.pos.y) *
+      (1 - Math.exp(-12 * dt));
 
     // 6. 四足小跑步态推进 (Trotting Locomotion Dynamics)
     updateHoundLocomotion(dt);
@@ -2756,14 +3397,23 @@ function createHound(hiveCtx, rigDef, materials, index) {
       const dx = headLookTarget.x - hound.pos.x;
       const dz = headLookTarget.z - hound.pos.z;
       const dy = headLookTarget.y + 1.2 - (bodyHeight + 0.2);
-      targetHeadYaw = clampValue(Math.atan2(dx * cosY - dz * sinY, dx * sinY + dz * cosY), -1.2, 1.2);
+      targetHeadYaw = clampValue(
+        Math.atan2(dx * cosY - dz * sinY, dx * sinY + dz * cosY),
+        -1.2,
+        1.2,
+      );
       targetHeadPitch = clampValue(Math.atan2(-dy, Math.hypot(dx, dz)), -0.6, 0.5);
     } else {
-      targetHeadYaw = Math.sin(hiveCtx.t * 0.7 + hound.phase) * 0.5 + clampValue(hound.yawRate * 0.25, -0.6, 0.6);
+      targetHeadYaw =
+        Math.sin(hiveCtx.t * 0.7 + hound.phase) * 0.5 + clampValue(hound.yawRate * 0.25, -0.6, 0.6);
     }
 
     const turretTurnStep = clampValue(4.5 * dt, 0, 1);
-    hound.tyaw += clampValue(diffAngle(targetTurretYaw, hound.tyaw), -turretTurnStep, turretTurnStep);
+    hound.tyaw += clampValue(
+      diffAngle(targetTurretYaw, hound.tyaw),
+      -turretTurnStep,
+      turretTurnStep,
+    );
     hound.tpitch += (targetTurretPitch - hound.tpitch) * (1 - Math.exp(-10 * dt));
 
     const headSmoothing = 1 - Math.exp(-7 * dt);
@@ -2774,11 +3424,12 @@ function createHound(hiveCtx, rigDef, materials, index) {
     applyIKAndPose(dt);
 
     // 9. 战术闪光与灯效
-    const beaconFreq = (hiveCtx.t * (hound.mode === 'patrol' ? 0.8 : 2.2) + hound.phase) % 1;
+    const beaconFreq = (hiveCtx.t * (hound.mode === "patrol" ? 0.8 : 2.2) + hound.phase) % 1;
     const isBeaconOn = beaconFreq < 0.12 || (beaconFreq > 0.22 && beaconFreq < 0.3);
     bones.beacon.scale.setScalar(isBeaconOn ? 1 : 1e-4);
 
-    const targetLensColor = hound.mode === 'engage' ? LENS_COLOR_RED_ALERT : LENS_COLOR_AMBER_PATROL;
+    const targetLensColor =
+      hound.mode === "engage" ? LENS_COLOR_RED_ALERT : LENS_COLOR_AMBER_PATROL;
     const lensBrightness = 1 + hound.flare * 3.5;
     for (let c = 0; c < 3; c++) {
       hound.lensC[c] += (targetLensColor[c] - hound.lensC[c]) * (1 - Math.exp(-8 * dt));
@@ -2786,7 +3437,7 @@ function createHound(hiveCtx, rigDef, materials, index) {
     lensMat.color.setRGB(
       hound.lensC[0] * lensBrightness,
       hound.lensC[1] * lensBrightness,
-      hound.lensC[2] * lensBrightness
+      hound.lensC[2] * lensBrightness,
     );
     hound.flare = Math.max(0, hound.flare - dt * 2.0);
 
@@ -2803,7 +3454,9 @@ function createHound(hiveCtx, rigDef, materials, index) {
 
     if (hound.loop) {
       hound.loop.setPos(hound.pos);
-      hound.loop.setGain(clampValue(0.12 + hound.speed * 0.12 + Math.abs(hound.yawRate) * 0.1, 0, 0.8));
+      hound.loop.setGain(
+        clampValue(0.12 + hound.speed * 0.12 + Math.abs(hound.yawRate) * 0.1, 0, 0.8),
+      );
       hound.loop.setPitch(0.8 + hound.speed * 0.08);
     }
   }
@@ -2832,11 +3485,11 @@ function createHound(hiveCtx, rigDef, materials, index) {
             legIdx,
             hound.pos.x + moveDirX * stepDuration,
             hound.pos.z + moveDirZ * stepDuration,
-            hound.yaw + hound.yawRate * stepDuration
+            hound.yaw + hound.yawRate * stepDuration,
           );
           const d = Math.hypot(
             footScratchPos.x - hound.feet[legIdx].p.x,
-            footScratchPos.z - hound.feet[legIdx].p.z
+            footScratchPos.z - hound.feet[legIdx].p.z,
           );
           if (d > pairDisp) pairDisp = d;
         }
@@ -2863,12 +3516,12 @@ function createHound(hiveCtx, rigDef, materials, index) {
             legIdx,
             hound.pos.x + moveDirX * stepDuration * 1.5,
             hound.pos.z + moveDirZ * stepDuration * 1.5,
-            hound.yaw + hound.yawRate * stepDuration * 1.5
+            hound.yaw + hound.yawRate * stepDuration * 1.5,
           );
           footRecord.to.y = engineCtx.physics.groundHeight(
             footRecord.to.x,
             footRecord.to.z,
-            hound.pos.y + 0.6
+            hound.pos.y + 0.6,
           );
         }
       }
@@ -2887,11 +3540,11 @@ function createHound(hiveCtx, rigDef, materials, index) {
       if (hound.swT >= 1) {
         // 落地踏步撞击与音效事件 (Foot Plant Contact Event)
         const plantFoot = hound.feet[DIAGONAL_LEG_PAIRS[hound.sw][0]];
-        engineCtx.events.emit('enemy:step', {
+        engineCtx.events.emit("enemy:step", {
           pos: plantFoot.p,
-          type: 'hound',
+          type: "hound",
           enemy: hound,
-          speed: hound.speed
+          speed: hound.speed,
         });
         hound.sY.v -= 0.12 + hound.speed * 0.03; // 踏步底盘反冲
         hound.lastPair = hound.sw;
@@ -2909,20 +3562,24 @@ function createHound(hiveCtx, rigDef, materials, index) {
 
     // 四足支撑多边形高度平均
     const frontGroundY = (hound.feet[0].p.y + hound.feet[1].p.y) * 0.5;
-    const rearGroundY  = (hound.feet[2].p.y + hound.feet[3].p.y) * 0.5;
-    const leftGroundY  = (hound.feet[0].p.y + hound.feet[2].p.y) * 0.5;
+    const rearGroundY = (hound.feet[2].p.y + hound.feet[3].p.y) * 0.5;
+    const leftGroundY = (hound.feet[0].p.y + hound.feet[2].p.y) * 0.5;
     const rightGroundY = (hound.feet[1].p.y + hound.feet[3].p.y) * 0.5;
 
     const terrainHeightDelta = (frontGroundY + rearGroundY) * 0.5 - hound.pos.y;
     const accelDelta = dt > 0 ? (hound.speed - hound.prevSpeed) / dt : 0;
 
-    let targetChassisPitch = Math.atan2(rearGroundY - frontGroundY, 0.8) * 0.6 + clampValue(accelDelta * 0.006, -0.07, 0.07);
-    let targetChassisRoll  = Math.atan2(leftGroundY - rightGroundY, 0.55) * 0.6 + clampValue(hound.yawRate * hound.speed * 0.02, -0.12, 0.12);
+    let targetChassisPitch =
+      Math.atan2(rearGroundY - frontGroundY, 0.8) * 0.6 +
+      clampValue(accelDelta * 0.006, -0.07, 0.07);
+    let targetChassisRoll =
+      Math.atan2(leftGroundY - rightGroundY, 0.55) * 0.6 +
+      clampValue(hound.yawRate * hound.speed * 0.02, -0.12, 0.12);
     let targetChassisHeave = terrainHeightDelta * 0.45 - Math.min(0.05, hound.speed * 0.011);
 
     if (!hound.alive) {
       targetChassisPitch = hound.diePitch;
-      targetChassisRoll  = hound.dieRoll;
+      targetChassisRoll = hound.dieRoll;
       targetChassisHeave = 0;
     } else {
       springDamper(hound.sY, targetChassisHeave, 160, 17, dt);
@@ -2934,8 +3591,8 @@ function createHound(hiveCtx, rigDef, materials, index) {
     const idleBreathing = hound.alive ? Math.sin(hiveCtx.t * 1.7 + hound.phase) * 0.004 : 0;
     const bodyLocalX = hound.sL.x;
     const bodyLocalY = HOUND_RIG_SPEC.stand + hound.sY.x - hound.crouch + idleBreathing;
-    const bodyPitch  = hound.sP.x;
-    const bodyRoll   = hound.sR.x;
+    const bodyPitch = hound.sP.x;
+    const bodyRoll = hound.sR.x;
 
     skinnedMeshWrapper.group.rotation.y = hound.yaw;
     bones.body.position.set(bodyLocalX, bodyLocalY, 0);
@@ -2946,15 +3603,15 @@ function createHound(hiveCtx, rigDef, materials, index) {
     bones.head.rotation.set(hound.hpitch, hound.hyaw, 0);
 
     // 战术天线柔性摆动 (Antenna Whip Inertia)
-    springDamper(hound.sA,  clampValue(-accelDelta * 0.03 - bodyPitch, -0.6, 0.6), 60, 5, dt);
+    springDamper(hound.sA, clampValue(-accelDelta * 0.03 - bodyPitch, -0.6, 0.6), 60, 5, dt);
     springDamper(hound.sA2, clampValue(hound.yawRate * 0.12 - bodyRoll, -0.6, 0.6), 60, 5, dt);
     bones.antenna.rotation.set(hound.sA.x, 0, hound.sA2.x);
 
     // 肢体关节逆运动学变换矩阵解算 (Transform to Hip Local Space for IK)
     const cosPitch = Math.cos(bodyPitch);
     const sinPitch = Math.sin(bodyPitch);
-    const cosRoll  = Math.cos(bodyRoll);
-    const sinRoll  = Math.sin(bodyRoll);
+    const cosRoll = Math.cos(bodyRoll);
+    const sinRoll = Math.sin(bodyRoll);
 
     for (let i = 0; i < 4; i++) {
       const footPos = hound.feet[i].p;
@@ -2982,7 +3639,7 @@ function createHound(hiveCtx, rigDef, materials, index) {
         HOUND_RIG_SPEC.side[i],
         HOUND_RIG_SPEC.l0,
         HOUND_RIG_SPEC.L1,
-        HOUND_RIG_SPEC.L2 - HOUND_RIG_SPEC.footR * 0.6
+        HOUND_RIG_SPEC.L2 - HOUND_RIG_SPEC.footR * 0.6,
       );
 
       abdJoints[i].rotation.z = ikAngles.abd;
@@ -3002,10 +3659,10 @@ function createHound(hiveCtx, rigDef, materials, index) {
     hiveCtx.releaseToken(hound);
     hound.dieT = 0;
     hound.vy = 0;
-    hound.es = 'move';
+    hound.es = "move";
     bones.beacon.scale.setScalar(1e-4);
 
-    hound.dieRoll  = (rng() < 0.5 ? -1 : 1) * (0.25 + rng() * 0.3);
+    hound.dieRoll = (rng() < 0.5 ? -1 : 1) * (0.25 + rng() * 0.3);
     hound.diePitch = (rng() - 0.5) * 0.25;
     hound.sR.v += hound.dieRoll * 3.0;
     hound.sP.v += (rng() - 0.5) * 2.0;
@@ -3026,7 +3683,7 @@ function createHound(hiveCtx, rigDef, materials, index) {
     footScratchPos.copy(hound.headPos);
     engineCtx.fx.sparks(footScratchPos, DOWN_DIR, 16);
     engineCtx.fx.debris(footScratchPos, { count: 4 });
-    engineCtx.events.emit('enemy:killed', { enemy: hound, pos: hound.pos, type: 'hound' });
+    engineCtx.events.emit("enemy:killed", { enemy: hound, pos: hound.pos, type: "hound" });
     hiveCtx.addWreck(hound);
   }
 
@@ -3052,12 +3709,12 @@ function createHound(hiveCtx, rigDef, materials, index) {
       if (hound.sY.x < groundFloorY) {
         hound.sY.x = groundFloorY;
         if (hound.vy < -1.2) {
-          engineCtx.events.emit('enemy:step', {
+          engineCtx.events.emit("enemy:step", {
             pos: hound.pos,
-            type: 'hound',
+            type: "hound",
             enemy: hound,
             speed: 5,
-            crash: true
+            crash: true,
           });
           engineCtx.fx.dust(hound.pos, DOWN_DIR);
         }
@@ -3084,9 +3741,12 @@ function createHound(hiveCtx, rigDef, materials, index) {
       hound.hyaw += (hound.dieRoll - hound.hyaw) * (1 - Math.exp(-3 * dt));
       hound.tpitch += (0.3 - hound.tpitch) * (1 - Math.exp(-4 * dt));
 
-      const deathFlicker = timeSinceDeath < 1.2
-        ? (Math.sin(timeSinceDeath * 60) > 0.2 ? 1 - timeSinceDeath / 1.2 : 0.05)
-        : 0.02;
+      const deathFlicker =
+        timeSinceDeath < 1.2
+          ? Math.sin(timeSinceDeath * 60) > 0.2
+            ? 1 - timeSinceDeath / 1.2
+            : 0.05
+          : 0.02;
       lensMat.color.setRGB(6 * deathFlicker + 0.05, 0.6 * deathFlicker + 0.01, 0.2 * deathFlicker);
 
       applyIKAndPose(dt);
@@ -3099,9 +3759,14 @@ function createHound(hiveCtx, rigDef, materials, index) {
         footScratchPos.set(
           hound.pos.x + (rng() - 0.5) * 0.4,
           hound.pos.y + 0.42,
-          hound.pos.z + (rng() - 0.5) * 0.4
+          hound.pos.z + (rng() - 0.5) * 0.4,
         );
-        engineCtx.fx.smoke(footScratchPos, { size: 0.5 + rng() * 0.3, life: 1.8, color: 0x17181b, rise: 1.1 });
+        engineCtx.fx.smoke(footScratchPos, {
+          size: 0.5 + rng() * 0.3,
+          life: 1.8,
+          color: 0x17181b,
+          rise: 1.1,
+        });
 
         if (timeSinceDeath < 4.0 && rng() < 0.55) {
           tempSparkPos.set(rng() - 0.5, 1, rng() - 0.5).normalize();
@@ -3109,13 +3774,20 @@ function createHound(hiveCtx, rigDef, materials, index) {
         }
 
         if (timeSinceDeath < 3.5 && rng() < 0.4) {
-          engineCtx.fx.smoke(footScratchPos, { size: 0.22, life: 0.45, color: 0xff7b22, rise: 1.6 });
+          engineCtx.fx.smoke(footScratchPos, {
+            size: 0.22,
+            life: 0.45,
+            color: 0xff7b22,
+            rise: 1.6,
+          });
         }
       }
     } else if (!hound.wreck) {
       hound.wreck = true;
       if (hound.loop) {
-        try { hound.loop.stop(); } catch {}
+        try {
+          hound.loop.stop();
+        } catch {}
         hound.loop = null;
       }
     }
@@ -3206,22 +3878,22 @@ const nM = intersectRayCapsule;
 // ============================================================================
 
 const TUNE = {
-  gull: Zv,               // 机械飞鸥专属数值配置
-  hound: Kv,              // 机械猎犬专属数值配置
-  sightRange: 45,         // 基础视觉感知半径 (米)
-  sightCone: 200,         // 视野广角锥度 (度)
-  loseSight: 4,           // 脱离视线后维持交火目标倒计时 (秒)
-  searchTime: 8,          // 到达最后目击点后的搜寻时间 (秒)
-  hearRadius: 45,         // 枪声/爆炸声听觉警觉半径 (米)
-  maxTokens: 2,           // 默认并发射击许可令牌数 (防止多敌同时齐射集火秒杀玩家)
-  maxTokensCrowd: 3,      // 群体包围战况下的并发攻击令牌数
-  tokenGap: 1.25,         // 两次攻击令牌发放之间的最小硬冷却 (秒)
-  exposureUp: 0.1,        // 视线暴露值递增速率 (秒^-1)
-  exposureDown: 0.45,     // 脱离视线暴露值衰减速率
-  poolGulls: 10,          // 机械飞鸥对象池容量
-  poolHounds: 8,          // 机械猎犬对象池容量
-  maxWrecks: 5,           // 场景中保留的最大残骸数量
-  maxBolts: 32            // 场景中飞行的等离子脉冲弹丸最大并发数
+  gull: Zv, // 机械飞鸥专属数值配置
+  hound: Kv, // 机械猎犬专属数值配置
+  sightRange: 45, // 基础视觉感知半径 (米)
+  sightCone: 200, // 视野广角锥度 (度)
+  loseSight: 4, // 脱离视线后维持交火目标倒计时 (秒)
+  searchTime: 8, // 到达最后目击点后的搜寻时间 (秒)
+  hearRadius: 45, // 枪声/爆炸声听觉警觉半径 (米)
+  maxTokens: 2, // 默认并发射击许可令牌数 (防止多敌同时齐射集火秒杀玩家)
+  maxTokensCrowd: 3, // 群体包围战况下的并发攻击令牌数
+  tokenGap: 1.25, // 两次攻击令牌发放之间的最小硬冷却 (秒)
+  exposureUp: 0.1, // 视线暴露值递增速率 (秒^-1)
+  exposureDown: 0.45, // 脱离视线暴露值衰减速率
+  poolGulls: 10, // 机械飞鸥对象池容量
+  poolHounds: 8, // 机械猎犬对象池容量
+  maxWrecks: 5, // 场景中保留的最大残骸数量
+  maxBolts: 32, // 场景中飞行的等离子脉冲弹丸最大并发数
 };
 
 const Ui = TUNE;
@@ -3245,12 +3917,12 @@ const vPlayerHead = new W();
  * @param {object} ctx 全局引擎上下文
  */
 async function createEnemiesManager(ctx) {
-  const rng = il(+(ctx.params && ctx.params.eseed || 9001));
+  const rng = il(+((ctx.params && ctx.params.eseed) || 9001));
   const activeEnemies = [];
   const activeWrecks = [];
 
   const rootGroup = new wt();
-  rootGroup.name = 'enemies';
+  rootGroup.name = "enemies";
   ctx.scene.add(rootGroup);
 
   // 预热发光与装甲着色材质
@@ -3261,15 +3933,16 @@ async function createEnemiesManager(ctx) {
   glowMat.needsUpdate = true;
 
   const orangeEmissive = ctx.mats.emissive(0xffa000, 6);
-  const lensBaseMat = orangeEmissive && orangeEmissive.isMeshBasicMaterial
-    ? orangeEmissive
-    : new Nn({ color: 0xffa000 });
+  const lensBaseMat =
+    orangeEmissive && orangeEmissive.isMeshBasicMaterial
+      ? orangeEmissive
+      : new Nn({ color: 0xffa000 });
 
   const isToneMapped = whiteMat && whiteMat.toneMapped !== undefined ? whiteMat.toneMapped : true;
 
   const enemyMaterials = {
-    shell: ctx.mats.get('armor_white', { triplanar: true, vertexColors: true }),
-    metal: ctx.mats.get('gunmetal', { triplanar: true, vertexColors: true }),
+    shell: ctx.mats.get("armor_white", { triplanar: true, vertexColors: true }),
+    metal: ctx.mats.get("gunmetal", { triplanar: true, vertexColors: true }),
     glow: glowMat,
     lensBase: lensBaseMat,
     disc: new Nn({
@@ -3278,12 +3951,12 @@ async function createEnemiesManager(ctx) {
       opacity: 0.42,
       depthWrite: false,
       side: Sn,
-      toneMapped: isToneMapped
+      toneMapped: isToneMapped,
     }),
     cone: new zn({
       uniforms: {
         uColor: { value: new Ve(1, 0.9, 0.74) },
-        uGain: { value: 0.085 }
+        uGain: { value: 0.085 },
       },
       vertexShader: `
         #include <common>
@@ -3313,8 +3986,8 @@ async function createEnemiesManager(ctx) {
       blending: hr,
       depthWrite: false,
       side: Sn,
-      fog: false
-    })
+      fog: false,
+    }),
   };
 
   // 群落共享运行时上下文
@@ -3326,9 +3999,9 @@ async function createEnemiesManager(ctx) {
     playerSpeed: 0,
     tokens: 0,
     tokenT: -9,
-    lastType: '',
+    lastType: "",
     wantT: { gull: -9, hound: -9 },
-    mergeSimple: geos => sa(geos, false),
+    mergeSimple: (geos) => sa(geos, false),
 
     /**
      * 申请射击/突袭许可令牌 (Token Management)
@@ -3341,12 +4014,17 @@ async function createEnemiesManager(ctx) {
 
       const maxAllowed = aliveCount > 5 ? TUNE.maxTokensCrowd : TUNE.maxTokens;
       const timeSinceLastToken = hiveContext.t - hiveContext.tokenT;
-      const otherType = enemy.type === 'gull' ? 'hound' : 'gull';
-      const isRepeatedTypeTooFast = hiveContext.lastType === enemy.type &&
-        (hiveContext.t - hiveContext.wantT[otherType]) < 0.5 &&
+      const otherType = enemy.type === "gull" ? "hound" : "gull";
+      const isRepeatedTypeTooFast =
+        hiveContext.lastType === enemy.type &&
+        hiveContext.t - hiveContext.wantT[otherType] < 0.5 &&
         timeSinceLastToken < TUNE.tokenGap * 2.2;
 
-      if (hiveContext.tokens >= maxAllowed || timeSinceLastToken < TUNE.tokenGap || isRepeatedTypeTooFast) {
+      if (
+        hiveContext.tokens >= maxAllowed ||
+        timeSinceLastToken < TUNE.tokenGap ||
+        isRepeatedTypeTooFast
+      ) {
         hiveContext.wantT[enemy.type] = hiveContext.t;
         return false;
       }
@@ -3390,7 +4068,7 @@ async function createEnemiesManager(ctx) {
           if (dist < TUNE.sightRange) {
             const planarDist = Math.hypot(dx, dz) || 1e-4;
             const facingDot = (dx * enemy.fwd.x + dz * enemy.fwd.z) / planarDist;
-            if (enemy.mode === 'engage' || facingDot > SIGHT_CONE_COS || dist < 3.5) {
+            if (enemy.mode === "engage" || facingDot > SIGHT_CONE_COS || dist < 3.5) {
               canSee = ctx.physics.lineOfSight(enemy.sensor, eyePos);
             }
           }
@@ -3409,21 +4087,24 @@ async function createEnemiesManager(ctx) {
         enemy.exposure = Math.max(0, enemy.exposure - dt * TUNE.exposureDown);
       }
 
-      if (enemy.mode === 'engage') {
+      if (enemy.mode === "engage") {
         if (enemy.noSeeT > TUNE.loseSight || player.alive === false) {
-          enemy.mode = 'search';
+          enemy.mode = "search";
           enemy.modeT = TUNE.searchTime + rng() * 3;
           hiveContext.releaseToken(enemy);
         }
-      } else if (enemy.los && enemy.seeT > (enemy.mode === 'patrol' ? seeThreshold : seeThreshold * 0.45)) {
-        enemy.mode = 'engage';
+      } else if (
+        enemy.los &&
+        enemy.seeT > (enemy.mode === "patrol" ? seeThreshold : seeThreshold * 0.45)
+      ) {
+        enemy.mode = "engage";
         enemy.noSeeT = 0;
-        ctx.events.emit('enemy:alert', { enemy });
+        ctx.events.emit("enemy:alert", { enemy });
         hiveContext.rally(enemy.pos, 18, player.pos, enemy);
-      } else if (enemy.mode !== 'patrol') {
+      } else if (enemy.mode !== "patrol") {
         enemy.modeT -= dt;
         if (enemy.modeT <= 0) {
-          enemy.mode = 'patrol';
+          enemy.mode = "patrol";
           enemy.home.x = enemy.pos.x;
           enemy.home.z = enemy.pos.z;
         }
@@ -3432,10 +4113,10 @@ async function createEnemiesManager(ctx) {
 
     rally(origin, radius, targetPos, caller) {
       for (const e of activeEnemies) {
-        if (e === caller || !e.alive || e.passive || e.mode === 'engage') continue;
+        if (e === caller || !e.alive || e.passive || e.mode === "engage") continue;
         if (e.pos.distanceToSquared(origin) > radius * radius) continue;
         e.lastKnown.copy(targetPos);
-        e.mode = 'investigate';
+        e.mode = "investigate";
         e.modeT = 9 + rng() * 4;
       }
     },
@@ -3443,9 +4124,9 @@ async function createEnemiesManager(ctx) {
     provoke(enemy) {
       const player = ctx.player;
       if (!player || enemy.passive || !enemy.alive) return;
-      if (enemy.mode !== 'engage') {
+      if (enemy.mode !== "engage") {
         enemy.lastKnown.copy(player.pos);
-        enemy.mode = 'investigate';
+        enemy.mode = "investigate";
         enemy.modeT = 10;
         enemy.seeT = 1;
         enemy.senseT = 0;
@@ -3485,7 +4166,7 @@ async function createEnemiesManager(ctx) {
       if (idxList >= 0) activeEnemies.splice(idxList, 1);
       const idxWreck = activeWrecks.indexOf(enemy);
       if (idxWreck >= 0) activeWrecks.splice(idxWreck, 1);
-    }
+    },
   };
 
   // 预生成程序化 3D 骨架模型
@@ -3517,7 +4198,7 @@ async function createEnemiesManager(ctx) {
       len: 0,
       pos: new W(),
       dir: new W(),
-      from: new W()
+      from: new W(),
     });
   }
 
@@ -3526,9 +4207,10 @@ async function createEnemiesManager(ctx) {
   boltGeo.translate(0, 0, -0.5);
 
   const boltEmissive = ctx.mats.emissive(0xff681a, 14);
-  const boltMat = boltEmissive && boltEmissive.isMeshBasicMaterial
-    ? boltEmissive
-    : new Nn({ color: new Ve(0xff681a).multiplyScalar(14) });
+  const boltMat =
+    boltEmissive && boltEmissive.isMeshBasicMaterial
+      ? boltEmissive
+      : new Nn({ color: new Ve(0xff681a).multiplyScalar(14) });
 
   const boltInstancedMesh = new Sr(boltGeo, boltMat, TUNE.maxBolts);
   boltInstancedMesh.frustumCulled = false;
@@ -3542,11 +4224,11 @@ async function createEnemiesManager(ctx) {
     point: new W(),
     normal: new W(),
     dist: 0,
-    surface: 'concrete',
+    surface: "concrete",
     enemy: null,
     part: null,
     dir: new W(),
-    from: 'enemy'
+    from: "enemy",
   };
 
   /**
@@ -3591,7 +4273,7 @@ async function createEnemiesManager(ctx) {
         impactEventData.dist = envHit.dist;
         impactEventData.surface = envHit.surface;
         impactEventData.dir.copy(bolt.dir);
-        ctx.events.emit('impact', impactEventData);
+        ctx.events.emit("impact", impactEventData);
         bolt.on = false;
         continue;
       }
@@ -3627,7 +4309,10 @@ async function createEnemiesManager(ctx) {
     if (!spotlightAcquired) {
       spotlightAcquired = true;
       try {
-        spotlightHolder = ctx.render && ctx.render.lightPool && ctx.render.lightPool.acquire ? ctx.render.lightPool.acquire() : null;
+        spotlightHolder =
+          ctx.render && ctx.render.lightPool && ctx.render.lightPool.acquire
+            ? ctx.render.lightPool.acquire()
+            : null;
       } catch (e) {
         spotlightHolder = null;
       }
@@ -3644,7 +4329,7 @@ async function createEnemiesManager(ctx) {
     const camPos = ctx.camera ? ctx.camera.position : null;
 
     for (const enemy of activeEnemies) {
-      if (enemy.type !== 'gull' || !enemy.alive) continue;
+      if (enemy.type !== "gull" || !enemy.alive) continue;
       const dSq = camPos ? enemy.pos.distanceToSquared(camPos) : 0;
       if (dSq < minCamDistSq) {
         minCamDistSq = dSq;
@@ -3659,7 +4344,9 @@ async function createEnemiesManager(ctx) {
         spotlightTimer = 0.1;
         const netYaw = nearestGull.yaw + nearestGull.gy;
         const cosPitch = Math.cos(nearestGull.gp);
-        vTempDir.set(Math.sin(netYaw) * cosPitch, -Math.sin(nearestGull.gp), Math.cos(netYaw) * cosPitch).normalize();
+        vTempDir
+          .set(Math.sin(netYaw) * cosPitch, -Math.sin(nearestGull.gp), Math.cos(netYaw) * cosPitch)
+          .normalize();
         const hit = ctx.physics.raycast(nearestGull.sensor, vTempDir, 14);
         vSpotTarget.copy(nearestGull.sensor).addScaledVector(vTempDir, (hit ? hit.dist : 8) - 0.6);
         spotFactor = hit ? 1 : 0.3;
@@ -3668,7 +4355,8 @@ async function createEnemiesManager(ctx) {
       spotlightHolder.light.position.lerp(vSpotTarget, 1 - Math.exp(-12 * dt));
     }
 
-    spotlightHolder.light.intensity += (targetIntensity - spotlightHolder.light.intensity) * (1 - Math.exp(-8 * dt));
+    spotlightHolder.light.intensity +=
+      (targetIntensity - spotlightHolder.light.intensity) * (1 - Math.exp(-8 * dt));
   }
 
   let nextEnemyId = 1;
@@ -3686,7 +4374,7 @@ async function createEnemiesManager(ctx) {
      * @returns {object|null}
      */
     spawn(type, spawnPos, options = {}) {
-      const pool = type === 'gull' ? gullPool : type === 'hound' ? houndPool : null;
+      const pool = type === "gull" ? gullPool : type === "hound" ? houndPool : null;
       if (!pool) return null;
 
       let enemy = null;
@@ -3698,7 +4386,7 @@ async function createEnemiesManager(ctx) {
       }
 
       // 猎犬超量时回收最旧残骸
-      if (!enemy && type === 'hound' && activeWrecks.length) {
+      if (!enemy && type === "hound" && activeWrecks.length) {
         const recycled = activeWrecks[0];
         hiveContext.retire(recycled);
         enemy = recycled;
@@ -3708,7 +4396,7 @@ async function createEnemiesManager(ctx) {
         enemy.id = nextEnemyId++;
         activeEnemies.push(enemy);
         enemy._activate(spawnPos, options);
-        ctx.events.emit('enemy:spawn', { enemy });
+        ctx.events.emit("enemy:spawn", { enemy });
         return enemy;
       }
       return null;
@@ -3729,7 +4417,7 @@ async function createEnemiesManager(ctx) {
         if (!enemy.alive) continue;
 
         const dx = enemy.pos.x - origin.x;
-        const dy = enemy.pos.y + (enemy.type === 'hound' ? 0.6 : 0) - origin.y;
+        const dy = enemy.pos.y + (enemy.type === "hound" ? 0.6 : 0) - origin.y;
         const dz = enemy.pos.z - origin.z;
         const proj = dx * dir.x + dy * dir.y + dz * dir.z;
 
@@ -3743,7 +4431,7 @@ async function createEnemiesManager(ctx) {
             point: new W(),
             normal: new W(),
             enemy: null,
-            part: 'body'
+            part: "body",
           };
         }
 
@@ -3777,14 +4465,14 @@ async function createEnemiesManager(ctx) {
      */
     alert(origin, radius = 40) {
       for (const e of activeEnemies) {
-        if (!e.alive || e.passive || e.mode === 'engage') continue;
+        if (!e.alive || e.passive || e.mode === "engage") continue;
         if (e.pos.distanceToSquared(origin) > radius * radius) continue;
         e.lastKnown.copy(origin);
         e.lastKnown.y = Math.max(0, origin.y - 1.6);
-        if (e.mode === 'patrol') {
-          ctx.events.emit('enemy:alert', { enemy: e, noise: true });
+        if (e.mode === "patrol") {
+          ctx.events.emit("enemy:alert", { enemy: e, noise: true });
         }
-        e.mode = 'investigate';
+        e.mode = "investigate";
         e.modeT = 9 + rng() * 4;
       }
     },
@@ -3801,7 +4489,7 @@ async function createEnemiesManager(ctx) {
 
       const player = ctx.player;
       if (player) {
-        const speed = player.vel ? Math.hypot(player.vel.x, player.vel.z) : (player.speed || 0);
+        const speed = player.vel ? Math.hypot(player.vel.x, player.vel.z) : player.speed || 0;
         hiveContext.playerSpeed += (speed - hiveContext.playerSpeed) * (1 - Math.exp(-6 * dt));
       }
 
@@ -3822,12 +4510,12 @@ async function createEnemiesManager(ctx) {
       mats: enemyMaterials,
       tris: {
         gull: gullRigDef.tris + gullRigDef.extra.tris,
-        hound: houndRigDef.tris
-      }
-    }
+        hound: houndRigDef.tris,
+      },
+    },
   };
 
-  ctx.events.on('weapon:fire', e => {
+  ctx.events.on("weapon:fire", (e) => {
     if (gunshotAlertCooldown > 0) return;
     gunshotAlertCooldown = 0.3;
     const origin = (e && (e.origin || e.muzzle)) || (ctx.player && ctx.player.pos);
@@ -3836,14 +4524,14 @@ async function createEnemiesManager(ctx) {
     }
   });
 
-  ctx.events.on('explosion', e => {
+  ctx.events.on("explosion", (e) => {
     if (e && e.pos) {
       enemiesManager.alert(e.pos, 30);
     }
   });
 
-  ctx.events.on('game:state', e => {
-    if (e && e.state === 'title') {
+  ctx.events.on("game:state", (e) => {
+    if (e && e.state === "title") {
       enemiesManager.clear();
     }
   });
@@ -3888,7 +4576,8 @@ function segmentSegmentDistanceSq(segA1, segA2, segB1, segB2) {
       const dotAB = vSegA.dot(vSegB);
       const denom = lenSqA * lenSqB - dotAB * dotAB;
 
-      s = denom > 1e-9 ? Math.min(1, Math.max(0, (dotAB * dotBOrig - dotAOrig * lenSqB) / denom)) : 0;
+      s =
+        denom > 1e-9 ? Math.min(1, Math.max(0, (dotAB * dotBOrig - dotAOrig * lenSqB) / denom)) : 0;
       t = (dotAB * s + dotBOrig) / lenSqB;
 
       if (t < 0) {
@@ -3922,58 +4611,72 @@ async function createShowcase(ctx) {
   ctx.enemies = manager;
 
   const mkVec = (x, y, z) => new W(x, y, z);
-  const showMode = ctx.params.eshow || 'both';
+  const showMode = ctx.params.eshow || "both";
 
   let camPos = [3, 1.45, 3.9];
   let camTarget = [0.5, 0.95, 0];
   let warmupSeconds = 2.6;
 
-  if (showMode === 'gull') {
-    manager.spawn('gull', mkVec(0, 1.6, 0), { passive: true, hover: 1.6, patrolRadius: 0.02, yaw: 0.7 });
+  if (showMode === "gull") {
+    manager.spawn("gull", mkVec(0, 1.6, 0), {
+      passive: true,
+      hover: 1.6,
+      patrolRadius: 0.02,
+      yaw: 0.7,
+    });
     camPos = [1.25, 1.95, 1.45];
     camTarget = [0, 1.52, 0];
     warmupSeconds = 1.2;
-  } else if (showMode === 'hound') {
-    manager.spawn('hound', mkVec(0, 0, 0), {
+  } else if (showMode === "hound") {
+    manager.spawn("hound", mkVec(0, 0, 0), {
       passive: true,
       yaw: 0.9,
-      patrolLine: [mkVec(1.6, 0, 1.3), mkVec(-1.6, 0, -1.3)]
+      patrolLine: [mkVec(1.6, 0, 1.3), mkVec(-1.6, 0, -1.3)],
     });
     camPos = [2.1, 1, 2.3];
     camTarget = [0.5, 0.62, 0.4];
     warmupSeconds = 1.25;
-  } else if (showMode === 'fight') {
-    manager.spawn('hound', mkVec(-7, 0, -9), { state: 'alert' });
-    manager.spawn('hound', mkVec(8, 0, -7), { state: 'alert' });
-    manager.spawn('hound', mkVec(0, 0, -14), { state: 'alert' });
-    manager.spawn('gull', mkVec(-5, 6, -13), { state: 'alert' });
-    manager.spawn('gull', mkVec(9, 6, -11), { state: 'alert' });
+  } else if (showMode === "fight") {
+    manager.spawn("hound", mkVec(-7, 0, -9), { state: "alert" });
+    manager.spawn("hound", mkVec(8, 0, -7), { state: "alert" });
+    manager.spawn("hound", mkVec(0, 0, -14), { state: "alert" });
+    manager.spawn("gull", mkVec(-5, 6, -13), { state: "alert" });
+    manager.spawn("gull", mkVec(9, 6, -11), { state: "alert" });
     camPos = [5, 2.6, 10];
     camTarget = [0, 2.2, -5];
     warmupSeconds = 7;
-  } else if (showMode === 'dead') {
-    const hound = manager.spawn('hound', mkVec(0, 0, 0), { passive: true, yaw: 0.8 });
-    const gull = manager.spawn('gull', mkVec(-1.6, 3.4, -0.5), { passive: true, hover: 3.4, patrolRadius: 0.02 });
-    manager.spawn('hound', mkVec(2.2, 0, -1.6), {
+  } else if (showMode === "dead") {
+    const hound = manager.spawn("hound", mkVec(0, 0, 0), { passive: true, yaw: 0.8 });
+    const gull = manager.spawn("gull", mkVec(-1.6, 3.4, -0.5), {
+      passive: true,
+      hover: 3.4,
+      patrolRadius: 0.02,
+    });
+    manager.spawn("hound", mkVec(2.2, 0, -1.6), {
       passive: true,
       yaw: -0.6,
-      patrolLine: [mkVec(2.2, 0, -1.6), mkVec(3.4, 0, -3)]
+      patrolLine: [mkVec(2.2, 0, -1.6), mkVec(3.4, 0, -3)],
     });
 
     for (let i = 0; i < 30; i++) manager.update(1 / 60);
-    hound.damage(999, hound.pos, mkVec(0.6, 0, -0.8), 'body');
-    for (let i = 0; i < 110; i++) manager.update(1/ 60);
-    gull.damage(999, gull.pos, mkVec(0, 0, 1), 'body');
+    hound.damage(999, hound.pos, mkVec(0.6, 0, -0.8), "body");
+    for (let i = 0; i < 110; i++) manager.update(1 / 60);
+    gull.damage(999, gull.pos, mkVec(0, 0, 1), "body");
 
     camPos = [2.6, 1.3, 3.2];
     camTarget = [0, 0.5, 0];
     warmupSeconds = 0.42;
   } else {
-    manager.spawn('gull', mkVec(-0.9, 2.2, -0.2), { passive: true, hover: 2.2, patrolRadius: 0.25, yaw: 0.5 });
-    manager.spawn('hound', mkVec(0.2, 0, 0.6), {
+    manager.spawn("gull", mkVec(-0.9, 2.2, -0.2), {
+      passive: true,
+      hover: 2.2,
+      patrolRadius: 0.25,
+      yaw: 0.5,
+    });
+    manager.spawn("hound", mkVec(0.2, 0, 0.6), {
       passive: true,
       yaw: 1.2,
-      patrolLine: [mkVec(2.6, 0, 1.2), mkVec(-1.8, 0, 0.2)]
+      patrolLine: [mkVec(2.6, 0, 1.2), mkVec(-1.8, 0, 0.2)],
     });
   }
 
@@ -3993,7 +4696,7 @@ async function createShowcase(ctx) {
     target: camTarget,
     update(dt) {
       if (!isFrozen) manager.update(dt);
-    }
+    },
   };
 }
 

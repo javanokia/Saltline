@@ -3,18 +3,18 @@
  * 3A-GAME Visual Effects Engine (fx.js)
  * 纯程序化视觉特效系统：GPU 实例化粒子、弹道曳光流、物理弹壳与破片、冲击弹孔贴花
  * ============================================================================
- * 
+ *
  * 核心架构：
  * 1. 程序化图集生成 (Procedural Texture Atlases)：
  *    - 烟雾翻页图集 (Smoke 4x2)：RG 通道法线，B 通道辐射发光核心，A 通道对流膨胀密度。
  *    - 火花图集 (Sparks 4x2)：光斑、速度拉伸线段、辐射星芒、水波涟漪、激光电浆、雨滴。
  *    - 冲击贴花图集 (Decals 4x2)：程序化金属弹孔、混凝土剥落、木材裂纹、烧焦灼痕、玻璃蛛网。
- * 
+ *
  * 2. 混合渲染管线 (Hybrid GPU Shaders)：
  *    - Depth-Aware Soft Particles：基于反向线性深度缓冲的软粒子交错羽化 (Soft Fade)。
  *    - Lit Smoke Shader：集成日光包裹散射 (Sun Wrap)、米氏前向强散射 (Mie Forward)、发光火焰核心与未压缩暗碳烟。
  *    - Additive Glow Shader：高动态范围火花与电弧发光叠加。
- * 
+ *
  * 3. 动力学子系统 (Dynamics Subsystems)：
  *    - ParticlePool (SoA 紧凑数组)：速度、加速度、重力阻尼、地面弹跳与消亡判定。
  *    - BulletTracerPool：基于相机夹角的超音速子弹曳光流带。
@@ -23,22 +23,22 @@
  *    - ImpactDecalManager：多边形法线投影贴花与顶点颜色衰减。
  */
 
-import * as THREE from 'three';
-import { Mn as SUN_CONFIG, en as SKY_CONFIG } from './constants.js';
-import { Wi as createBoxBevelGeometry } from './geo.js';
+import * as THREE from "three";
+import { Mn as SUN_CONFIG, en as SKY_CONFIG } from "./constants.js";
+import { Wi as createBoxBevelGeometry } from "./geo.js";
 
 // ============================================================================
 // 一、 物理常量与粒子标志位 (Constants & Particle Flags)
 // ============================================================================
 
 export const PARTICLE_FLAG_BOUNCE_FLOOR = 1; // 撞击地面弹跳 (Bounce on floor contact)
-export const PARTICLE_FLAG_DIE_ON_FLOOR    = 2; // 接触地面消亡 (Despawn on floor contact)
-export const PARTICLE_FLAG_STICK_FLOOR     = 4; // 接触地面停滞 (Stick on floor)
+export const PARTICLE_FLAG_DIE_ON_FLOOR = 2; // 接触地面消亡 (Despawn on floor contact)
+export const PARTICLE_FLAG_STICK_FLOOR = 4; // 接触地面停滞 (Stick on floor)
 
 // 粒子朝向模式 (Particle Alignment Modes)
-export const PARTICLE_MODE_BILLBOARD        = 0; // 面向相机的公告板
+export const PARTICLE_MODE_BILLBOARD = 0; // 面向相机的公告板
 export const PARTICLE_MODE_VELOCITY_STRETCH = 1; // 沿速度方向拉伸的线带/流光
-export const PARTICLE_MODE_SURFACE_ALIGNED  = 2; // 平行于碰撞表面的贴花/涟漪
+export const PARTICLE_MODE_SURFACE_ALIGNED = 2; // 平行于碰撞表面的贴花/涟漪
 
 // 图集网格划分 (Atlas Grid Layouts)
 const SMOKE_ATLAS_COLS = 4;
@@ -48,13 +48,13 @@ const SPARKS_ATLAS_COLS = 4;
 const SPARKS_ATLAS_ROWS = 2;
 
 // 火花图集帧索引 (Sparks Frame Indices)
-export const SPARK_FRAME_SOFT_DOT   = 0; // 柔和发光圆点
-export const SPARK_FRAME_STREAK     = 1; // 速度拉伸线段
+export const SPARK_FRAME_SOFT_DOT = 0; // 柔和发光圆点
+export const SPARK_FRAME_STREAK = 1; // 速度拉伸线段
 export const SPARK_FRAME_STARBURST1 = 2; // 多芒放射火花 1
 export const SPARK_FRAME_STARBURST2 = 3; // 多芒放射火花 2
-export const SPARK_FRAME_RIPPLE     = 4; // 水面同心涟漪
-export const SPARK_FRAME_PLASMA     = 5; // 电浆激光光斑
-export const SPARK_FRAME_DROPLET    = 6; // 雨滴与溅射微粒
+export const SPARK_FRAME_RIPPLE = 4; // 水面同心涟漪
+export const SPARK_FRAME_PLASMA = 5; // 电浆激光光斑
+export const SPARK_FRAME_DROPLET = 6; // 雨滴与溅射微粒
 export const SPARK_FRAME_TRACER_TIP = 7; // 曳光弹尖端辉光
 
 // 贴花图集网格与贴图映射
@@ -62,12 +62,12 @@ const DECAL_ATLAS_COLS = 4;
 const DECAL_ATLAS_ROWS = 2;
 
 const DECAL_TYPE_FRAMES = {
-  bullet_metal:    [0, 1], // 金属弹坑与火花刮痕
+  bullet_metal: [0, 1], // 金属弹坑与火花刮痕
   bullet_concrete: [2, 3], // 混凝土粉碎性弹孔
-  bullet_wood:     [4],    // 木质纤维碎裂孔
-  scorch:          [5],    // 高温爆炸烧焦黑斑
-  soot:            [6],    // 烟熏粉尘附着
-  bullet_glass:    [7]     // 玻璃放射状碎纹
+  bullet_wood: [4], // 木质纤维碎裂孔
+  scorch: [5], // 高温爆炸烧焦黑斑
+  soot: [6], // 烟熏粉尘附着
+  bullet_glass: [7], // 玻璃放射状碎纹
 };
 
 const DECAL_DEFAULT_SIZES = {
@@ -76,7 +76,7 @@ const DECAL_DEFAULT_SIZES = {
   bullet_wood: 0.22,
   scorch: 1.8,
   soot: 0.45,
-  bullet_glass: 0.35
+  bullet_glass: 0.35,
 };
 
 // 全局临时计算缓存 (Scratch Vectors & Matrices)
@@ -120,7 +120,7 @@ function randomRange(min, max) {
 export function createNoiseGenerator(seed = 1337) {
   const table = new Float32Array(4096);
   let s = seed >>> 0;
-  
+
   const rnd = () => {
     s |= 0;
     s = (s + 0x6d2b79f5) | 0;
@@ -195,8 +195,8 @@ export function generateSmokeAtlas(frameSize = 128) {
 
     for (let py = 0; py < frameSize; py++) {
       for (let px = 0; px < frameSize; px++) {
-        const u = (px + 0.5) / frameSize * 2 - 1;
-        const v = (py + 0.5) / frameSize * 2 - 1;
+        const u = ((px + 0.5) / frameSize) * 2 - 1;
+        const v = ((py + 0.5) / frameSize) * 2 - 1;
         const edgeFade = 1 - smoothstep(0.78, 0.98, Math.max(Math.abs(u), Math.abs(v)));
         let alphaVal, coreVal, densityVal;
 
@@ -207,17 +207,20 @@ export function generateSmokeAtlas(frameSize = 128) {
           const wobble = (noiseGen.fbm(u * 2 + offsetX, vy * 2 + offsetY, 3) - 0.5) * 0.25;
           const horizFade = 1 - smoothstep(lobeWidth * 0.3, lobeWidth, Math.abs(u + wobble * vy));
           const fbmDetail = noiseGen.fbm(u * 9 + offsetX, vy * 2.2 + offsetY, 4);
-          const vertFade = 1 - smoothstep(0.55, 0.95, vy - (noiseGen.noise(u * 6 + offsetX, 3.3) - 0.5) * 0.35);
+          const vertFade =
+            1 - smoothstep(0.55, 0.95, vy - (noiseGen.noise(u * 6 + offsetX, 3.3) - 0.5) * 0.35);
           const baseCut = smoothstep(0, 0.12, vy);
-          alphaVal = horizFade * vertFade * baseCut * smoothstep(0.22, 0.7, fbmDetail + 0.25 * (1 - vy));
+          alphaVal =
+            horizFade * vertFade * baseCut * smoothstep(0.22, 0.7, fbmDetail + 0.25 * (1 - vy));
           coreVal = horizFade * vertFade;
           densityVal = alphaVal * 0.5;
         } else {
           // 典型翻滚膨胀烟团 (Puffy billowing cloud)
-          const isLobe7 = (frame === 7);
+          const isLobe7 = frame === 7;
           const curlScale = isLobe7 ? 0.3 : 0.6;
           const curlX = (noiseGen.fbm(u * 1.4 + offsetX, v * 1.4 + offsetY, 3) - 0.5) * curlScale;
-          const curlY = (noiseGen.fbm(u * 1.4 + offsetY + 5.2, v * 1.4 + offsetX + 1.7, 3) - 0.5) * curlScale;
+          const curlY =
+            (noiseGen.fbm(u * 1.4 + offsetY + 5.2, v * 1.4 + offsetX + 1.7, 3) - 0.5) * curlScale;
           const distU = u + curlX;
           const distV = v + curlY;
           const distR = Math.sqrt(distU * distU + distV * distV);
@@ -252,7 +255,7 @@ export function generateSmokeAtlas(frameSize = 128) {
         const outY = rowIdx * frameSize + py;
         const outOffset = (outY * atlasWidth + outX) * 4;
 
-        pixelData[outOffset]     = Math.min(255, Math.max(0, (0.5 - dX * 0.5) * 255));
+        pixelData[outOffset] = Math.min(255, Math.max(0, (0.5 - dX * 0.5) * 255));
         pixelData[outOffset + 1] = Math.min(255, Math.max(0, (0.5 - dY * 0.5) * 255));
         pixelData[outOffset + 2] = Math.min(255, bufNormalY[pIndex] * 255);
         pixelData[outOffset + 3] = Math.min(255, bufDensity[pIndex] * 255);
@@ -260,7 +263,13 @@ export function generateSmokeAtlas(frameSize = 128) {
     }
   }
 
-  const texture = new THREE.DataTexture(pixelData, atlasWidth, atlasHeight, THREE.RGBAFormat, THREE.UnsignedByteType);
+  const texture = new THREE.DataTexture(
+    pixelData,
+    atlasWidth,
+    atlasHeight,
+    THREE.RGBAFormat,
+    THREE.UnsignedByteType,
+  );
   texture.magFilter = THREE.LinearFilter;
   texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.generateMipmaps = true;
@@ -289,7 +298,7 @@ export function generateSparksAtlas(frameSize = 128) {
         angle: (i / rayCount + (noiseGen.rnd() - 0.5) * 0.12) * Math.PI * 2,
         length: 0.35 + noiseGen.rnd() * 0.6,
         width: 0.018 + noiseGen.rnd() * 0.05,
-        intensity: 0.5 + noiseGen.rnd() * 0.5
+        intensity: 0.5 + noiseGen.rnd() * 0.5,
       });
     }
     return rays;
@@ -301,8 +310,8 @@ export function generateSparksAtlas(frameSize = 128) {
 
     for (let py = 0; py < frameSize; py++) {
       for (let px = 0; px < frameSize; px++) {
-        const u = (px + 0.5) / frameSize * 2 - 1;
-        const v = (py + 0.5) / frameSize * 2 - 1;
+        const u = ((px + 0.5) / frameSize) * 2 - 1;
+        const v = ((py + 0.5) / frameSize) * 2 - 1;
         const dist = Math.sqrt(u * u + v * v);
         const edgeFade = 1 - smoothstep(0.86, 0.99, Math.max(Math.abs(u), Math.abs(v)));
         let brightness = 0;
@@ -321,7 +330,10 @@ export function generateSparksAtlas(frameSize = 128) {
             if (dAngle > Math.PI) dAngle = Math.PI * 2 - dAngle;
             const perpDist = Math.sin(Math.min(dAngle, 1.5)) * dist;
             if (dAngle < 1.5) {
-              brightness += ray.intensity * Math.exp(-(perpDist * perpDist) / (ray.width * ray.width)) * Math.max(0, 1 - dist / ray.length);
+              brightness +=
+                ray.intensity *
+                Math.exp(-(perpDist * perpDist) / (ray.width * ray.width)) *
+                Math.max(0, 1 - dist / ray.length);
             }
           }
           brightness += Math.exp(-dist * dist * 32) * 1.5;
@@ -333,7 +345,9 @@ export function generateSparksAtlas(frameSize = 128) {
           const wobble = noiseGen.fbm(u * 5, v * 5, 2) * 0.15;
           brightness = Math.exp(-Math.pow(dist + wobble, 2) * 16) * 1.2;
         } else if (frame === SPARK_FRAME_DROPLET) {
-          const droplet = Math.exp(-dist * dist * 40) + Math.exp(-Math.pow(Math.abs(v - 0.2), 2) * 20) * Math.max(0, 1 - u * u * 4);
+          const droplet =
+            Math.exp(-dist * dist * 40) +
+            Math.exp(-Math.pow(Math.abs(v - 0.2), 2) * 20) * Math.max(0, 1 - u * u * 4);
           brightness = droplet * 0.8;
         } else {
           // SPARK_FRAME_TRACER_TIP
@@ -346,7 +360,7 @@ export function generateSparksAtlas(frameSize = 128) {
         const outOffset = (outY * atlasWidth + outX) * 4;
         const clampedVal = Math.min(255, Math.max(0, brightness * edgeFade * 255));
 
-        pixelData[outOffset]     = clampedVal;
+        pixelData[outOffset] = clampedVal;
         pixelData[outOffset + 1] = clampedVal;
         pixelData[outOffset + 2] = clampedVal;
         pixelData[outOffset + 3] = 255;
@@ -354,7 +368,13 @@ export function generateSparksAtlas(frameSize = 128) {
     }
   }
 
-  const texture = new THREE.DataTexture(pixelData, atlasWidth, atlasHeight, THREE.RGBAFormat, THREE.UnsignedByteType);
+  const texture = new THREE.DataTexture(
+    pixelData,
+    atlasWidth,
+    atlasHeight,
+    THREE.RGBAFormat,
+    THREE.UnsignedByteType,
+  );
   texture.magFilter = THREE.LinearFilter;
   texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.generateMipmaps = true;
@@ -372,26 +392,26 @@ export function generateDecalsAtlas(frameSize = 256) {
   const atlasWidth = frameSize * DECAL_ATLAS_COLS;
   const atlasHeight = frameSize * DECAL_ATLAS_ROWS;
 
-  const canvasAlbedo = document.createElement('canvas');
+  const canvasAlbedo = document.createElement("canvas");
   canvasAlbedo.width = atlasWidth;
   canvasAlbedo.height = atlasHeight;
-  const ctxAlbedo = canvasAlbedo.getContext('2d');
+  const ctxAlbedo = canvasAlbedo.getContext("2d");
 
-  const canvasORM = document.createElement('canvas');
+  const canvasORM = document.createElement("canvas");
   canvasORM.width = atlasWidth;
   canvasORM.height = atlasHeight;
-  const ctxORM = canvasORM.getContext('2d');
+  const ctxORM = canvasORM.getContext("2d");
 
-  const canvasNorm = document.createElement('canvas');
+  const canvasNorm = document.createElement("canvas");
   canvasNorm.width = atlasWidth;
   canvasNorm.height = atlasHeight;
-  const ctxNorm = canvasNorm.getContext('2d');
+  const ctxNorm = canvasNorm.getContext("2d");
 
   // 背景初始化
   ctxAlbedo.clearRect(0, 0, atlasWidth, atlasHeight);
-  ctxORM.fillStyle = 'rgb(0, 235, 0)'; // Roughness = 0.92, Metalness = 0
+  ctxORM.fillStyle = "rgb(0, 235, 0)"; // Roughness = 0.92, Metalness = 0
   ctxORM.fillRect(0, 0, atlasWidth, atlasHeight);
-  ctxNorm.fillStyle = 'rgb(128, 128, 255)'; // Normal facing out +Z
+  ctxNorm.fillStyle = "rgb(128, 128, 255)"; // Normal facing out +Z
   ctxNorm.fillRect(0, 0, atlasWidth, atlasHeight);
 
   const noiseGen = createNoiseGenerator(77123);
@@ -415,11 +435,11 @@ export function generateDecalsAtlas(frameSize = 256) {
     if (frame === 0 || frame === 1) {
       // 金属弹孔 (Metal Bullet Impact: dark punched hole, scorched ring, silver rim)
       const grad = ctxAlbedo.createRadialGradient(0, 0, radius * 0.05, 0, 0, radius);
-      grad.addColorStop(0, 'rgba(10, 10, 12, 1)');
-      grad.addColorStop(0.2, 'rgba(30, 32, 36, 0.95)');
-      grad.addColorStop(0.35, 'rgba(180, 190, 205, 0.8)');
-      grad.addColorStop(0.65, 'rgba(40, 35, 30, 0.4)');
-      grad.addColorStop(1, 'rgba(20, 20, 20, 0)');
+      grad.addColorStop(0, "rgba(10, 10, 12, 1)");
+      grad.addColorStop(0.2, "rgba(30, 32, 36, 0.95)");
+      grad.addColorStop(0.35, "rgba(180, 190, 205, 0.8)");
+      grad.addColorStop(0.65, "rgba(40, 35, 30, 0.4)");
+      grad.addColorStop(1, "rgba(20, 20, 20, 0)");
       ctxAlbedo.fillStyle = grad;
       ctxAlbedo.beginPath();
       ctxAlbedo.arc(0, 0, radius, 0, Math.PI * 2);
@@ -427,15 +447,15 @@ export function generateDecalsAtlas(frameSize = 256) {
 
       // ORM: 金属剥落高反光边缘
       const gradORM = ctxORM.createRadialGradient(0, 0, radius * 0.1, 0, 0, radius * 0.5);
-      gradORM.addColorStop(0, 'rgb(0, 180, 128)');
-      gradORM.addColorStop(1, 'rgb(0, 240, 0)');
+      gradORM.addColorStop(0, "rgb(0, 180, 128)");
+      gradORM.addColorStop(1, "rgb(0, 240, 0)");
       ctxORM.fillStyle = gradORM;
       ctxORM.beginPath();
       ctxORM.arc(0, 0, radius * 0.5, 0, Math.PI * 2);
       ctxORM.fill();
     } else if (frame === 2 || frame === 3) {
       // 混凝土爆裂坑 (Concrete Spall: jagged crater, pulverized white dust center)
-      ctxAlbedo.fillStyle = 'rgba(20, 20, 20, 0.95)';
+      ctxAlbedo.fillStyle = "rgba(20, 20, 20, 0.95)";
       ctxAlbedo.beginPath();
       const points = 16;
       for (let p = 0; p < points; p++) {
@@ -450,23 +470,23 @@ export function generateDecalsAtlas(frameSize = 256) {
 
       // 边缘飞溅粉尘晕
       const dustGrad = ctxAlbedo.createRadialGradient(0, 0, radius * 0.2, 0, 0, radius);
-      dustGrad.addColorStop(0, 'rgba(180, 175, 170, 0.6)');
-      dustGrad.addColorStop(0.5, 'rgba(120, 115, 110, 0.3)');
-      dustGrad.addColorStop(1, 'rgba(90, 85, 80, 0)');
+      dustGrad.addColorStop(0, "rgba(180, 175, 170, 0.6)");
+      dustGrad.addColorStop(0.5, "rgba(120, 115, 110, 0.3)");
+      dustGrad.addColorStop(1, "rgba(90, 85, 80, 0)");
       ctxAlbedo.fillStyle = dustGrad;
       ctxAlbedo.beginPath();
       ctxAlbedo.arc(0, 0, radius, 0, Math.PI * 2);
       ctxAlbedo.fill();
     } else if (frame === 4) {
       // 木材撕裂孔 (Wood splintered hole: elliptical grain fracture)
-      ctxAlbedo.fillStyle = 'rgba(15, 10, 5, 0.95)';
+      ctxAlbedo.fillStyle = "rgba(15, 10, 5, 0.95)";
       ctxAlbedo.beginPath();
       ctxAlbedo.ellipse(0, 0, radius * 0.25, radius * 0.65, 0, 0, Math.PI * 2);
       ctxAlbedo.fill();
 
       const woodGrad = ctxAlbedo.createRadialGradient(0, 0, radius * 0.1, 0, 0, radius * 0.8);
-      woodGrad.addColorStop(0, 'rgba(60, 40, 20, 0.7)');
-      woodGrad.addColorStop(1, 'rgba(40, 25, 10, 0)');
+      woodGrad.addColorStop(0, "rgba(60, 40, 20, 0.7)");
+      woodGrad.addColorStop(1, "rgba(40, 25, 10, 0)");
       ctxAlbedo.fillStyle = woodGrad;
       ctxAlbedo.beginPath();
       ctxAlbedo.ellipse(0, 0, radius * 0.5, radius * 0.9, 0, 0, Math.PI * 2);
@@ -474,10 +494,10 @@ export function generateDecalsAtlas(frameSize = 256) {
     } else if (frame === 5) {
       // 高温烧焦灼斑 (Explosion Scorch: soft feathered black burn)
       const burnGrad = ctxAlbedo.createRadialGradient(0, 0, 0, 0, 0, radius * 0.95);
-      burnGrad.addColorStop(0, 'rgba(5, 5, 5, 0.92)');
-      burnGrad.addColorStop(0.4, 'rgba(18, 16, 14, 0.7)');
-      burnGrad.addColorStop(0.75, 'rgba(35, 30, 25, 0.25)');
-      burnGrad.addColorStop(1, 'rgba(20, 18, 16, 0)');
+      burnGrad.addColorStop(0, "rgba(5, 5, 5, 0.92)");
+      burnGrad.addColorStop(0.4, "rgba(18, 16, 14, 0.7)");
+      burnGrad.addColorStop(0.75, "rgba(35, 30, 25, 0.25)");
+      burnGrad.addColorStop(1, "rgba(20, 18, 16, 0)");
       ctxAlbedo.fillStyle = burnGrad;
       ctxAlbedo.beginPath();
       ctxAlbedo.arc(0, 0, radius * 0.95, 0, Math.PI * 2);
@@ -485,21 +505,21 @@ export function generateDecalsAtlas(frameSize = 256) {
     } else if (frame === 6) {
       // 细颗粒烟粉附着 (Soot soot-puff)
       const sootGrad = ctxAlbedo.createRadialGradient(0, 0, 0, 0, 0, radius * 0.85);
-      sootGrad.addColorStop(0, 'rgba(25, 25, 27, 0.85)');
-      sootGrad.addColorStop(0.5, 'rgba(35, 35, 38, 0.35)');
-      sootGrad.addColorStop(1, 'rgba(30, 30, 32, 0)');
+      sootGrad.addColorStop(0, "rgba(25, 25, 27, 0.85)");
+      sootGrad.addColorStop(0.5, "rgba(35, 35, 38, 0.35)");
+      sootGrad.addColorStop(1, "rgba(30, 30, 32, 0)");
       ctxAlbedo.fillStyle = sootGrad;
       ctxAlbedo.beginPath();
       ctxAlbedo.arc(0, 0, radius * 0.85, 0, Math.PI * 2);
       ctxAlbedo.fill();
     } else {
       // 玻璃蛛网放射纹 (Glass Bullet Spider Fracture)
-      ctxAlbedo.fillStyle = 'rgba(255, 255, 255, 0.8)';
+      ctxAlbedo.fillStyle = "rgba(255, 255, 255, 0.8)";
       ctxAlbedo.beginPath();
       ctxAlbedo.arc(0, 0, radius * 0.15, 0, Math.PI * 2);
       ctxAlbedo.fill();
 
-      ctxAlbedo.strokeStyle = 'rgba(220, 235, 255, 0.65)';
+      ctxAlbedo.strokeStyle = "rgba(220, 235, 255, 0.65)";
       ctxAlbedo.lineWidth = 1.5;
       const glassCracks = 12;
       for (let g = 0; g < glassCracks; g++) {
@@ -546,7 +566,7 @@ export function generateDecalsAtlas(frameSize = 256) {
       const du = 1 / DECAL_ATLAS_COLS;
       const dv = 1 / DECAL_ATLAS_ROWS;
       return [u0, v0, u0 + du, v0 + dv];
-    }
+    },
   };
 }
 
@@ -675,7 +695,9 @@ void main() {
 /**
  * 受光烟雾与火焰片元着色器 (Lit Smoke & Fire Fragment Shader)
  */
-export const FX_LIT_FRAGMENT_SHADER = GLSL_SOFT_FADE + `
+export const FX_LIT_FRAGMENT_SHADER =
+  GLSL_SOFT_FADE +
+  `
 uniform vec3 uSun, uSunDir, uAmbLo, uAmbHi;
 
 void main() {
@@ -724,7 +746,9 @@ void main() {
 /**
  * 加色发光火花片元着色器 (Additive Glow Fragment Shader)
  */
-export const FX_ADD_FRAGMENT_SHADER = GLSL_SOFT_FADE + `
+export const FX_ADD_FRAGMENT_SHADER =
+  GLSL_SOFT_FADE +
+  `
 void main() {
   float t = texture2D(uTex, vUv).r;
   float k = t * vCol.a * softFade();
@@ -753,16 +777,17 @@ export function createInstancedParticleMesh(engineCtx, capacity, options = {}) {
     sun = new THREE.Vector3(1, 1, 1),
     sunDir = new THREE.Vector3(0, 1, 0),
     ambLo = new THREE.Vector3(0.1, 0.1, 0.1),
-    ambHi = new THREE.Vector3(0.5, 0.5, 0.5)
+    ambHi = new THREE.Vector3(0.5, 0.5, 0.5),
   } = options;
 
   const quadGeom = new THREE.InstancedBufferGeometry();
-  quadGeom.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
-    -0.5, -0.5, 0,
-     0.5, -0.5, 0,
-     0.5,  0.5, 0,
-    -0.5,  0.5, 0
-  ]), 3));
+  quadGeom.setAttribute(
+    "position",
+    new THREE.BufferAttribute(
+      new Float32Array([-0.5, -0.5, 0, 0.5, -0.5, 0, 0.5, 0.5, 0, -0.5, 0.5, 0]),
+      3,
+    ),
+  );
   quadGeom.setIndex([0, 1, 2, 0, 2, 3]);
 
   const createInstAttr = (name) => {
@@ -772,10 +797,10 @@ export function createInstancedParticleMesh(engineCtx, capacity, options = {}) {
     return attr;
   };
 
-  const attrPos  = createInstAttr('aPos');
-  const attrAxis = createInstAttr('aAxis');
-  const attrCol  = createInstAttr('aCol');
-  const attrMisc = createInstAttr('aMisc');
+  const attrPos = createInstAttr("aPos");
+  const attrAxis = createInstAttr("aAxis");
+  const attrCol = createInstAttr("aCol");
+  const attrMisc = createInstAttr("aMisc");
   quadGeom.instanceCount = 0;
 
   const uniforms = {
@@ -785,7 +810,7 @@ export function createInstancedParticleMesh(engineCtx, capacity, options = {}) {
     uDepth: { value: null },
     uRes: { value: new THREE.Vector2(1, 1) },
     uNearFar: { value: new THREE.Vector2(0.08, 900) },
-    uSoft: { value: 0 }
+    uSoft: { value: 0 },
   };
 
   if (lit) {
@@ -793,7 +818,7 @@ export function createInstancedParticleMesh(engineCtx, capacity, options = {}) {
       uSun: { value: sun },
       uSunDir: { value: sunDir },
       uAmbLo: { value: ambLo },
-      uAmbHi: { value: ambHi }
+      uAmbHi: { value: ambHi },
     });
   }
 
@@ -811,9 +836,9 @@ export function createInstancedParticleMesh(engineCtx, capacity, options = {}) {
     blendSrc: THREE.OneFactor,
     blendDst: lit ? THREE.OneMinusSrcAlphaFactor : THREE.OneFactor,
     blendSrcAlpha: THREE.ZeroFactor,
-    blendDstAlpha: THREE.OneFactor
+    blendDstAlpha: THREE.OneFactor,
   });
-  material.name = lit ? 'fx_lit' : 'fx_add';
+  material.name = lit ? "fx_lit" : "fx_add";
 
   const mesh = new THREE.Mesh(quadGeom, material);
   mesh.frustumCulled = false;
@@ -838,8 +863,13 @@ export function createInstancedParticleMesh(engineCtx, capacity, options = {}) {
 
     const renderSys = engineCtx.render;
     const depthTex = renderSys && renderSys.depthTexture;
-    if (depthTex && depthTex.image && camera === engineCtx.camera &&
-        renderSys.depthTextureIsLive !== true && engineCtx.params.fxsoft !== '0') {
+    if (
+      depthTex &&
+      depthTex.image &&
+      camera === engineCtx.camera &&
+      renderSys.depthTextureIsLive !== true &&
+      engineCtx.params.fxsoft !== "0"
+    ) {
       uniforms.uDepth.value = depthTex;
       uniforms.uSoft.value = 1;
       if (renderSys.resolution && renderSys.resolution.x > 0) {
@@ -877,22 +907,22 @@ export function createInstancedParticleMesh(engineCtx, capacity, options = {}) {
       if (idx >= capacity) return false;
       const offset = idx * 4;
 
-      arrPos[offset]     = px;
+      arrPos[offset] = px;
       arrPos[offset + 1] = py;
       arrPos[offset + 2] = pz;
       arrPos[offset + 3] = size;
 
-      arrAxis[offset]     = ax;
+      arrAxis[offset] = ax;
       arrAxis[offset + 1] = ay;
       arrAxis[offset + 2] = az;
       arrAxis[offset + 3] = roll;
 
-      arrCol[offset]     = r;
+      arrCol[offset] = r;
       arrCol[offset + 1] = g;
       arrCol[offset + 2] = b;
       arrCol[offset + 3] = a;
 
-      arrMisc[offset]     = frame;
+      arrMisc[offset] = frame;
       arrMisc[offset + 1] = mode;
       arrMisc[offset + 2] = age;
       arrMisc[offset + 3] = sunVis;
@@ -914,7 +944,7 @@ export function createInstancedParticleMesh(engineCtx, capacity, options = {}) {
           a.needsUpdate = true;
         }
       }
-    }
+    },
   };
 
   return instanceSystem;
@@ -1028,7 +1058,9 @@ export class ParticlePool {
 
   update(dt, instanceSystem, camPos, windDir, globalTime) {
     const { px, py, pz, vx, vy, vz, age, life, order, flags } = this;
-    const cx = camPos.x, cy = camPos.y, cz = camPos.z;
+    const cx = camPos.x,
+      cy = camPos.y,
+      cz = camPos.z;
     let liveCount = 0;
     const total = this.n;
 
@@ -1161,7 +1193,9 @@ export class ParticlePool {
       }
 
       const pMode = this.mode[idx];
-      let axisX = 0, axisY = 0, axisZ = 0;
+      let axisX = 0,
+        axisY = 0,
+        axisZ = 0;
       if (pMode === PARTICLE_MODE_VELOCITY_STRETCH) {
         const st = this.stretch[idx];
         axisX = vx[idx] * st;
@@ -1173,26 +1207,51 @@ export class ParticlePool {
         axisZ = 0;
       }
 
-      if (!instanceSystem.push(
-        px[idx], py[idx], pz[idx], currSize,
-        axisX, axisY, axisZ, this.rot[idx],
-        rCol, gCol, bCol, alphaVal,
-        this.frame[idx], pMode, normAge, this.shade[idx]
-      )) {
+      if (
+        !instanceSystem.push(
+          px[idx],
+          py[idx],
+          pz[idx],
+          currSize,
+          axisX,
+          axisY,
+          axisZ,
+          this.rot[idx],
+          rCol,
+          gCol,
+          bCol,
+          alphaVal,
+          this.frame[idx],
+          pMode,
+          normAge,
+          this.shade[idx],
+        )
+      ) {
         break;
       }
     }
   }
 }
 
-
 // ============================================================================
 // 六、 弹道曳光流 (BulletTracerPool)
 // ============================================================================
 
 const TRACER_PROPS = [
-  'fx', 'fy', 'fz', 'dx', 'dy', 'dz',
-  'dist', 'speed', 'trav', 'len', 'width', 'r', 'g', 'b'
+  "fx",
+  "fy",
+  "fz",
+  "dx",
+  "dy",
+  "dz",
+  "dist",
+  "speed",
+  "trav",
+  "len",
+  "width",
+  "r",
+  "g",
+  "b",
 ];
 
 export class BulletTracerPool {
@@ -1265,7 +1324,10 @@ export class BulletTracerPool {
 
       if (this.frames[i] === 0) {
         // 第 0 帧初次前进少量距离
-        this.trav[i] = Math.min(totalDist, spd * Math.max(dt, 0.008) * (0.35 + Math.random() * 0.4));
+        this.trav[i] = Math.min(
+          totalDist,
+          spd * Math.max(dt, 0.008) * (0.35 + Math.random() * 0.4),
+        );
       } else {
         this.trav[i] += spd * dt;
       }
@@ -1308,26 +1370,62 @@ export class BulletTracerPool {
 
       // 1. 核心高亮发光线段 (Core laser streak)
       instanceSystem.push(
-        midX, midY, midZ, w,
-        dX * segLen, dY * segLen, dZ * segLen, 0,
-        rCol, gCol, bCol, 1,
-        streakFrame, PARTICLE_MODE_VELOCITY_STRETCH, 0, 5
+        midX,
+        midY,
+        midZ,
+        w,
+        dX * segLen,
+        dY * segLen,
+        dZ * segLen,
+        0,
+        rCol,
+        gCol,
+        bCol,
+        1,
+        streakFrame,
+        PARTICLE_MODE_VELOCITY_STRETCH,
+        0,
+        5,
       );
 
       // 2. 外部膨胀柔光光晕 (Outer bloom ribbon)
       instanceSystem.push(
-        midX, midY, midZ, w * 6,
-        dX * segLen * 1.05, dY * segLen * 1.05, dZ * segLen * 1.05, 0,
-        rCol * 0.04, gCol * 0.032, bCol * 0.028, 1,
-        streakFrame, PARTICLE_MODE_VELOCITY_STRETCH, 0, 28
+        midX,
+        midY,
+        midZ,
+        w * 6,
+        dX * segLen * 1.05,
+        dY * segLen * 1.05,
+        dZ * segLen * 1.05,
+        0,
+        rCol * 0.04,
+        gCol * 0.032,
+        bCol * 0.028,
+        1,
+        streakFrame,
+        PARTICLE_MODE_VELOCITY_STRETCH,
+        0,
+        28,
       );
 
       // 3. 弹头点状耀斑 (Tracer tip flare)
       instanceSystem.push(
-        this.fx[i] + dX * tipPos, this.fy[i] + dY * tipPos, this.fz[i] + dZ * tipPos, w * 5,
-        0, 1, 0, 0,
-        rCol * 0.2, gCol * 0.16, bCol * 0.12, 1,
-        dotFrame, PARTICLE_MODE_BILLBOARD, 0, 1
+        this.fx[i] + dX * tipPos,
+        this.fy[i] + dY * tipPos,
+        this.fz[i] + dZ * tipPos,
+        w * 5,
+        0,
+        1,
+        0,
+        0,
+        rCol * 0.2,
+        gCol * 0.16,
+        bCol * 0.12,
+        1,
+        dotFrame,
+        PARTICLE_MODE_BILLBOARD,
+        0,
+        1,
       );
     }
     this.n = count;
@@ -1346,7 +1444,7 @@ export function createDebrisGeometry() {
   const pos = geom.attributes.position;
   let seed = 1234.5;
   const hash = () => {
-    seed = (Math.sin(seed * 12.9898 + 78.233) * 43758.5453);
+    seed = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
     seed -= Math.floor(seed);
     return seed;
   };
@@ -1385,17 +1483,20 @@ export class DebrisPhysicsSystem {
     const material = new THREE.MeshStandardMaterial({
       color: 0xffffff,
       roughness: 0.82,
-      metalness: 0.05
+      metalness: 0.05,
     });
-    material.name = 'fx_debris';
+    material.name = "fx_debris";
 
     const instMesh = new THREE.InstancedMesh(createDebrisGeometry(), material, capacity);
     instMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    instMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3).fill(1), 3);
+    instMesh.instanceColor = new THREE.InstancedBufferAttribute(
+      new Float32Array(capacity * 3).fill(1),
+      3,
+    );
     instMesh.frustumCulled = false;
     instMesh.castShadow = false;
     instMesh.receiveShadow = true;
-    instMesh.name = 'fx_debris';
+    instMesh.name = "fx_debris";
 
     this.mesh = instMesh;
 
@@ -1468,7 +1569,7 @@ export class DebrisPhysicsSystem {
     this.state[idx] = 1;
 
     const colArr = this.mesh.instanceColor.array;
-    colArr[idx * 3]     = r;
+    colArr[idx * 3] = r;
     colArr[idx * 3 + 1] = g;
     colArr[idx * 3 + 2] = b;
     this.mesh.instanceColor.needsUpdate = true;
@@ -1566,17 +1667,17 @@ export function createShellCartridgeGeometry() {
     [0.004092, 0.0416],
     [0.003968, 0.052],
     [0.003224, 0.052],
-    [0.0031, 0.04472]
+    [0.0031, 0.04472],
   ];
   const latheGeom = new THREE.LatheGeometry(
-    profile.map(p => new THREE.Vector2(p[0], p[1] - 0.052 / 2)),
-    10
+    profile.map((p) => new THREE.Vector2(p[0], p[1] - 0.052 / 2)),
+    10,
   );
   latheGeom.computeVertexNormals();
   return latheGeom;
 }
 
-const vShellBounceEvent = { pos: new THREE.Vector3(), surface: 'concrete' };
+const vShellBounceEvent = { pos: new THREE.Vector3(), surface: "concrete" };
 
 export class SpentShellEjectionSystem {
   constructor(engineCtx, capacity = 60) {
@@ -1586,7 +1687,7 @@ export class SpentShellEjectionSystem {
 
     let brassMat = null;
     try {
-      brassMat = engineCtx.mats.get('brass');
+      brassMat = engineCtx.mats.get("brass");
     } catch {
       brassMat = null;
     }
@@ -1594,7 +1695,7 @@ export class SpentShellEjectionSystem {
       brassMat = new THREE.MeshStandardMaterial({
         color: 0xb08d5c,
         roughness: 0.3,
-        metalness: 1.0
+        metalness: 1.0,
       });
     }
 
@@ -1603,7 +1704,7 @@ export class SpentShellEjectionSystem {
     instMesh.frustumCulled = false;
     instMesh.castShadow = false;
     instMesh.receiveShadow = true;
-    instMesh.name = 'fx_shells';
+    instMesh.name = "fx_shells";
 
     this.mesh = instMesh;
 
@@ -1626,7 +1727,7 @@ export class SpentShellEjectionSystem {
     this.floor = makeFloat();
     this.state = new Uint8Array(capacity);
     this.bounces = new Uint8Array(capacity);
-    this.surface = new Array(capacity).fill('concrete');
+    this.surface = new Array(capacity).fill("concrete");
 
     mTempMatrix.makeScale(0, 0, 0);
     for (let i = 0; i < capacity; i++) {
@@ -1648,13 +1749,13 @@ export class SpentShellEjectionSystem {
   _queryFloor(idx) {
     const phys = this.ctx.physics;
     this.floor[idx] = 0;
-    this.surface[idx] = 'concrete';
+    this.surface[idx] = "concrete";
     if (phys && phys.raycast) {
       vTempPos.set(this.px[idx], this.py[idx] + 0.25, this.pz[idx]);
       const hit = phys.raycast(vTempPos, DOWN_VECTOR, 6);
       if (hit) {
         this.floor[idx] = hit.point.y;
-        this.surface[idx] = hit.surface || 'concrete';
+        this.surface[idx] = hit.surface || "concrete";
       } else {
         this.floor[idx] = -50;
       }
@@ -1712,8 +1813,13 @@ export class SpentShellEjectionSystem {
         this.pz[i] += this.vz[i] * dt;
 
         // 四元数角速度积分
-        const wx = this.wx[i], wy = this.wy[i], wz = this.wz[i];
-        const qx = this.qx[i], qy = this.qy[i], qz = this.qz[i], qw = this.qw[i];
+        const wx = this.wx[i],
+          wy = this.wy[i],
+          wz = this.wz[i];
+        const qx = this.qx[i],
+          qy = this.qy[i],
+          qz = this.qz[i],
+          qw = this.qw[i];
         const halfDt = 0.5 * dt;
         const nx = qx + halfDt * (wx * qw + wy * qz - wz * qy);
         const ny = qy + halfDt * (wy * qw + wz * qx - wx * qz);
@@ -1733,14 +1839,14 @@ export class SpentShellEjectionSystem {
           if (bounceCount < 2) {
             vShellBounceEvent.pos.set(this.px[i], this.py[i], this.pz[i]);
             vShellBounceEvent.surface = this.surface[i];
-            this.ctx.events.emit('shell:bounce', vShellBounceEvent);
+            this.ctx.events.emit("shell:bounce", vShellBounceEvent);
           }
 
           if (this.vy[i] > -0.9 || bounceCount >= 4) {
             // 静止平躺着地
             st[i] = 2;
             this.vx[i] = this.vy[i] = this.vz[i] = 0;
-            eTempEuler.set(Math.PI / 2, 0, Math.random() * 6.28, 'ZXY');
+            eTempEuler.set(Math.PI / 2, 0, Math.random() * 6.28, "ZXY");
             qTempQuat.setFromEuler(eTempEuler);
             this.qx[i] = qTempQuat.x;
             this.qy[i] = qTempQuat.y;
@@ -1817,16 +1923,16 @@ export class ImpactDecalManager {
 
     this.baseA = new Float32Array(capacity);
 
-    geom.setAttribute('position', this.pos);
-    geom.setAttribute('normal', this.nor);
-    geom.setAttribute('uv', this.uv);
-    geom.setAttribute('color', this.col);
+    geom.setAttribute("position", this.pos);
+    geom.setAttribute("normal", this.nor);
+    geom.setAttribute("uv", this.uv);
+    geom.setAttribute("color", this.col);
 
     const indexArr = new Uint16Array(capacity * 6);
     for (let i = 0; i < capacity; i++) {
       const vIdx = i * 4;
       const iIdx = i * 6;
-      indexArr[iIdx]     = vIdx;
+      indexArr[iIdx] = vIdx;
       indexArr[iIdx + 1] = vIdx + 1;
       indexArr[iIdx + 2] = vIdx + 2;
       indexArr[iIdx + 3] = vIdx;
@@ -1846,13 +1952,13 @@ export class ImpactDecalManager {
       depthWrite: false,
       polygonOffset: true,
       polygonOffsetFactor: -4,
-      polygonOffsetUnits: -4
+      polygonOffsetUnits: -4,
     });
     if (atlas.nrm) {
       material.normalMap = atlas.nrm;
       material.normalScale = new THREE.Vector2(1, 1);
     }
-    material.name = 'fx_decals';
+    material.name = "fx_decals";
 
     const mesh = new THREE.Mesh(geom, material);
     mesh.frustumCulled = false;
@@ -1860,13 +1966,13 @@ export class ImpactDecalManager {
     mesh.receiveShadow = true;
     mesh.renderOrder = -5;
     mesh.matrixAutoUpdate = false;
-    mesh.name = 'fx_decals';
+    mesh.name = "fx_decals";
     mesh.visible = false;
     this.mesh = mesh;
 
     this.uvs = {};
     for (const type in DECAL_TYPE_FRAMES) {
-      this.uvs[type] = DECAL_TYPE_FRAMES[type].map(f => atlas.uv(f));
+      this.uvs[type] = DECAL_TYPE_FRAMES[type].map((f) => atlas.uv(f));
     }
   }
 
@@ -1880,7 +1986,7 @@ export class ImpactDecalManager {
     this.mesh.visible = false;
   }
 
-  add(pos, normal, type = 'bullet_concrete', size = null, tint = 1, alpha = 1) {
+  add(pos, normal, type = "bullet_concrete", size = null, tint = 1, alpha = 1) {
     const uvFrames = this.uvs[type] || this.uvs.bullet_concrete;
     const uvCoords = uvFrames[Math.floor(Math.random() * uvFrames.length)];
     const baseSize = size || DECAL_DEFAULT_SIZES[type] || 0.25;
@@ -1890,21 +1996,33 @@ export class ImpactDecalManager {
     this.next = (idx + 1) % this.cap;
     if (this.count < this.cap) this.count++;
 
-    let nx = normal.x, ny = normal.y, nz = normal.z;
+    let nx = normal.x,
+      ny = normal.y,
+      nz = normal.z;
     const normLen = Math.hypot(nx, ny, nz) || 1;
-    nx /= normLen; ny /= normLen; nz /= normLen;
+    nx /= normLen;
+    ny /= normLen;
+    nz /= normLen;
 
     // 正交切线基底 (Tangent basis construction)
     let tx, ty, tz;
     if (Math.abs(ny) > 0.9) {
-      tx = 1; ty = 0; tz = 0;
+      tx = 1;
+      ty = 0;
+      tz = 0;
     } else {
-      tx = -nz; ty = 0; tz = nx;
+      tx = -nz;
+      ty = 0;
+      tz = nx;
     }
     const dotTN = tx * nx + ty * ny + tz * nz;
-    tx -= nx * dotTN; ty -= ny * dotTN; tz -= nz * dotTN;
+    tx -= nx * dotTN;
+    ty -= ny * dotTN;
+    tz -= nz * dotTN;
     const tLen = Math.hypot(tx, ty, tz) || 1;
-    tx /= tLen; ty /= tLen; tz /= tLen;
+    tx /= tLen;
+    ty /= tLen;
+    tz /= tLen;
 
     // 副法线 (Bitangent = Normal x Tangent)
     const bx = ny * tz - nz * ty;
@@ -1912,7 +2030,7 @@ export class ImpactDecalManager {
     const bz = nx * ty - ny * tx;
 
     // 随机平面自旋 (Planar roll)
-    const rollAngle = type === 'bullet_wood' ? (Math.random() - 0.5) * 0.3 : Math.random() * 6.283;
+    const rollAngle = type === "bullet_wood" ? (Math.random() - 0.5) * 0.3 : Math.random() * 6.283;
     const cosR = Math.cos(rollAngle);
     const sinR = Math.sin(rollAngle);
 
@@ -1936,30 +2054,30 @@ export class ImpactDecalManager {
     const cArr = this.col.array;
 
     const vOffset = idx * 12;
-    pArr[vOffset]      = cx - sX - oX;
-    pArr[vOffset + 1]  = cy - sY - oY;
-    pArr[vOffset + 2]  = cz - sZ - oZ;
+    pArr[vOffset] = cx - sX - oX;
+    pArr[vOffset + 1] = cy - sY - oY;
+    pArr[vOffset + 2] = cz - sZ - oZ;
 
-    pArr[vOffset + 3]  = cx + sX - oX;
-    pArr[vOffset + 4]  = cy + sY - oY;
-    pArr[vOffset + 5]  = cz + sZ - oZ;
+    pArr[vOffset + 3] = cx + sX - oX;
+    pArr[vOffset + 4] = cy + sY - oY;
+    pArr[vOffset + 5] = cz + sZ - oZ;
 
-    pArr[vOffset + 6]  = cx + sX + oX;
-    pArr[vOffset + 7]  = cy + sY + oY;
-    pArr[vOffset + 8]  = cz + sZ + oZ;
+    pArr[vOffset + 6] = cx + sX + oX;
+    pArr[vOffset + 7] = cy + sY + oY;
+    pArr[vOffset + 8] = cz + sZ + oZ;
 
-    pArr[vOffset + 9]  = cx - sX + oX;
+    pArr[vOffset + 9] = cx - sX + oX;
     pArr[vOffset + 10] = cy - sY + oY;
     pArr[vOffset + 11] = cz - sZ + oZ;
 
     for (let f = 0; f < 4; f++) {
-      nArr[vOffset + f * 3]     = nx;
+      nArr[vOffset + f * 3] = nx;
       nArr[vOffset + f * 3 + 1] = ny;
       nArr[vOffset + f * 3 + 2] = nz;
     }
 
     const uvOffset = idx * 8;
-    uArr[uvOffset]     = uvCoords[0];
+    uArr[uvOffset] = uvCoords[0];
     uArr[uvOffset + 1] = uvCoords[1];
     uArr[uvOffset + 2] = uvCoords[2];
     uArr[uvOffset + 3] = uvCoords[1];
@@ -1971,7 +2089,7 @@ export class ImpactDecalManager {
     const colOffset = idx * 16;
     this.baseA[idx] = alpha;
     for (let f = 0; f < 4; f++) {
-      cArr[colOffset + f * 4]     = tint;
+      cArr[colOffset + f * 4] = tint;
       cArr[colOffset + f * 4 + 1] = tint;
       cArr[colOffset + f * 4 + 2] = tint;
       cArr[colOffset + f * 4 + 3] = alpha;
@@ -1981,7 +2099,7 @@ export class ImpactDecalManager {
     if (this.count >= this.cap) {
       for (let f = 0; f < DECAL_FADE_OLDEST_COUNT; f++) {
         const oldIdx = (this.next + f) % this.cap;
-        const fadeA = this.baseA[oldIdx] * (f + 1) / (DECAL_FADE_OLDEST_COUNT + 1);
+        const fadeA = (this.baseA[oldIdx] * (f + 1)) / (DECAL_FADE_OLDEST_COUNT + 1);
         const oCol = oldIdx * 16;
         cArr[oCol + 3] = cArr[oCol + 7] = cArr[oCol + 11] = cArr[oCol + 15] = fadeA;
       }
@@ -2029,13 +2147,9 @@ function randomVectorInCone(baseDir, spreadRadius, outVector) {
   const ry = Math.random() * 2 - 1;
   const rz = Math.random() * 2 - 1;
   const len = Math.hypot(rx, ry, rz) || 1;
-  const factor = spreadRadius * Math.cbrt(Math.random()) / len;
+  const factor = (spreadRadius * Math.cbrt(Math.random())) / len;
 
-  outVector.set(
-    baseDir.x + rx * factor,
-    baseDir.y + ry * factor,
-    baseDir.z + rz * factor
-  );
+  outVector.set(baseDir.x + rx * factor, baseDir.y + ry * factor, baseDir.z + rz * factor);
 
   const outLen = outVector.length();
   if (outLen < 1e-4) {
@@ -2061,19 +2175,19 @@ export async function createFXManager(engineCtx) {
   const sunRadiance = new THREE.Vector3(
     SUN_CONFIG.color.r,
     SUN_CONFIG.color.g,
-    SUN_CONFIG.color.b
+    SUN_CONFIG.color.b,
   ).multiplyScalar((SUN_CONFIG.intensity / Math.PI) * 0.9);
 
   const ambSky = new THREE.Vector3(
     SKY_CONFIG.zenith.r * 0.6 + SKY_CONFIG.horizonAway.r * 0.5 + SKY_CONFIG.fog.r * 0.25,
     SKY_CONFIG.zenith.g * 0.6 + SKY_CONFIG.horizonAway.g * 0.5 + SKY_CONFIG.fog.g * 0.25,
-    SKY_CONFIG.zenith.b * 0.6 + SKY_CONFIG.horizonAway.b * 0.5 + SKY_CONFIG.fog.b * 0.25
+    SKY_CONFIG.zenith.b * 0.6 + SKY_CONFIG.horizonAway.b * 0.5 + SKY_CONFIG.fog.b * 0.25,
   );
 
   const ambGround = new THREE.Vector3(
     SKY_CONFIG.horizonAway.r * 0.3 + SKY_CONFIG.fog.r * 0.14,
     SKY_CONFIG.horizonAway.g * 0.3 + SKY_CONFIG.fog.g * 0.14,
-    SKY_CONFIG.horizonAway.b * 0.3 + SKY_CONFIG.fog.b * 0.14
+    SKY_CONFIG.horizonAway.b * 0.3 + SKY_CONFIG.fog.b * 0.14,
   );
 
   // 初始化各子系统
@@ -2089,7 +2203,7 @@ export async function createFXManager(engineCtx) {
     sun: sunRadiance,
     sunDir: SUN_CONFIG.dir.clone().normalize(),
     ambLo: ambGround,
-    ambHi: ambSky
+    ambHi: ambSky,
   });
 
   const addMeshSystem = createInstancedParticleMesh(engineCtx, CAPACITY_ADD_PARTICLES, {
@@ -2097,7 +2211,7 @@ export async function createFXManager(engineCtx) {
     tex: sparksAtlas,
     cols: SPARKS_ATLAS_COLS,
     rows: SPARKS_ATLAS_ROWS,
-    renderOrder: 20
+    renderOrder: 20,
   });
 
   const litPool = new ParticlePool(CAPACITY_LIT_PARTICLES, true);
@@ -2108,13 +2222,13 @@ export async function createFXManager(engineCtx) {
   const decalSystem = new ImpactDecalManager(engineCtx, 160);
 
   const rootGroup = new THREE.Group();
-  rootGroup.name = 'fx';
+  rootGroup.name = "fx";
   rootGroup.add(
     decalSystem.mesh,
     debrisSystem.mesh,
     shellSystem.mesh,
     litMeshSystem.mesh,
-    addMeshSystem.mesh
+    addMeshSystem.mesh,
   );
   scene.add(rootGroup);
 
@@ -2159,7 +2273,26 @@ export async function createFXManager(engineCtx) {
   }
 
   // 基础粒子发射函数
-  function emitLitSmoke(x, y, z, vx, vy, vz, life, s0, s1, r, g, b, alpha, shadowVis, drag, rise, windScale, frame) {
+  function emitLitSmoke(
+    x,
+    y,
+    z,
+    vx,
+    vy,
+    vz,
+    life,
+    s0,
+    s1,
+    r,
+    g,
+    b,
+    alpha,
+    shadowVis,
+    drag,
+    rise,
+    windScale,
+    frame,
+  ) {
     const idx = litPool.emit(x, y, z, vx, vy, vz, life, s0, s1);
     if (idx < 0) return -1;
     litPool.r[idx] = r;
@@ -2198,19 +2331,36 @@ export async function createFXManager(engineCtx) {
     return idx;
   }
 
-  function emitSparksCone(origin, normal, count, minSpeed, maxSpeed, spread, minLife, maxLife, r, g, b, flags) {
+  function emitSparksCone(
+    origin,
+    normal,
+    count,
+    minSpeed,
+    maxSpeed,
+    spread,
+    minLife,
+    maxLife,
+    r,
+    g,
+    b,
+    flags,
+  ) {
     for (let i = 0; i < count; i++) {
       randomVectorInCone(normal, spread, vTempAim);
       const spd = randomRange(minSpeed, maxSpeed) * (0.35 + 0.65 * Math.random());
       emitAddSparkStreak(
-        origin.x, origin.y, origin.z,
-        vTempAim.x * spd, vTempAim.y * spd, vTempAim.z * spd,
+        origin.x,
+        origin.y,
+        origin.z,
+        vTempAim.x * spd,
+        vTempAim.y * spd,
+        vTempAim.z * spd,
         randomRange(minLife, maxLife),
         randomRange(0.01, 0.02),
         r * randomRange(0.6, 1.2),
         g * randomRange(0.6, 1.2),
         b,
-        flags
+        flags,
       );
     }
   }
@@ -2243,7 +2393,24 @@ export async function createFXManager(engineCtx) {
     return idx;
   }
 
-  function emitFlyingDebrisChunks(origin, normal, count, minSpeed, maxSpeed, minSx, maxSx, minSy, maxSy, minSz, maxSz, r, g, b, spread, floorY) {
+  function emitFlyingDebrisChunks(
+    origin,
+    normal,
+    count,
+    minSpeed,
+    maxSpeed,
+    minSx,
+    maxSx,
+    minSy,
+    maxSy,
+    minSz,
+    maxSz,
+    r,
+    g,
+    b,
+    spread,
+    floorY,
+  ) {
     for (let i = 0; i < count; i++) {
       randomVectorInCone(normal, spread, vTempAim);
       const spd = randomRange(minSpeed, maxSpeed);
@@ -2262,7 +2429,7 @@ export async function createFXManager(engineCtx) {
         g * colMult,
         b * colMult,
         randomRange(3.5, 6),
-        floorY
+        floorY,
       );
     }
   }
@@ -2276,7 +2443,20 @@ export async function createFXManager(engineCtx) {
     if (vTempNorm.lengthSq() < 1e-6) vTempNorm.copy(UP_VECTOR);
     vTempNorm.normalize();
 
-    emitSparksCone(pos, vTempNorm, count, 5, 18, 0.6, 0.15, 0.5, 36, 22, 9, PARTICLE_FLAG_BOUNCE_FLOOR);
+    emitSparksCone(
+      pos,
+      vTempNorm,
+      count,
+      5,
+      18,
+      0.6,
+      0.15,
+      0.5,
+      36,
+      22,
+      9,
+      PARTICLE_FLAG_BOUNCE_FLOOR,
+    );
     emitStaticAddFlare(pos.x, pos.y, pos.z, 0.05, 0.2, 0.35, 10, 6.5, 3, SPARK_FRAME_SOFT_DOT);
   }
 
@@ -2300,9 +2480,15 @@ export async function createFXManager(engineCtx) {
         life * randomRange(0.75, 1.2),
         size * 0.3,
         size * randomRange(1, 1.5),
-        col[0], col[1], col[2],
+        col[0],
+        col[1],
+        col[2],
         opts.alpha || 0.4,
-        shadowVis, 1.2, rise, 1, -1
+        shadowVis,
+        1.2,
+        rise,
+        1,
+        -1,
       );
     }
   }
@@ -2327,8 +2513,15 @@ export async function createFXManager(engineCtx) {
         randomRange(0.5, 1.1),
         0.08 * scale,
         randomRange(0.35, 0.7) * scale,
-        r * colMult, g * colMult, b * colMult,
-        0.9, shadowVis, 3.5, 0.15, 0.6, i < 3 ? 7 : -1
+        r * colMult,
+        g * colMult,
+        b * colMult,
+        0.9,
+        shadowVis,
+        3.5,
+        0.15,
+        0.6,
+        i < 3 ? 7 : -1,
       );
     }
 
@@ -2343,20 +2536,27 @@ export async function createFXManager(engineCtx) {
         randomRange(2.2, 3.6),
         0.25 * scale,
         randomRange(0.9, 1.5) * scale,
-        r, g, b,
-        0.28, shadowVis, 1.5, 0.1, 1, -1
+        r,
+        g,
+        b,
+        0.28,
+        shadowVis,
+        1.5,
+        0.1,
+        1,
+        -1,
       );
     }
     return shadowVis;
   }
 
-  function debris(pos, optionsOrDir = {}, surfaceType = 'concrete', optionalCount = null) {
+  function debris(pos, optionsOrDir = {}, surfaceType = "concrete", optionalCount = null) {
     let opts = optionsOrDir;
     if (optionsOrDir && optionsOrDir.isVector3) {
       opts = {
         normal: optionsOrDir,
-        count: optionalCount || (typeof surfaceType === 'number' ? surfaceType : 6),
-        mat: typeof surfaceType === 'string' ? surfaceType : 'concrete'
+        count: optionalCount || (typeof surfaceType === "number" ? surfaceType : 6),
+        mat: typeof surfaceType === "string" ? surfaceType : "concrete",
       };
     }
 
@@ -2366,7 +2566,7 @@ export async function createFXManager(engineCtx) {
     } else if (opts.mat) {
       let m = null;
       try {
-        m = typeof opts.mat === 'string' ? engineCtx.mats.get(opts.mat) : opts.mat;
+        m = typeof opts.mat === "string" ? engineCtx.mats.get(opts.mat) : opts.mat;
       } catch {
         m = null;
       }
@@ -2381,14 +2581,22 @@ export async function createFXManager(engineCtx) {
     const count = Math.min(opts.count || 6, 40);
 
     emitFlyingDebrisChunks(
-      pos, vTempNorm, count,
-      spd * 0.4, spd * 1.3,
-      sz * 0.4, sz * 1.2,
-      sz * 0.3, sz * 0.9,
-      sz * 0.4, sz * 1.2,
-      col[0], col[1], col[2],
+      pos,
+      vTempNorm,
+      count,
+      spd * 0.4,
+      spd * 1.3,
+      sz * 0.4,
+      sz * 1.2,
+      sz * 0.3,
+      sz * 0.9,
+      sz * 0.4,
+      sz * 1.2,
+      col[0],
+      col[1],
+      col[2],
       opts.spread || 1,
-      queryFloorHeight(pos)
+      queryFloorHeight(pos),
     );
   }
 
@@ -2409,8 +2617,15 @@ export async function createFXManager(engineCtx) {
         randomRange(0.4, 0.65),
         dropSz * 0.3,
         dropSz,
-        0.72, 0.78, 0.84, 0.95,
-        shadowVis, 0.5, -7, 0, 6
+        0.72,
+        0.78,
+        0.84,
+        0.95,
+        shadowVis,
+        0.5,
+        -7,
+        0,
+        6,
       );
       if (idx >= 0) {
         litPool.rot[idx] = (Math.random() - 0.5) * 0.3;
@@ -2423,12 +2638,24 @@ export async function createFXManager(engineCtx) {
 
     for (let i = 0; i < 2; i++) {
       emitLitSmoke(
-        pos.x, posY + 0.15 * scale, pos.z,
-        (Math.random() - 0.5) * 0.6, 0.5, (Math.random() - 0.5) * 0.6,
+        pos.x,
+        posY + 0.15 * scale,
+        pos.z,
+        (Math.random() - 0.5) * 0.6,
+        0.5,
+        (Math.random() - 0.5) * 0.6,
         randomRange(0.7, 1.1),
-        0.2 * scale, 0.7 * scale,
-        0.7, 0.75, 0.8, 0.14,
-        shadowVis, 2, 0, 0.8, -1
+        0.2 * scale,
+        0.7 * scale,
+        0.7,
+        0.75,
+        0.8,
+        0.14,
+        shadowVis,
+        2,
+        0,
+        0.8,
+        -1,
       );
     }
 
@@ -2442,11 +2669,15 @@ export async function createFXManager(engineCtx) {
       randomVectorInCone(UP_VECTOR, 0.75, vTempAim);
       const spd = randomRange(1.5, 4.8) * Math.sqrt(scale);
       const dIdx = addPool.emit(
-        pos.x, posY + 0.03, pos.z,
-        vTempAim.x * spd, Math.abs(vTempAim.y) * spd, vTempAim.z * spd,
+        pos.x,
+        posY + 0.03,
+        pos.z,
+        vTempAim.x * spd,
+        Math.abs(vTempAim.y) * spd,
+        vTempAim.z * spd,
         randomRange(0.5, 1),
         randomRange(0.012, 0.024),
-        0.01
+        0.01,
       );
       if (dIdx >= 0) {
         addPool.mode[dIdx] = PARTICLE_MODE_VELOCITY_STRETCH;
@@ -2465,12 +2696,32 @@ export async function createFXManager(engineCtx) {
     }
 
     // 扩散同心圆涟漪
-    emitWaterRippleRing(pos.x, posY + 0.012, pos.z, 0.9, 0.12 * scale, 1.5 * scale, 0.3 * shadowVis + 0.08, 0.27 * shadowVis + 0.09, 0.22 * shadowVis + 0.1);
-    const rip2 = emitWaterRippleRing(pos.x, posY + 0.012, pos.z, 1.3, 0.05 * scale, 1 * scale, 0.2 * shadowVis + 0.05, 0.18 * shadowVis + 0.06, 0.15 * shadowVis + 0.07);
+    emitWaterRippleRing(
+      pos.x,
+      posY + 0.012,
+      pos.z,
+      0.9,
+      0.12 * scale,
+      1.5 * scale,
+      0.3 * shadowVis + 0.08,
+      0.27 * shadowVis + 0.09,
+      0.22 * shadowVis + 0.1,
+    );
+    const rip2 = emitWaterRippleRing(
+      pos.x,
+      posY + 0.012,
+      pos.z,
+      1.3,
+      0.05 * scale,
+      1 * scale,
+      0.2 * shadowVis + 0.05,
+      0.18 * shadowVis + 0.06,
+      0.15 * shadowVis + 0.07,
+    );
     if (rip2 >= 0) addPool.fin[rip2] = 0.35;
   }
 
-  function impact(point, normal, surface = 'concrete', dir = null, enemy = null) {
+  function impact(point, normal, surface = "concrete", dir = null, enemy = null) {
     vTempNorm.copy(normal || UP_VECTOR);
     if (vTempNorm.lengthSq() < 1e-6) vTempNorm.copy(UP_VECTOR);
     vTempNorm.normalize();
@@ -2482,16 +2733,25 @@ export async function createFXManager(engineCtx) {
     }
 
     // 计算反射向量 (Reflect vector = dir - 2*(dir . norm)*norm)
-    vTempReflect.copy(vTempDir).addScaledVector(vTempNorm, -2 * vTempDir.dot(vTempNorm)).normalize();
+    vTempReflect
+      .copy(vTempDir)
+      .addScaledVector(vTempNorm, -2 * vTempDir.dot(vTempNorm))
+      .normalize();
     vTempPoint.copy(point);
 
-    if (enemy) surface = 'enemy';
+    if (enemy) surface = "enemy";
 
     // 检查是否击中水坑
-    if (surface !== 'enemy' && surface !== 'water' && vTempNorm.y > 0.7 && engineCtx.ground && engineCtx.ground.isPuddle) {
+    if (
+      surface !== "enemy" &&
+      surface !== "water" &&
+      vTempNorm.y > 0.7 &&
+      engineCtx.ground &&
+      engineCtx.ground.isPuddle
+    ) {
       try {
         if (engineCtx.ground.isPuddle(vTempPoint.x, vTempPoint.z) && vTempPoint.y < 0.08) {
-          surface = 'water';
+          surface = "water";
         }
       } catch {}
     }
@@ -2499,16 +2759,66 @@ export async function createFXManager(engineCtx) {
     const camPos = engineCtx.camera ? engineCtx.camera.position : vTempCamPos.set(0, 0, 0);
     const isFar = camPos.distanceToSquared(vTempPoint) > 3025; // 55 米以外降低 LOD
     const lodScale = isFar ? 0.5 : 1.0;
-    const nx = vTempNorm.x, ny = vTempNorm.y, nz = vTempNorm.z;
+    const nx = vTempNorm.x,
+      ny = vTempNorm.y,
+      nz = vTempNorm.z;
 
     switch (surface) {
-      case 'metal': {
+      case "metal": {
         vTempAim.copy(vTempReflect).addScaledVector(vTempNorm, 0.6).normalize();
-        emitSparksCone(vTempPoint, vTempAim, Math.round(18 * lodScale), 6, 24, 0.55, 0.1, 0.38, 40, 25, 10.5, 0);
-        emitSparksCone(vTempPoint, vTempAim, 2 + Math.floor(Math.random() * 2), 9, 18, 0.9, 0.7, 1.3, 32, 18, 7, PARTICLE_FLAG_BOUNCE_FLOOR);
+        emitSparksCone(
+          vTempPoint,
+          vTempAim,
+          Math.round(18 * lodScale),
+          6,
+          24,
+          0.55,
+          0.1,
+          0.38,
+          40,
+          25,
+          10.5,
+          0,
+        );
+        emitSparksCone(
+          vTempPoint,
+          vTempAim,
+          2 + Math.floor(Math.random() * 2),
+          9,
+          18,
+          0.9,
+          0.7,
+          1.3,
+          32,
+          18,
+          7,
+          PARTICLE_FLAG_BOUNCE_FLOOR,
+        );
 
-        emitStaticAddFlare(vTempPoint.x + nx * 0.03, vTempPoint.y + ny * 0.03, vTempPoint.z + nz * 0.03, 0.05, 0.25, 0.45, 16, 11, 5.5, SPARK_FRAME_SOFT_DOT);
-        emitStaticAddFlare(vTempPoint.x + nx * 0.04, vTempPoint.y + ny * 0.04, vTempPoint.z + nz * 0.04, 0.04, 0.35, 0.5, 9, 6, 2.6, SPARK_FRAME_STARBURST1 + Math.floor(Math.random() * 2));
+        emitStaticAddFlare(
+          vTempPoint.x + nx * 0.03,
+          vTempPoint.y + ny * 0.03,
+          vTempPoint.z + nz * 0.03,
+          0.05,
+          0.25,
+          0.45,
+          16,
+          11,
+          5.5,
+          SPARK_FRAME_SOFT_DOT,
+        );
+        emitStaticAddFlare(
+          vTempPoint.x + nx * 0.04,
+          vTempPoint.y + ny * 0.04,
+          vTempPoint.z + nz * 0.04,
+          0.04,
+          0.35,
+          0.5,
+          9,
+          6,
+          2.6,
+          SPARK_FRAME_STARBURST1 + Math.floor(Math.random() * 2),
+        );
 
         if (globalTime - lastMuzzleFlashTime > 0.09) {
           lastMuzzleFlashTime = globalTime;
@@ -2519,45 +2829,98 @@ export async function createFXManager(engineCtx) {
         const shadowVis = queryShadowVisibility(vTempPoint, vTempNorm);
         for (let i = 0; i < 2; i++) {
           emitLitSmoke(
-            vTempPoint.x + nx * 0.04, vTempPoint.y + ny * 0.04, vTempPoint.z + nz * 0.04,
+            vTempPoint.x + nx * 0.04,
+            vTempPoint.y + ny * 0.04,
+            vTempPoint.z + nz * 0.04,
             nx * 0.8 + (Math.random() - 0.5) * 0.5,
             ny * 0.8 + 0.2,
             nz * 0.8 + (Math.random() - 0.5) * 0.5,
-            randomRange(0.5, 0.9), 0.06, randomRange(0.3, 0.5),
-            0.4, 0.4, 0.41, 0.4, shadowVis, 2.5, 0.3, 0.8, -1
+            randomRange(0.5, 0.9),
+            0.06,
+            randomRange(0.3, 0.5),
+            0.4,
+            0.4,
+            0.41,
+            0.4,
+            shadowVis,
+            2.5,
+            0.3,
+            0.8,
+            -1,
           );
         }
 
         if (!isFar) {
-          emitFlyingDebrisChunks(vTempPoint, vTempNorm, 2, 1.5, 4, 0.012, 0.03, 0.003, 0.005, 0.01, 0.025, 0.2, 0.21, 0.23, 0.8, queryFloorHeight(vTempPoint));
+          emitFlyingDebrisChunks(
+            vTempPoint,
+            vTempNorm,
+            2,
+            1.5,
+            4,
+            0.012,
+            0.03,
+            0.003,
+            0.005,
+            0.01,
+            0.025,
+            0.2,
+            0.21,
+            0.23,
+            0.8,
+            queryFloorHeight(vTempPoint),
+          );
         }
-        decalSystem.add(vTempPoint, vTempNorm, 'bullet_metal');
+        decalSystem.add(vTempPoint, vTempNorm, "bullet_metal");
         break;
       }
 
-      case 'wood': {
+      case "wood": {
         const shadowVis = dust(vTempPoint, vTempNorm, 0.75, 0.5, 0.42, 0.32);
         emitFlyingDebrisChunks(
-          vTempPoint, vTempNorm, isFar ? 3 : 7, 2, 6,
-          0.004, 0.009, 0.03, 0.1, 0.004, 0.012,
-          0.62, 0.5, 0.33, 0.7, queryFloorHeight(vTempPoint)
+          vTempPoint,
+          vTempNorm,
+          isFar ? 3 : 7,
+          2,
+          6,
+          0.004,
+          0.009,
+          0.03,
+          0.1,
+          0.004,
+          0.012,
+          0.62,
+          0.5,
+          0.33,
+          0.7,
+          queryFloorHeight(vTempPoint),
         );
         if (shadowVis > 0.5 && Math.random() < 0.3) {
-          emitStaticAddFlare(vTempPoint.x, vTempPoint.y, vTempPoint.z, 0.04, 0.1, 0.2, 3, 2, 1, SPARK_FRAME_SOFT_DOT);
+          emitStaticAddFlare(
+            vTempPoint.x,
+            vTempPoint.y,
+            vTempPoint.z,
+            0.04,
+            0.1,
+            0.2,
+            3,
+            2,
+            1,
+            SPARK_FRAME_SOFT_DOT,
+          );
         }
-        decalSystem.add(vTempPoint, vTempNorm, 'bullet_wood');
+        decalSystem.add(vTempPoint, vTempNorm, "bullet_wood");
         break;
       }
 
-      case 'water': {
+      case "water": {
         splash(vTempPoint, 1);
         break;
       }
 
-      case 'rubber':
-      case 'dirt': {
+      case "rubber":
+      case "dirt": {
         const shadowVis = queryShadowVisibility(vTempPoint, vTempNorm);
-        const isDirt = surface === 'dirt';
+        const isDirt = surface === "dirt";
         const rCol = isDirt ? 0.3 : 0.14;
         const gCol = isDirt ? 0.25 : 0.14;
         const bCol = isDirt ? 0.19 : 0.14;
@@ -2566,30 +2929,63 @@ export async function createFXManager(engineCtx) {
           randomVectorInCone(vTempNorm, 0.6, vTempAim);
           const spd = randomRange(0.6, 2.6);
           emitLitSmoke(
-            vTempPoint.x + nx * 0.03, vTempPoint.y + ny * 0.03, vTempPoint.z + nz * 0.03,
-            vTempAim.x * spd, vTempAim.y * spd, vTempAim.z * spd,
-            randomRange(0.5, 1), 0.07, randomRange(0.3, 0.55),
-            rCol, gCol, bCol, 0.85, shadowVis, 3.5, 0.1, 0.6, i < 2 ? 7 : -1
+            vTempPoint.x + nx * 0.03,
+            vTempPoint.y + ny * 0.03,
+            vTempPoint.z + nz * 0.03,
+            vTempAim.x * spd,
+            vTempAim.y * spd,
+            vTempAim.z * spd,
+            randomRange(0.5, 1),
+            0.07,
+            randomRange(0.3, 0.55),
+            rCol,
+            gCol,
+            bCol,
+            0.85,
+            shadowVis,
+            3.5,
+            0.1,
+            0.6,
+            i < 2 ? 7 : -1,
           );
         }
 
         emitFlyingDebrisChunks(
-          vTempPoint, vTempNorm, 3, 1.5, 4,
-          0.01, 0.03, 0.008, 0.02, 0.01, 0.03,
-          rCol * 0.8, gCol * 0.8, bCol * 0.8, 0.7, queryFloorHeight(vTempPoint)
+          vTempPoint,
+          vTempNorm,
+          3,
+          1.5,
+          4,
+          0.01,
+          0.03,
+          0.008,
+          0.02,
+          0.01,
+          0.03,
+          rCol * 0.8,
+          gCol * 0.8,
+          bCol * 0.8,
+          0.7,
+          queryFloorHeight(vTempPoint),
         );
-        decalSystem.add(vTempPoint, vTempNorm, 'soot', 0.2, 1, 0.8);
+        decalSystem.add(vTempPoint, vTempNorm, "soot", 0.2, 1, 0.8);
         break;
       }
 
-      case 'glass': {
+      case "glass": {
         for (let i = 0; i < 12; i++) {
           randomVectorInCone(vTempNorm, 0.9, vTempAim);
           const spd = randomRange(1.5, 6);
           const dIdx = addPool.emit(
-            vTempPoint.x, vTempPoint.y, vTempPoint.z,
-            vTempAim.x * spd, vTempAim.y * spd, vTempAim.z * spd,
-            randomRange(0.4, 0.9), randomRange(0.012, 0.02), 0.008
+            vTempPoint.x,
+            vTempPoint.y,
+            vTempPoint.z,
+            vTempAim.x * spd,
+            vTempAim.y * spd,
+            vTempAim.z * spd,
+            randomRange(0.4, 0.9),
+            randomRange(0.012, 0.02),
+            0.008,
           );
           if (dIdx >= 0) {
             addPool.mode[dIdx] = PARTICLE_MODE_VELOCITY_STRETCH;
@@ -2605,29 +3001,102 @@ export async function createFXManager(engineCtx) {
         }
 
         emitFlyingDebrisChunks(
-          vTempPoint, vTempNorm, 4, 1.5, 5,
-          0.01, 0.03, 0.002, 0.004, 0.01, 0.03,
-          0.62, 0.72, 0.74, 0.8, queryFloorHeight(vTempPoint)
+          vTempPoint,
+          vTempNorm,
+          4,
+          1.5,
+          5,
+          0.01,
+          0.03,
+          0.002,
+          0.004,
+          0.01,
+          0.03,
+          0.62,
+          0.72,
+          0.74,
+          0.8,
+          queryFloorHeight(vTempPoint),
         );
         emitLitSmoke(
-          vTempPoint.x, vTempPoint.y, vTempPoint.z,
-          nx * 0.6, ny * 0.6 + 0.2, nz * 0.6,
-          0.6, 0.08, 0.4,
-          0.75, 0.8, 0.82, 0.2,
+          vTempPoint.x,
+          vTempPoint.y,
+          vTempPoint.z,
+          nx * 0.6,
+          ny * 0.6 + 0.2,
+          nz * 0.6,
+          0.6,
+          0.08,
+          0.4,
+          0.75,
+          0.8,
+          0.82,
+          0.2,
           queryShadowVisibility(vTempPoint, vTempNorm),
-          2.5, 0.2, 0.8, -1
+          2.5,
+          0.2,
+          0.8,
+          -1,
         );
-        decalSystem.add(vTempPoint, vTempNorm, 'bullet_glass');
+        decalSystem.add(vTempPoint, vTempNorm, "bullet_glass");
         break;
       }
 
-      case 'enemy': {
+      case "enemy": {
         vTempAim.copy(vTempReflect).addScaledVector(vTempNorm, 0.8).normalize();
-        emitSparksCone(vTempPoint, vTempAim, Math.round(13 * lodScale), 5, 20, 0.9, 0.12, 0.45, 42, 29, 14, 0);
-        emitSparksCone(vTempPoint, vTempAim, 2, 6, 12, 1.0, 0.6, 1.1, 32, 18, 7, PARTICLE_FLAG_BOUNCE_FLOOR);
+        emitSparksCone(
+          vTempPoint,
+          vTempAim,
+          Math.round(13 * lodScale),
+          5,
+          20,
+          0.9,
+          0.12,
+          0.45,
+          42,
+          29,
+          14,
+          0,
+        );
+        emitSparksCone(
+          vTempPoint,
+          vTempAim,
+          2,
+          6,
+          12,
+          1.0,
+          0.6,
+          1.1,
+          32,
+          18,
+          7,
+          PARTICLE_FLAG_BOUNCE_FLOOR,
+        );
 
-        emitStaticAddFlare(vTempPoint.x, vTempPoint.y, vTempPoint.z, 0.06, 0.3, 0.55, 18, 12, 6, SPARK_FRAME_SOFT_DOT);
-        emitStaticAddFlare(vTempPoint.x, vTempPoint.y, vTempPoint.z, 0.04, 0.3, 0.45, 8, 5, 2.4, SPARK_FRAME_STARBURST1 + Math.floor(Math.random() * 2));
+        emitStaticAddFlare(
+          vTempPoint.x,
+          vTempPoint.y,
+          vTempPoint.z,
+          0.06,
+          0.3,
+          0.55,
+          18,
+          12,
+          6,
+          SPARK_FRAME_SOFT_DOT,
+        );
+        emitStaticAddFlare(
+          vTempPoint.x,
+          vTempPoint.y,
+          vTempPoint.z,
+          0.04,
+          0.3,
+          0.45,
+          8,
+          5,
+          2.4,
+          SPARK_FRAME_STARBURST1 + Math.floor(Math.random() * 2),
+        );
 
         if (globalTime - lastMuzzleFlashTime > 0.09) {
           lastMuzzleFlashTime = globalTime;
@@ -2637,22 +3106,46 @@ export async function createFXManager(engineCtx) {
         const shadowVis = queryShadowVisibility(vTempPoint, vTempNorm);
         for (let i = 0; i < 2; i++) {
           emitLitSmoke(
-            vTempPoint.x, vTempPoint.y, vTempPoint.z,
+            vTempPoint.x,
+            vTempPoint.y,
+            vTempPoint.z,
             nx * 0.5 + (Math.random() - 0.5) * 0.4,
             ny * 0.5 + 0.3,
             nz * 0.5 + (Math.random() - 0.5) * 0.4,
-            randomRange(0.6, 1.1), 0.06, randomRange(0.3, 0.5),
-            0.13, 0.13, 0.14, 0.65, shadowVis, 2.2, 0.5, 0.9, -1
+            randomRange(0.6, 1.1),
+            0.06,
+            randomRange(0.3, 0.5),
+            0.13,
+            0.13,
+            0.14,
+            0.65,
+            shadowVis,
+            2.2,
+            0.5,
+            0.9,
+            -1,
           );
         }
 
         if (!isFar) {
           const isBloodSpark = Math.random() < 0.35;
           emitFlyingDebrisChunks(
-            vTempPoint, vTempNorm, 3, 2, 6,
-            0.012, 0.035, 0.004, 0.008, 0.012, 0.03,
-            0.6, isBloodSpark ? 0.2 : 0.62, isBloodSpark ? 0.05 : 0.64,
-            0.8, queryFloorHeight(vTempPoint)
+            vTempPoint,
+            vTempNorm,
+            3,
+            2,
+            6,
+            0.012,
+            0.035,
+            0.004,
+            0.008,
+            0.012,
+            0.03,
+            0.6,
+            isBloodSpark ? 0.2 : 0.62,
+            isBloodSpark ? 0.05 : 0.64,
+            0.8,
+            queryFloorHeight(vTempPoint),
           );
         }
         break;
@@ -2662,9 +3155,22 @@ export async function createFXManager(engineCtx) {
         // 混凝土默认表面 (Concrete default)
         dust(vTempPoint, vTempNorm, 1, 0.52, 0.5, 0.47);
         emitFlyingDebrisChunks(
-          vTempPoint, vTempNorm, isFar ? 2 : 4, 1.5, 5.5,
-          0.012, 0.035, 0.008, 0.02, 0.012, 0.035,
-          0.42, 0.41, 0.39, 0.7, queryFloorHeight(vTempPoint)
+          vTempPoint,
+          vTempNorm,
+          isFar ? 2 : 4,
+          1.5,
+          5.5,
+          0.012,
+          0.035,
+          0.008,
+          0.02,
+          0.012,
+          0.035,
+          0.42,
+          0.41,
+          0.39,
+          0.7,
+          queryFloorHeight(vTempPoint),
         );
 
         vTempAim.copy(vTempReflect).addScaledVector(vTempNorm, 0.7).normalize();
@@ -2672,10 +3178,24 @@ export async function createFXManager(engineCtx) {
           randomVectorInCone(vTempAim, 0.5, vTempAim);
           const spd = randomRange(3, 9);
           const sIdx = emitLitSmoke(
-            vTempPoint.x, vTempPoint.y, vTempPoint.z,
-            vTempAim.x * spd, vTempAim.y * spd, vTempAim.z * spd,
-            randomRange(0.25, 0.45), 0.03, 0.09,
-            0.6, 0.58, 0.54, 0.7, 1, 2, -6, 0.2, 7
+            vTempPoint.x,
+            vTempPoint.y,
+            vTempPoint.z,
+            vTempAim.x * spd,
+            vTempAim.y * spd,
+            vTempAim.z * spd,
+            randomRange(0.25, 0.45),
+            0.03,
+            0.09,
+            0.6,
+            0.58,
+            0.54,
+            0.7,
+            1,
+            2,
+            -6,
+            0.2,
+            7,
           );
           if (sIdx >= 0) litPool.turb[sIdx] = 0;
         }
@@ -2683,7 +3203,7 @@ export async function createFXManager(engineCtx) {
         if (Math.random() < 0.3) {
           emitSparksCone(vTempPoint, vTempAim, 3, 4, 10, 0.6, 0.08, 0.2, 26, 15, 6, 0);
         }
-        decalSystem.add(vTempPoint, vTempNorm, 'bullet_concrete');
+        decalSystem.add(vTempPoint, vTempNorm, "bullet_concrete");
       }
     }
   }
@@ -2692,10 +3212,13 @@ export async function createFXManager(engineCtx) {
     const col = parseColorToArray(opts.color, 1, 0.8, 0.46);
     const intensity = opts.intensity || 16;
     tracerPool.add(
-      fromPos, toPos,
-      col[0] * intensity, col[1] * intensity, col[2] * intensity,
+      fromPos,
+      toPos,
+      col[0] * intensity,
+      col[1] * intensity,
+      col[2] * intensity,
       opts.speed || 260,
-      opts.width || 0.024
+      opts.width || 0.024,
     );
 
     if (globalTime - lastTracerSmokeTime > 0.07 && opts.trail !== false) {
@@ -2713,9 +3236,21 @@ export async function createFXManager(engineCtx) {
             fromPos.x + vTempAim.x * stepDist,
             fromPos.y + vTempAim.y * stepDist,
             fromPos.z + vTempAim.z * stepDist,
-            vTempAim.x * 0.6, 0.05, vTempAim.z * 0.6,
-            randomRange(0.45, 0.8), 0.04, randomRange(0.12, 0.2),
-            0.6, 0.6, 0.62, 0.1, shadowVis, 2, 0.1, 0.7, -1
+            vTempAim.x * 0.6,
+            0.05,
+            vTempAim.z * 0.6,
+            randomRange(0.45, 0.8),
+            0.04,
+            randomRange(0.12, 0.2),
+            0.6,
+            0.6,
+            0.62,
+            0.1,
+            shadowVis,
+            2,
+            0.1,
+            0.7,
+            -1,
           );
           if (tIdx >= 0) litPool.fin[tIdx] = 0.25;
         }
@@ -2730,18 +3265,72 @@ export async function createFXManager(engineCtx) {
     vTempAim.normalize();
 
     const col = parseColorToArray(opts.color, 1, 0.68, 0.32);
-    const px = pos.x, py = pos.y, pz = pos.z;
-    const cr = col[0], cg = col[1], cb = col[2];
+    const px = pos.x,
+      py = pos.y,
+      pz = pos.z;
+    const cr = col[0],
+      cg = col[1],
+      cb = col[2];
 
-    emitStaticAddFlare(px + vTempAim.x * 0.1 * scale, py + vTempAim.y * 0.1 * scale, pz + vTempAim.z * 0.1 * scale, 0.045, 0.75 * scale, 1.15 * scale, 34 * cr, 34 * cg, 34 * cb, SPARK_FRAME_STARBURST1);
-    emitStaticAddFlare(px + vTempAim.x * 0.14 * scale, py + vTempAim.y * 0.14 * scale, pz + vTempAim.z * 0.14 * scale, 0.035, 0.5 * scale, 0.85 * scale, 22 * cr, 22 * cg, 22 * cb, SPARK_FRAME_STARBURST2);
-    emitStaticAddFlare(px + vTempAim.x * 0.05 * scale, py + vTempAim.y * 0.05 * scale, pz + vTempAim.z * 0.05 * scale, 0.045, 0.13 * scale, 0.2 * scale, 22, 22 * (cg + 0.25), 22 * (cb + 0.3), SPARK_FRAME_SOFT_DOT);
-    emitStaticAddFlare(px, py, pz, 0.05, 0.8 * scale, 1.1 * scale, 0.4 * cr, 0.4 * cg, 0.4 * cb, SPARK_FRAME_SOFT_DOT);
+    emitStaticAddFlare(
+      px + vTempAim.x * 0.1 * scale,
+      py + vTempAim.y * 0.1 * scale,
+      pz + vTempAim.z * 0.1 * scale,
+      0.045,
+      0.75 * scale,
+      1.15 * scale,
+      34 * cr,
+      34 * cg,
+      34 * cb,
+      SPARK_FRAME_STARBURST1,
+    );
+    emitStaticAddFlare(
+      px + vTempAim.x * 0.14 * scale,
+      py + vTempAim.y * 0.14 * scale,
+      pz + vTempAim.z * 0.14 * scale,
+      0.035,
+      0.5 * scale,
+      0.85 * scale,
+      22 * cr,
+      22 * cg,
+      22 * cb,
+      SPARK_FRAME_STARBURST2,
+    );
+    emitStaticAddFlare(
+      px + vTempAim.x * 0.05 * scale,
+      py + vTempAim.y * 0.05 * scale,
+      pz + vTempAim.z * 0.05 * scale,
+      0.045,
+      0.13 * scale,
+      0.2 * scale,
+      22,
+      22 * (cg + 0.25),
+      22 * (cb + 0.3),
+      SPARK_FRAME_SOFT_DOT,
+    );
+    emitStaticAddFlare(
+      px,
+      py,
+      pz,
+      0.05,
+      0.8 * scale,
+      1.1 * scale,
+      0.4 * cr,
+      0.4 * cg,
+      0.4 * cb,
+      SPARK_FRAME_SOFT_DOT,
+    );
 
     const fIdx = addPool.emit(
-      px + vTempAim.x * 0.4 * scale, py + vTempAim.y * 0.4 * scale, pz + vTempAim.z * 0.4 * scale,
-      -vTempAim.x, -vTempAim.y, -vTempAim.z,
-      0.04, 0.11 * scale, 0.14 * scale
+      px + vTempAim.x * 0.4 * scale,
+      py + vTempAim.y * 0.4 * scale,
+      pz + vTempAim.z * 0.4 * scale,
+      -vTempAim.x,
+      -vTempAim.y,
+      -vTempAim.z,
+      0.04,
+      0.11 * scale,
+      0.14 * scale,
     );
     if (fIdx >= 0) {
       addPool.mode[fIdx] = PARTICLE_MODE_VELOCITY_STRETCH;
@@ -2756,14 +3345,41 @@ export async function createFXManager(engineCtx) {
     for (let i = 0; i < 3; i++) {
       randomVectorInCone(vTempAim, 0.25, vTempNorm);
       const spd = randomRange(8, 22);
-      emitAddSparkStreak(px, py, pz, vTempNorm.x * spd, vTempNorm.y * spd, vTempNorm.z * spd, randomRange(0.08, 0.22), 0.012, 30, 18, 7, 0);
+      emitAddSparkStreak(
+        px,
+        py,
+        pz,
+        vTempNorm.x * spd,
+        vTempNorm.y * spd,
+        vTempNorm.z * spd,
+        randomRange(0.08, 0.22),
+        0.012,
+        30,
+        18,
+        7,
+        0,
+      );
     }
 
     emitLitSmoke(
-      px + vTempAim.x * 0.2, py + vTempAim.y * 0.2, pz + vTempAim.z * 0.2,
-      vTempAim.x * 1.5, vTempAim.y * 1.5 + 0.2, vTempAim.z * 1.5,
-      randomRange(0.5, 0.9), 0.08 * scale, 0.45 * scale,
-      0.5, 0.5, 0.52, 0.16, 1, 3, 0.3, 0.8, -1
+      px + vTempAim.x * 0.2,
+      py + vTempAim.y * 0.2,
+      pz + vTempAim.z * 0.2,
+      vTempAim.x * 1.5,
+      vTempAim.y * 1.5 + 0.2,
+      vTempAim.z * 1.5,
+      randomRange(0.5, 0.9),
+      0.08 * scale,
+      0.45 * scale,
+      0.5,
+      0.5,
+      0.52,
+      0.16,
+      1,
+      3,
+      0.3,
+      0.8,
+      -1,
     );
 
     vTempCamPos.copy(pos).addScaledVector(vTempAim, 0.25);
@@ -2778,10 +3394,12 @@ export async function createFXManager(engineCtx) {
 
   function explosion(pos, size = 1) {
     const scale = Math.max(0.4, Math.min(size, 4));
-    const px = pos.x, py = pos.y, pz = pos.z;
+    const px = pos.x,
+      py = pos.y,
+      pz = pos.z;
     const sqrtScale = Math.sqrt(scale);
     const floorY = queryFloorHeight(pos);
-    const nearGround = (py - floorY) < 1.4 * scale;
+    const nearGround = py - floorY < 1.4 * scale;
     const shadowVis = queryShadowVisibility(pos, UP_VECTOR);
 
     vTempCamPos.set(px, py + 0.4, pz);
@@ -2789,9 +3407,42 @@ export async function createFXManager(engineCtx) {
     flashLight(vTempCamPos, 0xff7010, 55 * scale, 8 + 6 * scale, 0.45);
 
     const centerY = py + 0.35 * scale;
-    emitStaticAddFlare(px, centerY, pz, 0.055, 1.5 * scale, 2.3 * scale, 16, 13.5, 9.5, SPARK_FRAME_SOFT_DOT);
-    emitStaticAddFlare(px, centerY, pz, 0.05, 2.6 * scale, 4.2 * scale, 7, 5, 2.4, SPARK_FRAME_STARBURST1 + Math.floor(Math.random() * 2));
-    emitStaticAddFlare(px, centerY, pz, 0.3, 3.5 * scale, 5.5 * scale, 0.35, 0.2, 0.08, SPARK_FRAME_SOFT_DOT);
+    emitStaticAddFlare(
+      px,
+      centerY,
+      pz,
+      0.055,
+      1.5 * scale,
+      2.3 * scale,
+      16,
+      13.5,
+      9.5,
+      SPARK_FRAME_SOFT_DOT,
+    );
+    emitStaticAddFlare(
+      px,
+      centerY,
+      pz,
+      0.05,
+      2.6 * scale,
+      4.2 * scale,
+      7,
+      5,
+      2.4,
+      SPARK_FRAME_STARBURST1 + Math.floor(Math.random() * 2),
+    );
+    emitStaticAddFlare(
+      px,
+      centerY,
+      pz,
+      0.3,
+      3.5 * scale,
+      5.5 * scale,
+      0.35,
+      0.2,
+      0.08,
+      SPARK_FRAME_SOFT_DOT,
+    );
 
     // 火球膨胀火舌 (Fire lobes)
     const fireLobes = Math.round(13 + 5 * scale);
@@ -2804,8 +3455,12 @@ export async function createFXManager(engineCtx) {
         px + vTempAim.x * 0.3 * scale,
         centerY + vTempAim.y * 0.3 * scale,
         pz + vTempAim.z * 0.3 * scale,
-        vTempAim.x * spd, vTempAim.y * spd + 1.4, vTempAim.z * spd,
-        randomRange(0.55, 1.05), 0.85 * scale, randomRange(1.8, 2.7) * scale
+        vTempAim.x * spd,
+        vTempAim.y * spd + 1.4,
+        vTempAim.z * spd,
+        randomRange(0.55, 1.05),
+        0.85 * scale,
+        randomRange(1.8, 2.7) * scale,
       );
       if (idx >= 0) {
         litPool.frame[idx] = i % 4 === 0 ? 7 : Math.floor(Math.random() * 6);
@@ -2835,8 +3490,12 @@ export async function createFXManager(engineCtx) {
         px + vTempAim.x * 0.3 * scale,
         centerY + vTempAim.y * 0.3 * scale,
         pz + vTempAim.z * 0.3 * scale,
-        vTempAim.x * spd, Math.abs(vTempAim.y) * spd + 1.2, vTempAim.z * spd,
-        randomRange(0.3, 0.55), 0.6 * scale, randomRange(1.2, 1.8) * scale
+        vTempAim.x * spd,
+        Math.abs(vTempAim.y) * spd + 1.2,
+        vTempAim.z * spd,
+        randomRange(0.3, 0.55),
+        0.6 * scale,
+        randomRange(1.2, 1.8) * scale,
       );
       if (pIdx >= 0) {
         addPool.frame[pIdx] = SPARK_FRAME_PLASMA;
@@ -2855,7 +3514,7 @@ export async function createFXManager(engineCtx) {
     // 滚滚黑浓烟柱 (Thick black smoke columns)
     const smokePuffs = Math.round(11 + 5 * scale);
     for (let i = 0; i < smokePuffs; i++) {
-      const isFast = (i % 2 === 0);
+      const isFast = i % 2 === 0;
       randomVectorInCone(UP_VECTOR, 1.4, vTempAim);
       if (nearGround && vTempAim.y < 0) vTempAim.y = -vTempAim.y * 0.4;
       const spd = (isFast ? randomRange(4.5, 9) : randomRange(1.5, 5)) * sqrtScale;
@@ -2865,10 +3524,21 @@ export async function createFXManager(engineCtx) {
         px + vTempAim.x * rad * scale,
         centerY + vTempAim.y * rad * scale,
         pz + vTempAim.z * rad * scale,
-        vTempAim.x * spd, vTempAim.y * spd + 0.8, vTempAim.z * spd,
-        randomRange(2.8, 4.8), (isFast ? 0.8 : 1.2) * scale, randomRange(2.6, 4.2) * scale,
-        gray, gray * 0.95, gray * 0.9,
-        isFast ? 0.7 : 0.8, shadowVis, 3.4, randomRange(0.8, 1.7), 1, i % 3 === 0 ? 7 : -1
+        vTempAim.x * spd,
+        vTempAim.y * spd + 0.8,
+        vTempAim.z * spd,
+        randomRange(2.8, 4.8),
+        (isFast ? 0.8 : 1.2) * scale,
+        randomRange(2.6, 4.2) * scale,
+        gray,
+        gray * 0.95,
+        gray * 0.9,
+        isFast ? 0.7 : 0.8,
+        shadowVis,
+        3.4,
+        randomRange(0.8, 1.7),
+        1,
+        i % 3 === 0 ? 7 : -1,
       );
       if (sIdx >= 0) {
         litPool.fin[sIdx] = isFast ? 0.025 : 0.16;
@@ -2878,7 +3548,15 @@ export async function createFXManager(engineCtx) {
     }
 
     // 产生地面持续余烟发射器
-    spawnContinuousEmitter(px, py + 0.3 * scale, pz, 'smolder', 1.3 + 0.3 * scale, scale, shadowVis);
+    spawnContinuousEmitter(
+      px,
+      py + 0.3 * scale,
+      pz,
+      "smolder",
+      1.3 + 0.3 * scale,
+      scale,
+      shadowVis,
+    );
 
     // 高速火花飞溅 (High-velocity sparks)
     const sparkCount = Math.min(90, Math.round(34 * scale));
@@ -2887,10 +3565,18 @@ export async function createFXManager(engineCtx) {
       if (nearGround && vTempAim.y < 0) vTempAim.y = -vTempAim.y;
       const spd = randomRange(6, 26) * sqrtScale;
       const spkIdx = emitAddSparkStreak(
-        px, py + 0.05, pz,
-        vTempAim.x * spd, vTempAim.y * spd, vTempAim.z * spd,
-        randomRange(0.5, 1.5), randomRange(0.014, 0.028),
-        40, 23, 8, PARTICLE_FLAG_BOUNCE_FLOOR
+        px,
+        py + 0.05,
+        pz,
+        vTempAim.x * spd,
+        vTempAim.y * spd,
+        vTempAim.z * spd,
+        randomRange(0.5, 1.5),
+        randomRange(0.014, 0.028),
+        40,
+        23,
+        8,
+        PARTICLE_FLAG_BOUNCE_FLOOR,
       );
       if (spkIdx >= 0) {
         addPool.drag[spkIdx] = 1.4;
@@ -2903,9 +3589,15 @@ export async function createFXManager(engineCtx) {
       randomVectorInCone(UP_VECTOR, 1.2, vTempAim);
       const spd = randomRange(1, 5);
       const eIdx = addPool.emit(
-        px, py + 0.3, pz,
-        vTempAim.x * spd, Math.abs(vTempAim.y) * spd + 1, vTempAim.z * spd,
-        randomRange(1.4, 3), 0.035, 0.02
+        px,
+        py + 0.3,
+        pz,
+        vTempAim.x * spd,
+        Math.abs(vTempAim.y) * spd + 1,
+        vTempAim.z * spd,
+        randomRange(1.4, 3),
+        0.035,
+        0.02,
       );
       if (eIdx >= 0) {
         addPool.frame[eIdx] = SPARK_FRAME_SOFT_DOT;
@@ -2932,29 +3624,56 @@ export async function createFXManager(engineCtx) {
         const spd = randomRange(5, 10) * sqrtScale;
         const gray = randomRange(0.42, 0.55);
         const rIdx = emitLitSmoke(
-          px + Math.cos(ang) * 0.4 * scale, shockY + 0.2, pz + Math.sin(ang) * 0.4 * scale,
-          Math.cos(ang) * spd, randomRange(0.2, 0.9), Math.sin(ang) * spd,
-          randomRange(1.2, 2.2), 0.4 * scale, randomRange(1.2, 1.9) * scale,
-          gray, gray * 0.96, gray * 0.9, 0.26, shadowVis, 3, 0.15, 0.7, -1
+          px + Math.cos(ang) * 0.4 * scale,
+          shockY + 0.2,
+          pz + Math.sin(ang) * 0.4 * scale,
+          Math.cos(ang) * spd,
+          randomRange(0.2, 0.9),
+          Math.sin(ang) * spd,
+          randomRange(1.2, 2.2),
+          0.4 * scale,
+          randomRange(1.2, 1.9) * scale,
+          gray,
+          gray * 0.96,
+          gray * 0.9,
+          0.26,
+          shadowVis,
+          3,
+          0.15,
+          0.7,
+          -1,
         );
         if (rIdx >= 0) litPool.fin[rIdx] = 0.1;
       }
 
       vTempPos.set(px, floorY, pz);
-      decalSystem.add(vTempPos, UP_VECTOR, 'scorch', 2.3 * scale, 1, 0.92);
+      decalSystem.add(vTempPos, UP_VECTOR, "scorch", 2.3 * scale, 1, 0.92);
     }
 
     // 爆炸重力石块飞溅
     vTempPos.set(px, Math.max(py, floorY + 0.1), pz);
     emitFlyingDebrisChunks(
-      vTempPos, UP_VECTOR, Math.round(13 + 6 * scale), 4, 13 * sqrtScale,
-      0.04, 0.13, 0.025, 0.08, 0.04, 0.13,
-      0.07, 0.066, 0.062, 1.1, floorY
+      vTempPos,
+      UP_VECTOR,
+      Math.round(13 + 6 * scale),
+      4,
+      13 * sqrtScale,
+      0.04,
+      0.13,
+      0.025,
+      0.08,
+      0.04,
+      0.13,
+      0.07,
+      0.066,
+      0.062,
+      1.1,
+      floorY,
     );
 
     vExplosionEvent.pos.copy(pos);
     vExplosionEvent.size = size;
-    engineCtx.events.emit('explosion', vExplosionEvent);
+    engineCtx.events.emit("explosion", vExplosionEvent);
   }
 
   // ==========================================================================
@@ -2965,7 +3684,7 @@ export async function createFXManager(engineCtx) {
   for (let i = 0; i < 24; i++) {
     const emitter = {
       active: false,
-      kind: 'steam',
+      kind: "steam",
       pos: new THREE.Vector3(),
       acc: 0,
       acc2: 0,
@@ -2984,7 +3703,7 @@ export async function createFXManager(engineCtx) {
       },
       setPos(p) {
         emitter.pos.copy(p);
-      }
+      },
     };
     continuousEmitters.push(emitter);
   }
@@ -2993,7 +3712,7 @@ export async function createFXManager(engineCtx) {
     active: false,
     pos: new THREE.Vector3(),
     stop() {},
-    setPos() {}
+    setPos() {},
   };
 
   function spawnContinuousEmitter(x, y, z, kind, ttl, scale, shade) {
@@ -3017,7 +3736,7 @@ export async function createFXManager(engineCtx) {
     target.drop = -1;
     target.shade = shade === undefined ? queryShadowVisibility(target.pos, null) : shade;
 
-    if (kind === 'fire') {
+    if (kind === "fire") {
       const lp = getLightPool();
       target.light = lp && lp.acquire ? lp.acquire() : null;
       if (target.light) {
@@ -3029,8 +3748,16 @@ export async function createFXManager(engineCtx) {
     return target;
   }
 
-  function addEmitter(pos, kind = 'steam', opts = {}) {
-    return spawnContinuousEmitter(pos.x, pos.y, pos.z, kind, opts.ttl || Infinity, opts.scale || 1, undefined);
+  function addEmitter(pos, kind = "steam", opts = {}) {
+    return spawnContinuousEmitter(
+      pos.x,
+      pos.y,
+      pos.z,
+      kind,
+      opts.ttl || Infinity,
+      opts.scale || 1,
+      undefined,
+    );
   }
 
   function updateContinuousEmitters(dt) {
@@ -3044,47 +3771,84 @@ export async function createFXManager(engineCtx) {
         continue;
       }
 
-      const px = em.pos.x, py = em.pos.y, pz = em.pos.z, sc = em.scale;
+      const px = em.pos.x,
+        py = em.pos.y,
+        pz = em.pos.z,
+        sc = em.scale;
 
-      if (em.kind === 'steam') {
+      if (em.kind === "steam") {
         em.acc += dt * 13;
         while (em.acc > 1) {
           em.acc -= 1;
           const sIdx = emitLitSmoke(
-            px + (Math.random() - 0.5) * 0.08, py, pz + (Math.random() - 0.5) * 0.08,
-            (Math.random() - 0.5) * 0.4, randomRange(1.4, 2.4), (Math.random() - 0.5) * 0.4,
-            randomRange(1.8, 3), 0.12 * sc, randomRange(0.8, 1.3) * sc,
-            0.8, 0.82, 0.85, 0.2, em.shade, 1.3, 0.5, 1, -1
+            px + (Math.random() - 0.5) * 0.08,
+            py,
+            pz + (Math.random() - 0.5) * 0.08,
+            (Math.random() - 0.5) * 0.4,
+            randomRange(1.4, 2.4),
+            (Math.random() - 0.5) * 0.4,
+            randomRange(1.8, 3),
+            0.12 * sc,
+            randomRange(0.8, 1.3) * sc,
+            0.8,
+            0.82,
+            0.85,
+            0.2,
+            em.shade,
+            1.3,
+            0.5,
+            1,
+            -1,
           );
           if (sIdx >= 0) {
             litPool.fin[sIdx] = 0.12;
             litPool.turb[sIdx] = 0.9;
           }
         }
-      } else if (em.kind === 'smolder') {
+      } else if (em.kind === "smolder") {
         em.acc += dt * 9 * (1 - em.t / em.ttl);
         while (em.acc > 1) {
           em.acc -= 1;
           const gray = randomRange(0.05, 0.11);
           const sIdx = emitLitSmoke(
-            px + (Math.random() - 0.5) * 0.5 * sc, py, pz + (Math.random() - 0.5) * 0.5 * sc,
-            (Math.random() - 0.5) * 0.6, randomRange(1.2, 2.4), (Math.random() - 0.5) * 0.6,
-            randomRange(2.4, 3.8), 0.5 * sc, randomRange(1.6, 2.6) * sc,
-            gray, gray, gray, 0.6, em.shade, 1, 0.9, 1, -1
+            px + (Math.random() - 0.5) * 0.5 * sc,
+            py,
+            pz + (Math.random() - 0.5) * 0.5 * sc,
+            (Math.random() - 0.5) * 0.6,
+            randomRange(1.2, 2.4),
+            (Math.random() - 0.5) * 0.6,
+            randomRange(2.4, 3.8),
+            0.5 * sc,
+            randomRange(1.6, 2.6) * sc,
+            gray,
+            gray,
+            gray,
+            0.6,
+            em.shade,
+            1,
+            0.9,
+            1,
+            -1,
           );
           if (sIdx >= 0) {
             litPool.fin[sIdx] = 0.12;
             litPool.turb[sIdx] = 1;
           }
         }
-      } else if (em.kind === 'embers') {
+      } else if (em.kind === "embers") {
         em.acc += dt * 8;
         while (em.acc > 1) {
           em.acc -= 1;
           const eIdx = addPool.emit(
-            px + (Math.random() - 0.5) * 0.4 * sc, py, pz + (Math.random() - 0.5) * 0.4 * sc,
-            (Math.random() - 0.5) * 0.6, randomRange(0.6, 1.8), (Math.random() - 0.5) * 0.6,
-            randomRange(1.5, 3.2), randomRange(0.02, 0.04), 0.012
+            px + (Math.random() - 0.5) * 0.4 * sc,
+            py,
+            pz + (Math.random() - 0.5) * 0.4 * sc,
+            (Math.random() - 0.5) * 0.6,
+            randomRange(0.6, 1.8),
+            (Math.random() - 0.5) * 0.6,
+            randomRange(1.5, 3.2),
+            randomRange(0.02, 0.04),
+            0.012,
           );
           if (eIdx >= 0) {
             addPool.frame[eIdx] = SPARK_FRAME_SOFT_DOT;
@@ -3099,14 +3863,20 @@ export async function createFXManager(engineCtx) {
             addPool.fout[eIdx] = 0.5;
           }
         }
-      } else if (em.kind === 'fire') {
+      } else if (em.kind === "fire") {
         em.acc += dt * 24;
         while (em.acc > 1) {
           em.acc -= 1;
           const fIdx = addPool.emit(
-            px + (Math.random() - 0.5) * 0.3 * sc, py + 0.1 * sc, pz + (Math.random() - 0.5) * 0.3 * sc,
-            (Math.random() - 0.5) * 0.5, randomRange(1.2, 2.6) * sc, (Math.random() - 0.5) * 0.5,
-            randomRange(0.35, 0.65), 0.45 * sc, randomRange(0.2, 0.35) * sc
+            px + (Math.random() - 0.5) * 0.3 * sc,
+            py + 0.1 * sc,
+            pz + (Math.random() - 0.5) * 0.3 * sc,
+            (Math.random() - 0.5) * 0.5,
+            randomRange(1.2, 2.6) * sc,
+            (Math.random() - 0.5) * 0.5,
+            randomRange(0.35, 0.65),
+            0.45 * sc,
+            randomRange(0.2, 0.35) * sc,
           );
           if (fIdx >= 0) {
             addPool.frame[fIdx] = SPARK_FRAME_PLASMA;
@@ -3129,10 +3899,24 @@ export async function createFXManager(engineCtx) {
           em.acc2 -= 1;
           const gray = randomRange(0.05, 0.1);
           const sIdx = emitLitSmoke(
-            px, py + 0.8 * sc, pz,
-            (Math.random() - 0.5) * 0.4, randomRange(1.2, 2), (Math.random() - 0.5) * 0.4,
-            randomRange(2.2, 3.4), 0.3 * sc, randomRange(1.1, 1.8) * sc,
-            gray, gray, gray, 0.5, em.shade, 0.9, 0.8, 1, -1
+            px,
+            py + 0.8 * sc,
+            pz,
+            (Math.random() - 0.5) * 0.4,
+            randomRange(1.2, 2),
+            (Math.random() - 0.5) * 0.4,
+            randomRange(2.2, 3.4),
+            0.3 * sc,
+            randomRange(1.1, 1.8) * sc,
+            gray,
+            gray,
+            gray,
+            0.5,
+            em.shade,
+            0.9,
+            0.8,
+            1,
+            -1,
           );
           if (sIdx >= 0) {
             litPool.fin[sIdx] = 0.2;
@@ -3140,9 +3924,15 @@ export async function createFXManager(engineCtx) {
           }
 
           const eIdx = addPool.emit(
-            px + (Math.random() - 0.5) * 0.3, py + 0.3, pz + (Math.random() - 0.5) * 0.3,
-            Math.random() - 0.5, randomRange(1.5, 3), Math.random() - 0.5,
-            randomRange(1, 2.2), 0.03, 0.012
+            px + (Math.random() - 0.5) * 0.3,
+            py + 0.3,
+            pz + (Math.random() - 0.5) * 0.3,
+            Math.random() - 0.5,
+            randomRange(1.5, 3),
+            Math.random() - 0.5,
+            randomRange(1, 2.2),
+            0.03,
+            0.012,
           );
           if (eIdx >= 0) {
             addPool.frame[eIdx] = SPARK_FRAME_SOFT_DOT;
@@ -3158,21 +3948,38 @@ export async function createFXManager(engineCtx) {
         }
 
         if (em.light) {
-          em.light.light.intensity = (14 + 6 * Math.sin(em.t * 23) + 4 * Math.sin(em.t * 37.7)) * sc;
+          em.light.light.intensity =
+            (14 + 6 * Math.sin(em.t * 23) + 4 * Math.sin(em.t * 37.7)) * sc;
         }
-      } else if (em.kind === 'drip') {
+      } else if (em.kind === "drip") {
         em.acc += dt * 1.6;
         if (em.drop >= 0) {
           em.drop -= dt;
           if (em.drop < 0) {
             const sh = em.shade;
-            emitWaterRippleRing(px, 0.014, pz, 0.8, 0.05, 0.55, 0.4 * sh + 0.14, 0.36 * sh + 0.16, 0.3 * sh + 0.18);
+            emitWaterRippleRing(
+              px,
+              0.014,
+              pz,
+              0.8,
+              0.05,
+              0.55,
+              0.4 * sh + 0.14,
+              0.36 * sh + 0.16,
+              0.3 * sh + 0.18,
+            );
             for (let d = 0; d < 3; d++) {
               randomVectorInCone(UP_VECTOR, 0.7, vTempAim);
               const spd = addPool.emit(
-                px, 0.03, pz,
-                vTempAim.x * 1.2, Math.abs(vTempAim.y) * 1.6, vTempAim.z * 1.2,
-                0.35, 0.012, 0.008
+                px,
+                0.03,
+                pz,
+                vTempAim.x * 1.2,
+                Math.abs(vTempAim.y) * 1.6,
+                vTempAim.z * 1.2,
+                0.35,
+                0.012,
+                0.008,
               );
               if (spd >= 0) {
                 addPool.mode[spd] = PARTICLE_MODE_VELOCITY_STRETCH;
@@ -3190,7 +3997,7 @@ export async function createFXManager(engineCtx) {
 
         while (em.acc > 1) {
           em.acc -= 1 + Math.random() * 0.6;
-          const dropTime = Math.sqrt(2 * Math.max(py, 0.05) / 9.81);
+          const dropTime = Math.sqrt((2 * Math.max(py, 0.05)) / 9.81);
           const dIdx = addPool.emit(px, py, pz, 0, -0.2, 0, dropTime + 0.05, 0.014, 0.014);
           if (dIdx >= 0) {
             addPool.mode[dIdx] = PARTICLE_MODE_VELOCITY_STRETCH;
@@ -3213,32 +4020,34 @@ export async function createFXManager(engineCtx) {
   // 十三、 事件总线绑定 (Event Bus Bindings)
   // ==========================================================================
 
-  engineCtx.events.on('impact', (ev) => {
+  engineCtx.events.on("impact", (ev) => {
     if (!ev || !ev.point) return;
     impact(ev.point, ev.normal, ev.surface, ev.dir, ev.enemy);
   });
 
   const checkPuddle = (x, z) => {
     try {
-      return Boolean(engineCtx.ground && engineCtx.ground.isPuddle && engineCtx.ground.isPuddle(x, z));
+      return Boolean(
+        engineCtx.ground && engineCtx.ground.isPuddle && engineCtx.ground.isPuddle(x, z),
+      );
     } catch {
       return false;
     }
   };
 
-  engineCtx.events.on('player:step', (ev) => {
+  engineCtx.events.on("player:step", (ev) => {
     const pos = (ev && ev.pos) || (engineCtx.player && engineCtx.player.pos);
-    if (pos && ((ev && ev.surface === 'water') || checkPuddle(pos.x, pos.z))) {
+    if (pos && ((ev && ev.surface === "water") || checkPuddle(pos.x, pos.z))) {
       vTempPos.set(pos.x, Math.max(0, pos.y), pos.z);
       splash(vTempPos, ev && ev.sprint ? 0.55 : 0.4);
     }
   });
 
-  engineCtx.events.on('player:land', (ev) => {
+  engineCtx.events.on("player:land", (ev) => {
     const pos = engineCtx.player && engineCtx.player.pos;
     if (pos) {
       vTempPos.set(pos.x, Math.max(0, pos.y), pos.z);
-      if ((ev && ev.surface === 'water') || checkPuddle(pos.x, pos.z)) {
+      if ((ev && ev.surface === "water") || checkPuddle(pos.x, pos.z)) {
         splash(vTempPos, 0.9);
       } else if (ev && ev.speed > 5) {
         const shadowVis = queryShadowVisibility(vTempPos, UP_VECTOR);
@@ -3248,10 +4057,21 @@ export async function createFXManager(engineCtx) {
             vTempPos.x + Math.cos(ang) * 0.2,
             vTempPos.y + 0.08,
             vTempPos.z + Math.sin(ang) * 0.2,
-            Math.cos(ang) * 1.6, 0.3, Math.sin(ang) * 1.6,
-            randomRange(0.7, 1.2), 0.15, randomRange(0.5, 0.8),
-            0.45, 0.44, 0.42, 0.22,
-            shadowVis, 3, 0.1, 0.8, -1
+            Math.cos(ang) * 1.6,
+            0.3,
+            Math.sin(ang) * 1.6,
+            randomRange(0.7, 1.2),
+            0.15,
+            randomRange(0.5, 0.8),
+            0.45,
+            0.44,
+            0.42,
+            0.22,
+            shadowVis,
+            3,
+            0.1,
+            0.8,
+            -1,
           );
         }
       }
@@ -3312,7 +4132,7 @@ export async function createFXManager(engineCtx) {
     splash,
     addEmitter,
     debris,
-    decal(pos, normal, type = 'bullet_concrete', size) {
+    decal(pos, normal, type = "bullet_concrete", size) {
       vTempNorm.copy(normal || UP_VECTOR);
       decalSystem.add(pos, vTempNorm, type, size);
     },
@@ -3324,9 +4144,9 @@ export async function createFXManager(engineCtx) {
         add: addPool.n,
         tracers: tracerPool.n,
         debris: debrisSystem.live,
-        drawCalls: 5
+        drawCalls: 5,
       };
-    }
+    },
   };
 }
 
@@ -3336,7 +4156,7 @@ export async function createFXManager(engineCtx) {
 
 export function showcaseFX(engineCtx) {
   const fx = engineCtx.fx;
-  const showMode = engineCtx.params.fxshow || 'all';
+  const showMode = engineCtx.params.fxshow || "all";
   const showcaseGroup = new THREE.Group();
 
   const spawnTargetMesh = (geometry, matName, x, y, z) => {
@@ -3349,33 +4169,33 @@ export function showcaseFX(engineCtx) {
   };
 
   // 靶场靶标 (Target props: concrete slab, blue metal container wall, wooden pallet)
-  spawnTargetMesh(createBoxBevelGeometry(2.6, 2.2, 0.3, 0.02), 'concrete', -3.2, 1.1, 0);
-  spawnTargetMesh(createBoxBevelGeometry(2.2, 2.0, 0.08, 0.01), 'paint_blue', 0, 1.0, 0);
-  spawnTargetMesh(createBoxBevelGeometry(1.2, 1.2, 1.2, 0.015), 'wood_pallet', 3.2, 0.6, 0);
+  spawnTargetMesh(createBoxBevelGeometry(2.6, 2.2, 0.3, 0.02), "concrete", -3.2, 1.1, 0);
+  spawnTargetMesh(createBoxBevelGeometry(2.2, 2.0, 0.08, 0.01), "paint_blue", 0, 1.0, 0);
+  spawnTargetMesh(createBoxBevelGeometry(1.2, 1.2, 1.2, 0.015), "wood_pallet", 3.2, 0.6, 0);
 
   engineCtx.scene.add(showcaseGroup);
-  engineCtx.physics.addBox([-4.5, 0, -0.15], [-1.9, 2.2, 0.15], { surface: 'concrete' });
-  engineCtx.physics.addBox([-1.1, 0, -0.04], [1.1, 2.0, 0.04], { surface: 'metal' });
-  engineCtx.physics.addBox([2.6, 0, -0.6], [3.8, 1.2, 0.6], { surface: 'wood' });
+  engineCtx.physics.addBox([-4.5, 0, -0.15], [-1.9, 2.2, 0.15], { surface: "concrete" });
+  engineCtx.physics.addBox([-1.1, 0, -0.04], [1.1, 2.0, 0.04], { surface: "metal" });
+  engineCtx.physics.addBox([2.6, 0, -0.6], [3.8, 1.2, 0.6], { surface: "wood" });
 
-  const pLeftGun  = new THREE.Vector3(-6.5, 1.5, 7);
+  const pLeftGun = new THREE.Vector3(-6.5, 1.5, 7);
   const pRightGun = new THREE.Vector3(6.5, 1.4, 7);
   const pTargetGun = new THREE.Vector3(5.2, 1.3, 3.2);
-  const pEjectPos  = new THREE.Vector3(-4.6, 1.35, 4.2);
+  const pEjectPos = new THREE.Vector3(-4.6, 1.35, 4.2);
 
   const vTargetPoint = new THREE.Vector3();
-  const vRayDir      = new THREE.Vector3();
-  const vTracerEnd   = new THREE.Vector3();
-  const vMuzzlePos   = new THREE.Vector3(0, 1.3, 3);
-  const vMuzzleDir   = new THREE.Vector3(1, 0, 0);
+  const vRayDir = new THREE.Vector3();
+  const vTracerEnd = new THREE.Vector3();
+  const vMuzzlePos = new THREE.Vector3(0, 1.3, 3);
+  const vMuzzleDir = new THREE.Vector3(1, 0, 0);
 
   const impactData = {
     point: new THREE.Vector3(),
     normal: new THREE.Vector3(0, 1, 0),
-    surface: 'concrete',
+    surface: "concrete",
     dir: new THREE.Vector3(),
     enemy: null,
-    from: 'player'
+    from: "player",
   };
 
   const rnd = Math.random;
@@ -3389,33 +4209,33 @@ export function showcaseFX(engineCtx) {
   let explosionTimer = 3.4;
   let warmedUp = false;
 
-  const showImpacts = showMode === 'all' || showMode === 'impact';
-  const showExplosions = showMode === 'all' || showMode === 'explosion';
-  const showTracers = showMode === 'all' || showMode === 'tracer';
-  const explosionInterval = showMode === 'explosion' ? 2.4 : 3.5;
+  const showImpacts = showMode === "all" || showMode === "impact";
+  const showExplosions = showMode === "all" || showMode === "explosion";
+  const showTracers = showMode === "all" || showMode === "tracer";
+  const explosionInterval = showMode === "explosion" ? 2.4 : 3.5;
 
-  if (showMode === 'explosion') explosionTimer = 0.6;
+  if (showMode === "explosion") explosionTimer = 0.6;
 
-  if (showMode === 'all' || showMode === 'impact') {
-    fx.addEmitter(new THREE.Vector3(-6.2, 0.05, -1.5), 'steam');
-    fx.addEmitter(new THREE.Vector3(5.6, 0, 1.6), 'fire');
-    fx.addEmitter(new THREE.Vector3(0.4, 2.6, 1.6), 'drip');
+  if (showMode === "all" || showMode === "impact") {
+    fx.addEmitter(new THREE.Vector3(-6.2, 0.05, -1.5), "steam");
+    fx.addEmitter(new THREE.Vector3(5.6, 0, 1.6), "fire");
+    fx.addEmitter(new THREE.Vector3(0.4, 2.6, 1.6), "drip");
   }
 
   function fireSimulatedImpact(targetSlot) {
-    const gunOrigin = (gunAlt++ % 2) ? pRightGun : pLeftGun;
+    const gunOrigin = gunAlt++ % 2 ? pRightGun : pLeftGun;
     impactData.enemy = null;
-    impactData.from = 'player';
+    impactData.from = "player";
 
     if (targetSlot === 5) {
       // 模拟击中敌方机械体
       impactData.point.set(-1.5 + rnd() * 0.3, 2.5 + rnd() * 0.3, 0.8);
       impactData.normal.copy(gunOrigin).sub(impactData.point).normalize();
-      impactData.surface = 'enemy';
+      impactData.surface = "enemy";
       impactData.enemy = {};
       impactData.dir.copy(impactData.point).sub(gunOrigin).normalize();
       fx.tracer(gunOrigin, impactData.point);
-      engineCtx.events.emit('impact', impactData);
+      engineCtx.events.emit("impact", impactData);
       return;
     }
 
@@ -3439,9 +4259,9 @@ export function showcaseFX(engineCtx) {
       impactData.point.copy(hit.point);
       impactData.normal.copy(hit.normal);
       impactData.dir.copy(vRayDir);
-      impactData.surface = targetSlot === 4 ? 'water' : targetSlot === 6 ? 'dirt' : hit.surface;
+      impactData.surface = targetSlot === 4 ? "water" : targetSlot === 6 ? "dirt" : hit.surface;
       fx.tracer(gunOrigin, impactData.point);
-      engineCtx.events.emit('impact', impactData);
+      engineCtx.events.emit("impact", impactData);
     }
   }
 
@@ -3450,7 +4270,7 @@ export function showcaseFX(engineCtx) {
   function updateShowcase(dt) {
     elapsed += dt;
 
-    if (holdMode === 'muzzle') {
+    if (holdMode === "muzzle") {
       fx.muzzleFlash(vMuzzlePos, vMuzzleDir, { scale: 1 });
       vMuzzlePos.x = 2.5;
       vMuzzleDir.set(-0.5, 0, 0.86);
@@ -3462,7 +4282,7 @@ export function showcaseFX(engineCtx) {
     if (showImpacts) {
       impactTimer -= dt;
       while (impactTimer <= 0) {
-        impactTimer += showMode === 'impact' ? 0.09 : 0.13;
+        impactTimer += showMode === "impact" ? 0.09 : 0.13;
         fireSimulatedImpact(shotIndex++ % 8);
       }
     }
@@ -3470,12 +4290,12 @@ export function showcaseFX(engineCtx) {
     if (showTracers) {
       tracerTimer -= dt;
       if (tracerTimer <= 0) {
-        tracerTimer += showMode === 'tracer' ? 0.16 : 0.45;
+        tracerTimer += showMode === "tracer" ? 0.16 : 0.45;
         vTracerEnd.set(-5 + rnd() * 3, 1.2 + rnd() * 0.8, 6 + rnd() * 2);
         vRayDir.copy(vTracerEnd).sub(pTargetGun).normalize();
         fx.muzzleFlash(pTargetGun, vRayDir, { scale: 1 });
         fx.tracer(pTargetGun, vTracerEnd, { color: 0xff4c02, speed: 120 });
-        if (showMode === 'tracer') {
+        if (showMode === "tracer") {
           vTracerEnd.set(6, 1 + rnd() * 1.5, -6 - rnd() * 6);
           vTargetPoint.set(-7, 1.6, 6.5);
           fx.tracer(vTargetPoint, vTracerEnd, { speed: 200 });
@@ -3494,8 +4314,12 @@ export function showcaseFX(engineCtx) {
       explosionTimer -= dt;
       if (explosionTimer <= 0) {
         explosionTimer += explosionInterval;
-        const explSize = Number(engineCtx.params.fxsize || 0) || (1 + (explosionCounter++ % 3));
-        vTracerEnd.set(showMode === 'explosion' ? 0 : 7, 0.25, showMode === 'explosion' ? 3.5 : -3.5);
+        const explSize = Number(engineCtx.params.fxsize || 0) || 1 + (explosionCounter++ % 3);
+        vTracerEnd.set(
+          showMode === "explosion" ? 0 : 7,
+          0.25,
+          showMode === "explosion" ? 3.5 : -3.5,
+        );
         fx.explosion(vTracerEnd, explSize);
       }
     }
@@ -3526,8 +4350,8 @@ export function showcaseFX(engineCtx) {
   }
 
   return {
-    cam: showMode === 'explosion' ? [0, 2, 12.5] : [0.3, 1.6, 7.2],
-    target: showMode === 'explosion' ? [0, 2.2, 3.5] : [0.2, 1, 0],
+    cam: showMode === "explosion" ? [0, 2, 12.5] : [0.3, 1.6, 7.2],
+    target: showMode === "explosion" ? [0, 2.2, 3.5] : [0.2, 1, 0],
     update(dt) {
       if (!warmedUp) {
         warmedUp = true;
@@ -3538,7 +4362,7 @@ export function showcaseFX(engineCtx) {
         }
       }
       if (!isFrozen) updateShowcase(dt);
-    }
+    },
   };
 }
 
@@ -3551,5 +4375,5 @@ export const showcase = showcaseFX;
 
 export const Sv = {
   create: createFXManager,
-  showcase: showcaseFX
+  showcase: showcaseFX,
 };

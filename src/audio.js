@@ -97,7 +97,7 @@ function generateWhiteNoise(sampleRate, duration, rng) {
  * @returns {number[]} [b0/a0, b1/a0, b2/a0, a1/a0, a2/a0]
  */
 function calcBiquadCoefficients(type, cutoff, Q, sampleRate) {
-  const w0 = TWO_PI * Math.max(10, Math.min(cutoff, sampleRate * 0.47)) / sampleRate;
+  const w0 = (TWO_PI * Math.max(10, Math.min(cutoff, sampleRate * 0.47))) / sampleRate;
   const cosW = Math.cos(w0);
   const sinW = Math.sin(w0);
   const alpha = sinW / (2 * Q);
@@ -107,11 +107,11 @@ function calcBiquadCoefficients(type, cutoff, Q, sampleRate) {
   const a1 = -2 * cosW;
   const a2 = 1 - alpha;
 
-  if (type === 'lp') {
+  if (type === "lp") {
     b0 = (1 - cosW) / 2;
     b1 = 1 - cosW;
     b2 = b0;
-  } else if (type === 'hp') {
+  } else if (type === "hp") {
     b0 = (1 + cosW) / 2;
     b1 = -(1 + cosW);
     b2 = b0;
@@ -161,8 +161,8 @@ function applyDynamicBiquadFilter(buffer, type, cutoffFn, Q, sampleRate, passes 
     for (let i = 0; i < len; i++) {
       if ((i & 31) === 0) {
         const normTime = i / len;
-        const currentCutoff = typeof cutoffFn === 'function' ? cutoffFn(normTime) : cutoffFn;
-        const currentQ = typeof Q === 'function' ? Q(normTime) : Q;
+        const currentCutoff = typeof cutoffFn === "function" ? cutoffFn(normTime) : cutoffFn;
+        const currentQ = typeof Q === "function" ? Q(normTime) : Q;
         coeffs = calcBiquadCoefficients(type, currentCutoff, currentQ, sampleRate);
       }
       const input = buffer[i];
@@ -180,8 +180,10 @@ function applyDynamicBiquadFilter(buffer, type, cutoffFn, Q, sampleRate, passes 
 /**
  * 指数频扫包络生成器
  */
-const createFreqSweep = (startFreq, endFreq, curvePower = 1) => (t) =>
-  startFreq * Math.pow(endFreq / startFreq, Math.pow(t, curvePower));
+const createFreqSweep =
+  (startFreq, endFreq, curvePower = 1) =>
+  (t) =>
+    startFreq * Math.pow(endFreq / startFreq, Math.pow(t, curvePower));
 
 /**
  * 原地应用时域增益包络
@@ -283,9 +285,9 @@ function applyBoundaryFade(buffer, sampleRate, fadeInSec, fadeOutSec) {
  */
 function synthesizeNoiseBurst(sampleRate, rng, duration, decayTime, filterOpts = {}) {
   const noise = generateWhiteNoise(sampleRate, duration, rng);
-  if (filterOpts.hp) applyBiquadFilter(noise, 'hp', filterOpts.hp, 0.707, sampleRate);
-  if (filterOpts.lp) applyBiquadFilter(noise, 'lp', filterOpts.lp, 0.707, sampleRate);
-  if (filterOpts.bp) applyBiquadFilter(noise, 'bp', filterOpts.bp, filterOpts.q || 1, sampleRate);
+  if (filterOpts.hp) applyBiquadFilter(noise, "hp", filterOpts.hp, 0.707, sampleRate);
+  if (filterOpts.lp) applyBiquadFilter(noise, "lp", filterOpts.lp, 0.707, sampleRate);
+  if (filterOpts.bp) applyBiquadFilter(noise, "bp", filterOpts.bp, filterOpts.q || 1, sampleRate);
 
   applyEnvelope(noise, sampleRate, createExpDecayEnvelope(decayTime, filterOpts.att || 0));
   const peak = getPeakAmplitude(noise);
@@ -295,7 +297,15 @@ function synthesizeNoiseBurst(sampleRate, rng, duration, decayTime, filterOpts =
 /**
  * 快速音高下潜的正弦冲击瞬态 (Pitch-Swept Kick / Sub-bass Impact)
  */
-function synthesizePitchSweepSine(sampleRate, duration, startFreq, endFreq, pitchDecay, ampDecay, attackTime = 0.0006) {
+function synthesizePitchSweepSine(
+  sampleRate,
+  duration,
+  startFreq,
+  endFreq,
+  pitchDecay,
+  ampDecay,
+  attackTime = 0.0006,
+) {
   const buf = createAudioBufferArray(sampleRate, duration);
   let phase = 0;
   for (let i = 0; i < buf.length; i++) {
@@ -363,16 +373,18 @@ function synthesizeGranularDebris(sampleRate, rng, duration, count, opts = {}) {
   for (let i = 0; i < count; i++) {
     const t = fromTime + (duration - fromTime - 0.02) * Math.pow(rng(), falloff);
     const startIdx = Math.round(t * sampleRate);
-    const grainLen = Math.round(randomRange(rng, opts.minLen || 0.001, opts.maxLen || 0.004) * sampleRate);
+    const grainLen = Math.round(
+      randomRange(rng, opts.minLen || 0.001, opts.maxLen || 0.004) * sampleRate,
+    );
     const grainAmp = randomRange(rng, 0.2, 1) * (opts.ampFall ? Math.exp(-t / opts.ampFall) : 1);
     for (let p = 0; p < grainLen && startIdx + p < buf.length; p++) {
       buf[startIdx + p] += (rng() * 2 - 1) * grainAmp * Math.exp((-4 * p) / grainLen);
     }
   }
 
-  if (opts.hp) applyBiquadFilter(buf, 'hp', opts.hp, 0.707, sampleRate);
-  if (opts.lp) applyBiquadFilter(buf, 'lp', opts.lp, 0.707, sampleRate);
-  if (opts.bp) applyBiquadFilter(buf, 'bp', opts.bp, opts.q || 1, sampleRate);
+  if (opts.hp) applyBiquadFilter(buf, "hp", opts.hp, 0.707, sampleRate);
+  if (opts.lp) applyBiquadFilter(buf, "lp", opts.lp, 0.707, sampleRate);
+  if (opts.bp) applyBiquadFilter(buf, "bp", opts.bp, opts.q || 1, sampleRate);
   return buf;
 }
 
@@ -442,61 +454,128 @@ function synthesizeRifleShot(sampleRate, rng, variant) {
   const out = createAudioBufferArray(sampleRate, 0.32);
 
   // 1. 超音速弹头出膛激波高频刺耳开裂 (Shockwave Crack: HP 2600Hz)
-  mixBuffer(out, synthesizeNoiseBurst(sampleRate, rng, 0.012, 0.0011, { hp: 2600 * filterVar }), 0, 2.6, sampleRate);
+  mixBuffer(
+    out,
+    synthesizeNoiseBurst(sampleRate, rng, 0.012, 0.0011, { hp: 2600 * filterVar }),
+    0,
+    2.6,
+    sampleRate,
+  );
 
   // 2. 膛口爆燃白噪声带通冲击 (Muzzle Blast: HP 1200, LP 8000)
-  mixBuffer(out, synthesizeNoiseBurst(sampleRate, rng, 0.02, 0.003, { hp: 1200, lp: 8000 }), 0.0002, 1.2, sampleRate);
+  mixBuffer(
+    out,
+    synthesizeNoiseBurst(sampleRate, rng, 0.02, 0.003, { hp: 1200, lp: 8000 }),
+    0.0002,
+    1.2,
+    sampleRate,
+  );
 
   // 3. 火药爆轰重低音沉重锤击 (160Hz -> 45Hz 下潜)
-  mixBuffer(out, synthesizePitchSweepSine(sampleRate, 0.11, 160 * pitchVar, 45 * pitchVar, 0.024, 0.03, 0.003), 0, 0.62, sampleRate);
+  mixBuffer(
+    out,
+    synthesizePitchSweepSine(sampleRate, 0.11, 160 * pitchVar, 45 * pitchVar, 0.024, 0.03, 0.003),
+    0,
+    0.62,
+    sampleRate,
+  );
 
   // 4. 机匣空腔压迫爆震 (300Hz ~ 2500Hz)
-  mixBuffer(out, synthesizeNoiseBurst(sampleRate, rng, 0.22, 0.03, { hp: 300 * pitchVar, lp: 2500 * pitchVar * filterVar, att: 0.0012 }), 0, 1.5, sampleRate);
+  mixBuffer(
+    out,
+    synthesizeNoiseBurst(sampleRate, rng, 0.22, 0.03, {
+      hp: 300 * pitchVar,
+      lp: 2500 * pitchVar * filterVar,
+      att: 0.0012,
+    }),
+    0,
+    1.5,
+    sampleRate,
+  );
 
   // 5. 撞针枪膛窄带带通谐振 (760Hz, Q=2.2)
-  mixBuffer(out, synthesizeNoiseBurst(sampleRate, rng, 0.09, 0.016, { bp: 760 * pitchVar, q: 2.2, att: 0.001 }), 0, 0.9, sampleRate);
+  mixBuffer(
+    out,
+    synthesizeNoiseBurst(sampleRate, rng, 0.09, 0.016, { bp: 760 * pitchVar, q: 2.2, att: 0.001 }),
+    0,
+    0.9,
+    sampleRate,
+  );
 
   // 6. 枪机高频滑行机械反冲 (HP 4800Hz)
-  mixBuffer(out, synthesizeNoiseBurst(sampleRate, rng, 0.16, 0.04, { hp: 4800 }), 0.001, 0.34, sampleRate);
+  mixBuffer(
+    out,
+    synthesizeNoiseBurst(sampleRate, rng, 0.16, 0.04, { hp: 4800 }),
+    0.001,
+    0.34,
+    sampleRate,
+  );
 
   // 7. 枪管金属物理高次模态群 (Barrel Harmonics)
   const delaySec = 0.035 + (variant - 1.5) * 0.0015;
   mixBuffer(
     out,
-    synthesizeModalBank(sampleRate, 0.05, [
-      [2150 * pitchVar, 0.007, 1.0],
-      [3420 * pitchVar, 0.006, 0.7],
-      [5230, 0.004, 0.5],
-      [880 * pitchVar, 0.012, 0.5]
-    ], rng),
+    synthesizeModalBank(
+      sampleRate,
+      0.05,
+      [
+        [2150 * pitchVar, 0.007, 1.0],
+        [3420 * pitchVar, 0.006, 0.7],
+        [5230, 0.004, 0.5],
+        [880 * pitchVar, 0.012, 0.5],
+      ],
+      rng,
+    ),
     delaySec,
     0.26,
-    sampleRate
+    sampleRate,
   );
-  mixBuffer(out, synthesizeNoiseBurst(sampleRate, rng, 0.012, 0.002, { bp: 3100, q: 1.2 }), delaySec, 0.3, sampleRate);
+  mixBuffer(
+    out,
+    synthesizeNoiseBurst(sampleRate, rng, 0.012, 0.002, { bp: 3100, q: 1.2 }),
+    delaySec,
+    0.3,
+    sampleRate,
+  );
 
   mixBuffer(
     out,
-    synthesizeModalBank(sampleRate, 0.05, [
-      [1780 * pitchVar, 0.008, 1.0],
-      [2890 * pitchVar, 0.006, 0.6],
-      [640 * pitchVar, 0.02, 0.5]
-    ], rng),
+    synthesizeModalBank(
+      sampleRate,
+      0.05,
+      [
+        [1780 * pitchVar, 0.008, 1.0],
+        [2890 * pitchVar, 0.006, 0.6],
+        [640 * pitchVar, 0.02, 0.5],
+      ],
+      rng,
+    ),
     delaySec + 0.027,
     0.17,
-    sampleRate
+    sampleRate,
   );
-  mixBuffer(out, synthesizeNoiseBurst(sampleRate, rng, 0.01, 0.002, { bp: 2400, q: 1.2 }), delaySec + 0.027, 0.16, sampleRate);
+  mixBuffer(
+    out,
+    synthesizeNoiseBurst(sampleRate, rng, 0.01, 0.002, { bp: 2400, q: 1.2 }),
+    delaySec + 0.027,
+    0.16,
+    sampleRate,
+  );
 
   mixBuffer(
     out,
-    synthesizeModalBank(sampleRate, 0.2, [
-      [712 * pitchVar, 0.05, 1.0],
-      [1466 * pitchVar, 0.03, 0.4]
-    ], rng),
+    synthesizeModalBank(
+      sampleRate,
+      0.2,
+      [
+        [712 * pitchVar, 0.05, 1.0],
+        [1466 * pitchVar, 0.03, 0.4],
+      ],
+      rng,
+    ),
     delaySec + 0.03,
     0.035,
-    sampleRate
+    sampleRate,
   );
 
   // 8. 输出级软限幅饱和
@@ -519,14 +598,14 @@ function synthesizeOutdoorReverbIR(sampleRate, rng, isStereo) {
           [0.097, 0.4, 3300],
           [0.139, 0.28, 2500],
           [0.176, 0.2, 1900],
-          [0.262, 0.1, 1300]
+          [0.262, 0.1, 1300],
         ]
       : [
           [0.066, 0.52, 4600],
           [0.088, 0.34, 3600],
           [0.124, 0.3, 2700],
           [0.169, 0.22, 2000],
-          [0.231, 0.12, 1400]
+          [0.231, 0.12, 1400],
         ];
 
     for (const [delay, gain, lpCutoff] of taps) {
@@ -535,18 +614,30 @@ function synthesizeOutdoorReverbIR(sampleRate, rng, isStereo) {
         synthesizeNoiseBurst(sampleRate, chRng, 0.09, 0.016, { hp: 420, lp: lpCutoff }),
         delay + randomRange(chRng, -0.004, 0.004),
         gain * randomRange(chRng, 0.8, 1.1),
-        sampleRate
+        sampleRate,
       );
     }
 
     const diffuseTail = generateWhiteNoise(sampleRate, 1.5, chRng);
-    applyDynamicBiquadFilter(diffuseTail, 'lp', createFreqSweep(3400, 380, 0.6), 0.6, sampleRate);
-    applyBiquadFilter(diffuseTail, 'hp', 130, 0.7, sampleRate);
-    mixBuffer(ir, applyEnvelope(diffuseTail, sampleRate, createExpDecayEnvelope(0.3, 0.05)), 0.03, 0.55, sampleRate);
+    applyDynamicBiquadFilter(diffuseTail, "lp", createFreqSweep(3400, 380, 0.6), 0.6, sampleRate);
+    applyBiquadFilter(diffuseTail, "hp", 130, 0.7, sampleRate);
+    mixBuffer(
+      ir,
+      applyEnvelope(diffuseTail, sampleRate, createExpDecayEnvelope(0.3, 0.05)),
+      0.03,
+      0.55,
+      sampleRate,
+    );
 
     const subEcho = generateWhiteNoise(sampleRate, 1.2, chRng);
-    applyBiquadFilter(subEcho, 'lp', 150, 0.7, sampleRate);
-    mixBuffer(ir, applyEnvelope(subEcho, sampleRate, createExpDecayEnvelope(0.26, 0.03)), 0.02, 0.9, sampleRate);
+    applyBiquadFilter(subEcho, "lp", 150, 0.7, sampleRate);
+    mixBuffer(
+      ir,
+      applyEnvelope(subEcho, sampleRate, createExpDecayEnvelope(0.26, 0.03)),
+      0.02,
+      0.9,
+      sampleRate,
+    );
 
     return ir;
   };
@@ -566,14 +657,32 @@ function* synthesizeIndoorReverbIR(sampleRate, rng, isStereo) {
     const chRng = createPrng(seedVal);
     const ir = createAudioBufferArray(sampleRate, 2.3);
     const early = generateWhiteNoise(sampleRate, 2.25, chRng);
-    applyDynamicBiquadFilter(early, 'lp', createFreqSweep(2400, 260, 0.5), 0.7, sampleRate);
-    mixBuffer(ir, applyEnvelope(early, sampleRate, createExpDecayEnvelope(0.42, 0.012)), 0.008, 0.6, sampleRate);
+    applyDynamicBiquadFilter(early, "lp", createFreqSweep(2400, 260, 0.5), 0.7, sampleRate);
+    mixBuffer(
+      ir,
+      applyEnvelope(early, sampleRate, createExpDecayEnvelope(0.42, 0.012)),
+      0.008,
+      0.6,
+      sampleRate,
+    );
 
     // 房间驻波谐振频率
-    for (const [modeFreq, modeGain] of [[54, 1.0], [81, 0.8], [117, 0.6], [163, 0.45], [228, 0.3]]) {
+    for (const [modeFreq, modeGain] of [
+      [54, 1.0],
+      [81, 0.8],
+      [117, 0.6],
+      [163, 0.45],
+      [228, 0.3],
+    ]) {
       const modeNoise = generateWhiteNoise(sampleRate, 2.2, chRng);
-      applyBiquadFilter(modeNoise, 'bp', modeFreq * (isStereo ? 1.06 : 1), 9, sampleRate);
-      mixBuffer(ir, applyEnvelope(modeNoise, sampleRate, createExpDecayEnvelope(0.5, 0.02)), 0.01, modeGain * 2.4, sampleRate);
+      applyBiquadFilter(modeNoise, "bp", modeFreq * (isStereo ? 1.06 : 1), 9, sampleRate);
+      mixBuffer(
+        ir,
+        applyEnvelope(modeNoise, sampleRate, createExpDecayEnvelope(0.5, 0.02)),
+        0.01,
+        modeGain * 2.4,
+        sampleRate,
+      );
       yield;
     }
 
@@ -581,10 +690,13 @@ function* synthesizeIndoorReverbIR(sampleRate, rng, isStereo) {
     for (let u = 1; u < 9; u++) {
       mixBuffer(
         ir,
-        synthesizeNoiseBurst(sampleRate, chRng, 0.05, 0.009, { hp: 500, lp: 3800 / (1 + u * 0.35) }),
+        synthesizeNoiseBurst(sampleRate, chRng, 0.05, 0.009, {
+          hp: 500,
+          lp: 3800 / (1 + u * 0.35),
+        }),
         flutterInterval * u + randomRange(chRng, -0.003, 0.003),
         0.42 * Math.pow(0.74, u),
-        sampleRate
+        sampleRate,
       );
     }
     return ir;
@@ -605,10 +717,52 @@ const e8 = synthesizeIndoorReverbIR;
 /** 击针撞空 / 弹尽卡壳干击声 (Dry Fire Click) */
 function synthDryFire(sampleRate, rng) {
   const buf = createAudioBufferArray(sampleRate, 0.13);
-  mixBuffer(buf, synthesizeModalBank(sampleRate, 0.05, [[2840, 0.004, 1], [4130, 0.004, 0.7], [6320, 0.003, 0.5], [1210, 0.008, 0.4]], rng), 0, 0.7, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.006, 0.0012, { hp: 2000 }), 0, 0.6, sampleRate);
-  mixBuffer(buf, synthesizeModalBank(sampleRate, 0.08, [[930, 0.018, 1], [1870, 0.012, 0.5]], rng), 0.016, 0.16, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.004, 0.001, { hp: 3000 }), 0.018, 0.2, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizeModalBank(
+      sampleRate,
+      0.05,
+      [
+        [2840, 0.004, 1],
+        [4130, 0.004, 0.7],
+        [6320, 0.003, 0.5],
+        [1210, 0.008, 0.4],
+      ],
+      rng,
+    ),
+    0,
+    0.7,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.006, 0.0012, { hp: 2000 }),
+    0,
+    0.6,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeModalBank(
+      sampleRate,
+      0.08,
+      [
+        [930, 0.018, 1],
+        [1870, 0.012, 0.5],
+      ],
+      rng,
+    ),
+    0.016,
+    0.16,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.004, 0.001, { hp: 3000 }),
+    0.018,
+    0.2,
+    sampleRate,
+  );
   return buf;
 }
 const t8 = synthDryFire;
@@ -616,7 +770,7 @@ const t8 = synthDryFire;
 /** 金属导轨滑动摩擦噪音频扫辅助函数 */
 function synthSlidingFriction(sampleRate, rng, duration, startFreq, endFreq, grainRate) {
   const noise = generateWhiteNoise(sampleRate, duration, rng);
-  applyDynamicBiquadFilter(noise, 'bp', createFreqSweep(startFreq, endFreq), 1.6, sampleRate);
+  applyDynamicBiquadFilter(noise, "bp", createFreqSweep(startFreq, endFreq), 1.6, sampleRate);
   let gain = 0.5;
   let targetGain = 0.5;
   const grainSamples = Math.round(sampleRate / grainRate);
@@ -633,12 +787,66 @@ const e_ = synthSlidingFriction;
 /** 拔出空弹匣机械声 (Reload Magazine Out) */
 function synthReloadMagOut(sampleRate, rng) {
   const buf = createAudioBufferArray(sampleRate, 0.46);
-  mixBuffer(buf, synthesizeModalBank(sampleRate, 0.03, [[3300, 0.004, 1], [5100, 0.003, 0.6]], rng), 0.004, 0.45, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.005, 0.001, { hp: 2500 }), 0.004, 0.35, sampleRate);
-  mixBuffer(buf, synthSlidingFriction(sampleRate, rng, 0.17, 1700, 3400, 190), 0.03, 0.5, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.06, 0.012, { lp: 950 }), 0.2, 0.8, sampleRate);
-  mixBuffer(buf, synthesizeModalBank(sampleRate, 0.12, [[415, 0.03, 1], [1140, 0.018, 0.6], [2290, 0.01, 0.4], [3470, 0.006, 0.25]], rng), 0.2, 0.42, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.08, 0.02, { bp: 2600, q: 0.8 }), 0.215, 0.14, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizeModalBank(
+      sampleRate,
+      0.03,
+      [
+        [3300, 0.004, 1],
+        [5100, 0.003, 0.6],
+      ],
+      rng,
+    ),
+    0.004,
+    0.45,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.005, 0.001, { hp: 2500 }),
+    0.004,
+    0.35,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthSlidingFriction(sampleRate, rng, 0.17, 1700, 3400, 190),
+    0.03,
+    0.5,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.06, 0.012, { lp: 950 }),
+    0.2,
+    0.8,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeModalBank(
+      sampleRate,
+      0.12,
+      [
+        [415, 0.03, 1],
+        [1140, 0.018, 0.6],
+        [2290, 0.01, 0.4],
+        [3470, 0.006, 0.25],
+      ],
+      rng,
+    ),
+    0.2,
+    0.42,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.08, 0.02, { bp: 2600, q: 0.8 }),
+    0.215,
+    0.14,
+    sampleRate,
+  );
   return buf;
 }
 const n8 = synthReloadMagOut;
@@ -647,12 +855,74 @@ const n8 = synthReloadMagOut;
 function synthReloadMagIn(sampleRate, rng) {
   const buf = createAudioBufferArray(sampleRate, 0.5);
   mixBuffer(buf, synthSlidingFriction(sampleRate, rng, 0.14, 1250, 2900, 240), 0, 0.55, sampleRate);
-  mixBuffer(buf, synthesizeModalBank(sampleRate, 0.03, [[2600, 0.004, 1], [4300, 0.003, 0.5]], rng), 0.05, 0.2, sampleRate);
-  mixBuffer(buf, synthesizePitchSweepSine(sampleRate, 0.07, 190, 88, 0.02, 0.022), 0.15, 0.8, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.05, 0.008, { lp: 1600 }), 0.15, 0.8, sampleRate);
-  mixBuffer(buf, synthesizeModalBank(sampleRate, 0.1, [[655, 0.024, 1], [1710, 0.014, 0.6], [3120, 0.008, 0.4]], rng), 0.15, 0.4, sampleRate);
-  mixBuffer(buf, synthesizeModalBank(sampleRate, 0.04, [[3650, 0.005, 1], [5600, 0.004, 0.6], [2100, 0.007, 0.5]], rng), 0.187, 0.42, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.005, 0.001, { hp: 3000 }), 0.187, 0.36, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizeModalBank(
+      sampleRate,
+      0.03,
+      [
+        [2600, 0.004, 1],
+        [4300, 0.003, 0.5],
+      ],
+      rng,
+    ),
+    0.05,
+    0.2,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizePitchSweepSine(sampleRate, 0.07, 190, 88, 0.02, 0.022),
+    0.15,
+    0.8,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.05, 0.008, { lp: 1600 }),
+    0.15,
+    0.8,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeModalBank(
+      sampleRate,
+      0.1,
+      [
+        [655, 0.024, 1],
+        [1710, 0.014, 0.6],
+        [3120, 0.008, 0.4],
+      ],
+      rng,
+    ),
+    0.15,
+    0.4,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeModalBank(
+      sampleRate,
+      0.04,
+      [
+        [3650, 0.005, 1],
+        [5600, 0.004, 0.6],
+        [2100, 0.007, 0.5],
+      ],
+      rng,
+    ),
+    0.187,
+    0.42,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.005, 0.001, { hp: 3000 }),
+    0.187,
+    0.36,
+    sampleRate,
+  );
   return buf;
 }
 const i8 = synthReloadMagIn;
@@ -660,26 +930,77 @@ const i8 = synthReloadMagIn;
 /** 拉动枪机复进推弹上膛声 (Reload Bolt Cycle) */
 function synthReloadBolt(sampleRate, rng) {
   const buf = createAudioBufferArray(sampleRate, 0.38);
-  mixBuffer(buf, synthesizeModalBank(sampleRate, 0.03, [[2900, 0.005, 1], [4600, 0.004, 0.6]], rng), 0, 0.3, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.03, 0.01, { bp: 2200, q: 0.8 }), 0.004, 0.25, sampleRate);
-
-  const rackTime = 0.03;
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.02, 0.004, { hp: 1200 }), rackTime, 1.0, sampleRate);
-  mixBuffer(buf, synthesizePitchSweepSine(sampleRate, 0.06, 230, 105, 0.012, 0.018), rackTime, 0.8, sampleRate);
   mixBuffer(
     buf,
-    synthesizeModalBank(sampleRate, 0.15, [
-      [1310, 0.03, 1],
-      [2460, 0.024, 0.8],
-      [3920, 0.016, 0.6],
-      [5640, 0.01, 0.45],
-      [7900, 0.006, 0.3]
-    ], rng),
+    synthesizeModalBank(
+      sampleRate,
+      0.03,
+      [
+        [2900, 0.005, 1],
+        [4600, 0.004, 0.6],
+      ],
+      rng,
+    ),
+    0,
+    0.3,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.03, 0.01, { bp: 2200, q: 0.8 }),
+    0.004,
+    0.25,
+    sampleRate,
+  );
+
+  const rackTime = 0.03;
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.02, 0.004, { hp: 1200 }),
+    rackTime,
+    1.0,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizePitchSweepSine(sampleRate, 0.06, 230, 105, 0.012, 0.018),
+    rackTime,
+    0.8,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeModalBank(
+      sampleRate,
+      0.15,
+      [
+        [1310, 0.03, 1],
+        [2460, 0.024, 0.8],
+        [3920, 0.016, 0.6],
+        [5640, 0.01, 0.45],
+        [7900, 0.006, 0.3],
+      ],
+      rng,
+    ),
     rackTime,
     0.36,
-    sampleRate
+    sampleRate,
   );
-  mixBuffer(buf, synthesizeModalBank(sampleRate, 0.3, [[722, 0.075, 1], [1451, 0.05, 0.35]], rng), rackTime + 0.002, 0.1, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizeModalBank(
+      sampleRate,
+      0.3,
+      [
+        [722, 0.075, 1],
+        [1451, 0.05, 0.35],
+      ],
+      rng,
+    ),
+    rackTime + 0.002,
+    0.1,
+    sampleRate,
+  );
   return applySoftSaturation(buf, 1.3);
 }
 const s8 = synthReloadBolt;
@@ -696,18 +1017,29 @@ function synthShellBounce(sampleRate, rng, variant) {
     const p = pitchScale * randomRange(rng, 0.96, 1.05);
     mixBuffer(
       buf,
-      synthesizeModalBank(sampleRate, 0.22, [
-        [4180 * p, randomRange(rng, 0.03, 0.055), 1.0],
-        [6830 * p, 0.03, 0.7],
-        [9760 * p, 0.02, 0.5],
-        [11900 * p, 0.012, 0.3],
-        [2470 * p, 0.012, 0.3]
-      ], rng),
+      synthesizeModalBank(
+        sampleRate,
+        0.22,
+        [
+          [4180 * p, randomRange(rng, 0.03, 0.055), 1.0],
+          [6830 * p, 0.03, 0.7],
+          [9760 * p, 0.02, 0.5],
+          [11900 * p, 0.012, 0.3],
+          [2470 * p, 0.012, 0.3],
+        ],
+        rng,
+      ),
       delay,
       gain * 0.5,
-      sampleRate
+      sampleRate,
     );
-    mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.004, 0.0008, { hp: 3500 }), delay, gain * 0.5, sampleRate);
+    mixBuffer(
+      buf,
+      synthesizeNoiseBurst(sampleRate, rng, 0.004, 0.0008, { hp: 3500 }),
+      delay,
+      gain * 0.5,
+      sampleRate,
+    );
     delay += randomRange(rng, 0.085, 0.15) * (b ? 0.75 : 1);
     gain *= randomRange(rng, 0.45, 0.62);
   }
@@ -719,9 +1051,27 @@ const o8 = synthShellBounce;
 function synthStepConcrete(sampleRate, rng, variant) {
   const buf = createAudioBufferArray(sampleRate, 0.3);
   const p = [1.0, 1.07, 0.94, 1.03][variant & 3];
-  mixBuffer(buf, synthesizePitchSweepSine(sampleRate, 0.06, 112 * p, 58 * p, 0.018, 0.02, 0.002), 0, 0.75, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.06, 0.016, { lp: 720 * p }), 0, 0.9, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.1, 0.028, { bp: 2500 * p, q: 0.7, att: 0.004 }), 0.012, 0.22, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizePitchSweepSine(sampleRate, 0.06, 112 * p, 58 * p, 0.018, 0.02, 0.002),
+    0,
+    0.75,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.06, 0.016, { lp: 720 * p }),
+    0,
+    0.9,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.1, 0.028, { bp: 2500 * p, q: 0.7, att: 0.004 }),
+    0.012,
+    0.22,
+    sampleRate,
+  );
 
   const grit = synthesizeNoiseBurst(sampleRate, rng, 0.2, 0.05, { hp: 3800, att: 0.01 });
   let gritGain = 1.0;
@@ -738,9 +1088,24 @@ const r8 = synthStepConcrete;
 function synthWaterSplash(sampleRate, rng, duration, intensity) {
   const buf = createAudioBufferArray(sampleRate, duration);
   const noise = generateWhiteNoise(sampleRate, duration * 0.9, rng);
-  applyDynamicBiquadFilter(noise, 'bp', createFreqSweep(1500, 520), 0.8, sampleRate);
-  mixBuffer(buf, applyEnvelope(noise, sampleRate, createExpDecayEnvelope(0.085 * intensity, 0.007)), 0, 0.9, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, duration * 0.8, 0.07 * intensity, { hp: 3000, att: 0.012 }), 0.01, 0.25, sampleRate);
+  applyDynamicBiquadFilter(noise, "bp", createFreqSweep(1500, 520), 0.8, sampleRate);
+  mixBuffer(
+    buf,
+    applyEnvelope(noise, sampleRate, createExpDecayEnvelope(0.085 * intensity, 0.007)),
+    0,
+    0.9,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, duration * 0.8, 0.07 * intensity, {
+      hp: 3000,
+      att: 0.012,
+    }),
+    0.01,
+    0.25,
+    sampleRate,
+  );
 
   const dropletCount = Math.round(5 * intensity);
   for (let d = 0; d < dropletCount; d++) {
@@ -750,7 +1115,7 @@ function synthWaterSplash(sampleRate, rng, duration, intensity) {
       synthesizeChirp(sampleRate, randomRange(rng, 0.008, 0.02), f, f * randomRange(rng, 1.3, 1.9)),
       randomRange(rng, 0.03, duration * 0.6),
       randomRange(rng, 0.1, 0.3),
-      sampleRate
+      sampleRate,
     );
   }
   return buf;
@@ -760,7 +1125,13 @@ const t_ = synthWaterSplash;
 /** 积水地面积水脚步声 (Water Puddle Footstep) */
 function synthStepWater(sampleRate, rng, variant) {
   const buf = synthWaterSplash(sampleRate, rng, 0.46, 1 + variant * 0.08);
-  mixBuffer(buf, synthesizePitchSweepSine(sampleRate, 0.06, 100, 55, 0.02, 0.02, 0.002), 0, 0.5, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizePitchSweepSine(sampleRate, 0.06, 100, 55, 0.02, 0.02, 0.002),
+    0,
+    0.5,
+    sampleRate,
+  );
   return buf;
 }
 const a8 = synthStepWater;
@@ -769,23 +1140,46 @@ const a8 = synthStepWater;
 function synthStepMetal(sampleRate, rng, variant) {
   const buf = createAudioBufferArray(sampleRate, 0.38);
   const p = [1.0, 1.08, 0.92][variant % 3];
-  mixBuffer(buf, synthesizePitchSweepSine(sampleRate, 0.06, 120, 62, 0.018, 0.02, 0.002), 0, 0.6, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.04, 0.008, { lp: 2400 }), 0, 0.6, sampleRate);
   mixBuffer(
     buf,
-    synthesizeModalBank(sampleRate, 0.36, [
-      [178 * p, 0.09, 1.0],
-      [412 * p, 0.075, 0.8],
-      [733 * p, 0.06, 0.55],
-      [1214 * p, 0.045, 0.4],
-      [1958 * p, 0.03, 0.3],
-      [3130 * p, 0.016, 0.18]
-    ], rng),
+    synthesizePitchSweepSine(sampleRate, 0.06, 120, 62, 0.018, 0.02, 0.002),
+    0,
+    0.6,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.04, 0.008, { lp: 2400 }),
+    0,
+    0.6,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeModalBank(
+      sampleRate,
+      0.36,
+      [
+        [178 * p, 0.09, 1.0],
+        [412 * p, 0.075, 0.8],
+        [733 * p, 0.06, 0.55],
+        [1214 * p, 0.045, 0.4],
+        [1958 * p, 0.03, 0.3],
+        [3130 * p, 0.016, 0.18],
+      ],
+      rng,
+    ),
     0.001,
     0.3,
-    sampleRate
+    sampleRate,
   );
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.08, 0.02, { bp: 3000, q: 0.8, att: 0.003 }), 0.01, 0.1, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.08, 0.02, { bp: 3000, q: 0.8, att: 0.003 }),
+    0.01,
+    0.1,
+    sampleRate,
+  );
   return buf;
 }
 const l8 = synthStepMetal;
@@ -793,13 +1187,46 @@ const l8 = synthStepMetal;
 /** 跳跃落地沉重冲击 (Heavy Landing Impact) */
 function synthLand(sampleRate, rng) {
   const buf = createAudioBufferArray(sampleRate, 0.45);
-  mixBuffer(buf, synthesizePitchSweepSine(sampleRate, 0.14, 124, 44, 0.03, 0.045, 0.002), 0, 1.0, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.14, 0.035, { lp: 520 }), 0, 1.0, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.2, 0.06, { bp: 1500, q: 0.7, att: 0.01 }), 0.01, 0.16, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizePitchSweepSine(sampleRate, 0.14, 124, 44, 0.03, 0.045, 0.002),
+    0,
+    1.0,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.14, 0.035, { lp: 520 }),
+    0,
+    1.0,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.2, 0.06, { bp: 1500, q: 0.7, att: 0.01 }),
+    0.01,
+    0.16,
+    sampleRate,
+  );
   for (const t of [0.022, 0.05, 0.088]) {
-    mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.012, 0.003, { bp: randomRange(rng, 2200, 4200), q: 2 }), t, randomRange(rng, 0.1, 0.22), sampleRate);
+    mixBuffer(
+      buf,
+      synthesizeNoiseBurst(sampleRate, rng, 0.012, 0.003, {
+        bp: randomRange(rng, 2200, 4200),
+        q: 2,
+      }),
+      t,
+      randomRange(rng, 0.1, 0.22),
+      sampleRate,
+    );
   }
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.2, 0.05, { hp: 3500, att: 0.01 }), 0.015, 0.1, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.2, 0.05, { hp: 3500, att: 0.01 }),
+    0.015,
+    0.1,
+    sampleRate,
+  );
   return applySoftSaturation(buf, 1.2);
 }
 const c8 = synthLand;
@@ -807,9 +1234,27 @@ const c8 = synthLand;
 /** 起跳腾空声 (Jump Takeoff Whoosh) */
 function synthJump(sampleRate, rng) {
   const buf = createAudioBufferArray(sampleRate, 0.26);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.2, 0.05, { bp: 900, q: 0.7, att: 0.02 }), 0, 0.6, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.1, 0.025, { bp: 2600, q: 0.8, att: 0.004 }), 0.005, 0.35, sampleRate);
-  mixBuffer(buf, synthesizePitchSweepSine(sampleRate, 0.05, 95, 60, 0.02, 0.018, 0.003), 0, 0.4, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.2, 0.05, { bp: 900, q: 0.7, att: 0.02 }),
+    0,
+    0.6,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.1, 0.025, { bp: 2600, q: 0.8, att: 0.004 }),
+    0.005,
+    0.35,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizePitchSweepSine(sampleRate, 0.05, 95, 60, 0.02, 0.018, 0.003),
+    0,
+    0.4,
+    sampleRate,
+  );
   return buf;
 }
 const u8 = synthJump;
@@ -817,10 +1262,28 @@ const u8 = synthJump;
 /** 玩家受击剧痛声 (Player Hurt Flesh Impact) */
 function synthHurt(sampleRate, rng) {
   const buf = createAudioBufferArray(sampleRate, 0.5);
-  mixBuffer(buf, synthesizePitchSweepSine(sampleRate, 0.25, 92, 38, 0.04, 0.06, 0.0015), 0, 1.1, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizePitchSweepSine(sampleRate, 0.25, 92, 38, 0.04, 0.06, 0.0015),
+    0,
+    1.1,
+    sampleRate,
+  );
   mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.2, 0.04, { lp: 320 }), 0, 1.2, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.06, 0.01, { bp: 820, q: 1 }), 0, 0.55, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.03, 0.004, { hp: 1800, lp: 5000 }), 0, 0.2, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.06, 0.01, { bp: 820, q: 1 }),
+    0,
+    0.55,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.03, 0.004, { hp: 1800, lp: 5000 }),
+    0,
+    0.2,
+    sampleRate,
+  );
   return applySoftSaturation(buf, 1.6);
 }
 const h8 = synthHurt;
@@ -845,8 +1308,20 @@ const f8 = synthEarRing;
 function synthImpactMetal(sampleRate, rng, variant) {
   const buf = createAudioBufferArray(sampleRate, 0.5);
   const baseFreq = [640, 880, 745][variant % 3] * randomRange(rng, 0.97, 1.03);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.015, 0.003, { hp: 1500 }), 0, 1.0, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.04, 0.008, { lp: 1800 }), 0, 0.6, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.015, 0.003, { hp: 1500 }),
+    0,
+    1.0,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.04, 0.008, { lp: 1800 }),
+    0,
+    0.6,
+    sampleRate,
+  );
   mixBuffer(
     buf,
     synthesizeModalBank(
@@ -855,13 +1330,13 @@ function synthImpactMetal(sampleRate, rng, variant) {
       [1, 1.58, 2.24, 2.92, 3.71, 4.93, 6.31, 8.1].map((r, a) => [
         baseFreq * r,
         0.13 / (1 + a * 0.55),
-        1 / (1 + a * 0.5)
+        1 / (1 + a * 0.5),
       ]),
-      rng
+      rng,
     ),
     0.0005,
     0.42,
-    sampleRate
+    sampleRate,
   );
   return buf;
 }
@@ -871,11 +1346,46 @@ const d8 = synthImpactMetal;
 function synthImpactConcrete(sampleRate, rng, variant) {
   const buf = createAudioBufferArray(sampleRate, 0.36);
   const p = [1.0, 1.1, 0.9][variant % 3];
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.06, 0.013, { lp: 950 * p }), 0, 1.1, sampleRate);
-  mixBuffer(buf, synthesizePitchSweepSine(sampleRate, 0.05, 150 * p, 70, 0.012, 0.016), 0, 0.6, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.012, 0.002, { hp: 2000 }), 0, 0.6, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.12, 0.024, { bp: 3500 * p, q: 0.7 }), 0.003, 0.3, sampleRate);
-  mixBuffer(buf, synthesizeGranularDebris(sampleRate, rng, 0.34, 16, { from: 0.03, fall: 1.8, hp: 1800, ampFall: 0.1 }), 0, 0.35, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.06, 0.013, { lp: 950 * p }),
+    0,
+    1.1,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizePitchSweepSine(sampleRate, 0.05, 150 * p, 70, 0.012, 0.016),
+    0,
+    0.6,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.012, 0.002, { hp: 2000 }),
+    0,
+    0.6,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.12, 0.024, { bp: 3500 * p, q: 0.7 }),
+    0.003,
+    0.3,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeGranularDebris(sampleRate, rng, 0.34, 16, {
+      from: 0.03,
+      fall: 1.8,
+      hp: 1800,
+      ampFall: 0.1,
+    }),
+    0,
+    0.35,
+    sampleRate,
+  );
   return buf;
 }
 const p8 = synthImpactConcrete;
@@ -884,10 +1394,44 @@ const p8 = synthImpactConcrete;
 function synthImpactWood(sampleRate, rng, variant) {
   const buf = createAudioBufferArray(sampleRate, 0.26);
   const p = variant ? 1.14 : 1.0;
-  mixBuffer(buf, synthesizeModalBank(sampleRate, 0.2, [[238 * p, 0.03, 1], [512 * p, 0.022, 0.8], [893 * p, 0.016, 0.6], [1410 * p, 0.01, 0.4]], rng), 0, 0.6, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.03, 0.006, { lp: 2100 }), 0, 0.8, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.01, 0.002, { hp: 3000 }), 0, 0.5, sampleRate);
-  mixBuffer(buf, synthesizeGranularDebris(sampleRate, rng, 0.2, 6, { from: 0.01, fall: 2.0, bp: 2600, q: 1.5 }), 0, 0.3, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizeModalBank(
+      sampleRate,
+      0.2,
+      [
+        [238 * p, 0.03, 1],
+        [512 * p, 0.022, 0.8],
+        [893 * p, 0.016, 0.6],
+        [1410 * p, 0.01, 0.4],
+      ],
+      rng,
+    ),
+    0,
+    0.6,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.03, 0.006, { lp: 2100 }),
+    0,
+    0.8,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.01, 0.002, { hp: 3000 }),
+    0,
+    0.5,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeGranularDebris(sampleRate, rng, 0.2, 6, { from: 0.01, fall: 2.0, bp: 2600, q: 1.5 }),
+    0,
+    0.3,
+    sampleRate,
+  );
   return buf;
 }
 const m8 = synthImpactWood;
@@ -904,18 +1448,57 @@ const g8 = synthImpactWater;
 function synthImpactEnemy(sampleRate, rng, variant) {
   const buf = createAudioBufferArray(sampleRate, 0.3);
   const p = [1.0, 1.12, 0.9][variant % 3];
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.03, 0.007, { hp: 4000 }), 0, 0.9, sampleRate);
-  mixBuffer(buf, synthesizeModalBank(sampleRate, 0.12, [[2920 * p, 0.022, 1], [4730 * p, 0.018, 0.8], [7310 * p, 0.012, 0.6], [1180 * p, 0.03, 0.5]], rng), 0, 0.4, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.05, 0.012, { bp: 320 * p, q: 1.5 }), 0, 0.9, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.03, 0.007, { hp: 4000 }),
+    0,
+    0.9,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeModalBank(
+      sampleRate,
+      0.12,
+      [
+        [2920 * p, 0.022, 1],
+        [4730 * p, 0.018, 0.8],
+        [7310 * p, 0.012, 0.6],
+        [1180 * p, 0.03, 0.5],
+      ],
+      rng,
+    ),
+    0,
+    0.4,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.05, 0.012, { bp: 320 * p, q: 1.5 }),
+    0,
+    0.9,
+    sampleRate,
+  );
 
   const squish = generateWhiteNoise(sampleRate, 0.06, rng);
-  applyBiquadFilter(squish, 'bp', 2400, 1, sampleRate);
+  applyBiquadFilter(squish, "bp", 2400, 1, sampleRate);
   for (let i = 0; i < squish.length; i++) {
     const t = i / sampleRate;
     squish[i] *= (Math.sin(TWO_PI * 118 * t) > 0.2 ? 1 : 0.1) * Math.exp(-t / 0.02);
   }
   mixBuffer(buf, squish, 0.004, 0.5, sampleRate);
-  mixBuffer(buf, synthesizeGranularDebris(sampleRate, rng, 0.28, 10, { from: 0.02, fall: 1.6, hp: 5000, ampFall: 0.08 }), 0, 0.3, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizeGranularDebris(sampleRate, rng, 0.28, 10, {
+      from: 0.02,
+      fall: 1.6,
+      hp: 5000,
+      ampFall: 0.08,
+    }),
+    0,
+    0.3,
+    sampleRate,
+  );
   return buf;
 }
 const v8 = synthImpactEnemy;
@@ -923,15 +1506,29 @@ const v8 = synthImpactEnemy;
 /** 命中玻璃破碎爆裂声 (Bullet Impact Glass) */
 function synthImpactGlass(sampleRate, rng) {
   const buf = createAudioBufferArray(sampleRate, 0.45);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.01, 0.002, { hp: 2500 }), 0, 1.0, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.01, 0.002, { hp: 2500 }),
+    0,
+    1.0,
+    sampleRate,
+  );
   for (let i = 0; i < 9; i++) {
     const f = randomRange(rng, 3200, 9500);
     mixBuffer(
       buf,
-      synthesizeModalBank(sampleRate, 0.1, [[f, randomRange(rng, 0.01, 0.03), 1], [f * 1.47, 0.01, 0.5]], rng),
+      synthesizeModalBank(
+        sampleRate,
+        0.1,
+        [
+          [f, randomRange(rng, 0.01, 0.03), 1],
+          [f * 1.47, 0.01, 0.5],
+        ],
+        rng,
+      ),
       Math.pow(rng(), 2) * 0.3,
       randomRange(rng, 0.1, 0.35),
-      sampleRate
+      sampleRate,
     );
   }
   return buf;
@@ -951,12 +1548,33 @@ function synthRicochet(sampleRate, rng, variant) {
     const currentF = endF + (startF - endF) * Math.exp(-t / 0.16);
     const mod = 1 + 0.035 * Math.sin(TWO_PI * (18 + 30 * t) * t);
     phase += (TWO_PI * currentF * mod) / sampleRate;
-    buf[i] = (Math.sin(phase) + 0.3 * Math.sin(2 * phase)) * (1 - Math.exp(-t / 0.004)) * Math.exp(-t / 0.19);
+    buf[i] =
+      (Math.sin(phase) + 0.3 * Math.sin(2 * phase)) *
+      (1 - Math.exp(-t / 0.004)) *
+      Math.exp(-t / 0.19);
   }
 
-  applyDynamicBiquadFilter(noise, 'bp', (progress) => endF + (startF - endF) * Math.exp((-progress * 0.75) / 0.16), 6, sampleRate);
-  mixBuffer(buf, applyEnvelope(noise, sampleRate, createExpDecayEnvelope(0.15, 0.003)), 0, 1.6, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.01, 0.002, { hp: 2500 }), 0, 0.7, sampleRate);
+  applyDynamicBiquadFilter(
+    noise,
+    "bp",
+    (progress) => endF + (startF - endF) * Math.exp((-progress * 0.75) / 0.16),
+    6,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    applyEnvelope(noise, sampleRate, createExpDecayEnvelope(0.15, 0.003)),
+    0,
+    1.6,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.01, 0.002, { hp: 2500 }),
+    0,
+    0.7,
+    sampleRate,
+  );
   return buf;
 }
 const y8 = synthRicochet;
@@ -967,7 +1585,7 @@ function synthBulletWhiz(sampleRate, rng, variant) {
   const noise = generateWhiteNoise(sampleRate, 0.28, rng);
   const startF = [5200, 4300, 6100][variant % 3];
   const endF = [1300, 1000, 1700][variant % 3];
-  applyDynamicBiquadFilter(noise, 'bp', createFreqSweep(startF, endF, 0.8), 3.5, sampleRate);
+  applyDynamicBiquadFilter(noise, "bp", createFreqSweep(startF, endF, 0.8), 3.5, sampleRate);
 
   for (let i = 0; i < noise.length; i++) {
     const t = i / sampleRate;
@@ -975,7 +1593,13 @@ function synthBulletWhiz(sampleRate, rng, variant) {
     noise[i] *= Math.exp(-offset * offset);
   }
   mixBuffer(buf, noise, 0, 1.0, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.006, 0.0008, { hp: 3000 }), 0.048, 0.25, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.006, 0.0008, { hp: 3000 }),
+    0.048,
+    0.25,
+    sampleRate,
+  );
   mixBuffer(buf, synthesizeChirp(sampleRate, 0.2, startF * 0.5, endF * 0.6), 0, 0.03, sampleRate);
   return buf;
 }
@@ -987,7 +1611,12 @@ const quantizePhase = (freq, grid) => Math.round(freq * grid) / grid;
 function* synthGullRotorLoop(sampleRate, rng) {
   const totalSamples = sampleRate * 2;
   const out = new Float32Array(totalSamples);
-  const bladeTones = [[184, 2.5], [207.5, 3.5], [233, 2.0], [258.5, 4.5]];
+  const bladeTones = [
+    [184, 2.5],
+    [207.5, 3.5],
+    [233, 2.0],
+    [258.5, 4.5],
+  ];
 
   for (const [toneFreq, toneAmp] of bladeTones) {
     const fBase = quantizePhase(toneFreq, 2);
@@ -998,17 +1627,27 @@ function* synthGullRotorLoop(sampleRate, rng) {
       const t = i / sampleRate;
       const w = TWO_PI * fBase * t + p1;
       out[i] +=
-        (Math.sin(w) + 0.5 * Math.sin(2 * w + 1) + 0.3 * Math.sin(3 * w + 2) + 0.16 * Math.sin(4 * w) + 0.08 * Math.sin(6 * w)) *
+        (Math.sin(w) +
+          0.5 * Math.sin(2 * w + 1) +
+          0.3 * Math.sin(3 * w + 2) +
+          0.16 * Math.sin(4 * w) +
+          0.08 * Math.sin(6 * w)) *
         (0.72 + 0.28 * Math.sin(TWO_PI * fMod * t + p2)) *
         0.25;
     }
     yield;
   }
 
-  const airNoise = buildSeamlessLoop(sampleRate, 2.0, rng, (buf) => {
-    applyBiquadFilter(buf, 'hp', 1100, 0.7, sampleRate);
-    applyBiquadFilter(buf, 'lp', 5200, 0.7, sampleRate);
-  }, 0.25);
+  const airNoise = buildSeamlessLoop(
+    sampleRate,
+    2.0,
+    rng,
+    (buf) => {
+      applyBiquadFilter(buf, "hp", 1100, 0.7, sampleRate);
+      applyBiquadFilter(buf, "lp", 5200, 0.7, sampleRate);
+    },
+    0.25,
+  );
 
   const modFreq = quantizePhase(46, 2);
   for (let i = 0; i < totalSamples; i++) {
@@ -1030,14 +1669,21 @@ function synthHoundServoLoop(sampleRate, rng) {
     const u = 0.7 + 0.3 * Math.sin(TWO_PI * 1.5 * t);
     let sample = (Math.sin(c) + 0.45 * Math.sin(2 * c + l) + 0.2 * Math.sin(4 * c + 0.5)) * 0.3 * u;
     const f = TWO_PI * 62 * t;
-    sample += (Math.sin(f) + 0.5 * Math.sin(2 * f) + 0.33 * Math.sin(3 * f) + 0.2 * Math.sin(5 * f)) * 0.28;
+    sample +=
+      (Math.sin(f) + 0.5 * Math.sin(2 * f) + 0.33 * Math.sin(3 * f) + 0.2 * Math.sin(5 * f)) * 0.28;
     out[i] = sample;
   }
 
-  const gearNoise = buildSeamlessLoop(sampleRate, 2.0, rng, (buf) => {
-    applyBiquadFilter(buf, 'hp', 2800, 0.7, sampleRate);
-    applyBiquadFilter(buf, 'lp', 7000, 0.7, sampleRate);
-  }, 0.25);
+  const gearNoise = buildSeamlessLoop(
+    sampleRate,
+    2.0,
+    rng,
+    (buf) => {
+      applyBiquadFilter(buf, "hp", 2800, 0.7, sampleRate);
+      applyBiquadFilter(buf, "lp", 7000, 0.7, sampleRate);
+    },
+    0.25,
+  );
 
   for (let i = 0; i < totalSamples; i++) {
     out[i] += gearNoise[i] * 0.12 * (0.6 + 0.4 * Math.sin((TWO_PI * 1.5 * i) / sampleRate + 2));
@@ -1055,18 +1701,31 @@ function synthRelayHumLoop(sampleRate, rng) {
     const t = i / sampleRate;
     const l = TWO_PI * 50 * t; // 50Hz 工频市电谐波
     out[i] =
-      (Math.sin(l) * 0.5 + Math.sin(2 * l + 0.4) + 0.5 * Math.sin(3 * l + 1) + 0.3 * Math.sin(4 * l) + 0.22 * Math.sin(6 * l + 2) + 0.12 * Math.sin(10 * l)) *
-        0.3 * (0.9 + 0.1 * Math.sin(TWO_PI * 0.5 * t)) +
+      (Math.sin(l) * 0.5 +
+        Math.sin(2 * l + 0.4) +
+        0.5 * Math.sin(3 * l + 1) +
+        0.3 * Math.sin(4 * l) +
+        0.22 * Math.sin(6 * l + 2) +
+        0.12 * Math.sin(10 * l)) *
+        0.3 *
+        (0.9 + 0.1 * Math.sin(TWO_PI * 0.5 * t)) +
       Math.sin(TWO_PI * 4100 * t) * 0.012 * (0.6 + 0.4 * Math.sin(TWO_PI * 1 * t)) +
       Math.sin(TWO_PI * 1250 * t + 0.6 * Math.sin(TWO_PI * 2 * t)) * 0.02;
   }
 
-  const dischargeNoise = buildSeamlessLoop(sampleRate, 2.0, rng, (buf) => {
-    applyBiquadFilter(buf, 'bp', 2100, 1.2, sampleRate);
-  }, 0.25);
+  const dischargeNoise = buildSeamlessLoop(
+    sampleRate,
+    2.0,
+    rng,
+    (buf) => {
+      applyBiquadFilter(buf, "bp", 2100, 1.2, sampleRate);
+    },
+    0.25,
+  );
 
   for (let i = 0; i < totalSamples; i++) {
-    out[i] += dischargeNoise[i] * 0.16 * Math.pow(0.5 + 0.5 * Math.sin((TWO_PI * 100 * i) / sampleRate), 3);
+    out[i] +=
+      dischargeNoise[i] * 0.16 * Math.pow(0.5 + 0.5 * Math.sin((TWO_PI * 100 * i) / sampleRate), 3);
   }
   return out;
 }
@@ -1077,7 +1736,13 @@ function synthGullFire(sampleRate, rng, variant) {
   const buf = createAudioBufferArray(sampleRate, 0.3);
   const p = variant ? 1.07 : 1.0;
   let phase = 0;
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.008, 0.0012, { hp: 3200 }), 0, 1.1, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.008, 0.0012, { hp: 3200 }),
+    0,
+    1.1,
+    sampleRate,
+  );
 
   const plasmaWave = createAudioBufferArray(sampleRate, 0.12);
   for (let i = 0; i < plasmaWave.length; i++) {
@@ -1087,12 +1752,45 @@ function synthGullFire(sampleRate, rng, variant) {
     const saw = 2 * (phase - Math.floor(phase)) - 1;
     plasmaWave[i] = (saw + 0.5 * Math.sign(Math.sin(TWO_PI * phase * 2.02))) * Math.exp(-t / 0.024);
   }
-  applyBiquadFilter(plasmaWave, 'bp', 1500 * p, 0.9, sampleRate);
+  applyBiquadFilter(plasmaWave, "bp", 1500 * p, 0.9, sampleRate);
   mixBuffer(buf, plasmaWave, 0, 1.5, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.08, 0.014, { bp: 2400 * p, q: 1.4 }), 0, 0.7, sampleRate);
-  mixBuffer(buf, synthesizePitchSweepSine(sampleRate, 0.05, 240, 120, 0.012, 0.014), 0, 0.5, sampleRate);
-  mixBuffer(buf, synthesizeModalBank(sampleRate, 0.05, [[3400 * p, 0.006, 1], [5200, 0.005, 0.6], [1900, 0.008, 0.5]], rng), 0.021, 0.2, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.15, 0.04, { hp: 6000 }), 0.002, 0.1, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.08, 0.014, { bp: 2400 * p, q: 1.4 }),
+    0,
+    0.7,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizePitchSweepSine(sampleRate, 0.05, 240, 120, 0.012, 0.014),
+    0,
+    0.5,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeModalBank(
+      sampleRate,
+      0.05,
+      [
+        [3400 * p, 0.006, 1],
+        [5200, 0.005, 0.6],
+        [1900, 0.008, 0.5],
+      ],
+      rng,
+    ),
+    0.021,
+    0.2,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.15, 0.04, { hp: 6000 }),
+    0.002,
+    0.1,
+    sampleRate,
+  );
   return applySoftSaturation(scaleBuffer(buf, 0.6), 1.6);
 }
 const E8 = synthGullFire;
@@ -1101,12 +1799,58 @@ const E8 = synthGullFire;
 function synthHoundFire(sampleRate, rng, variant) {
   const buf = createAudioBufferArray(sampleRate, 0.48);
   const p = variant ? 0.94 : 1.0;
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.012, 0.002, { hp: 1500, lp: 6000 }), 0, 0.7, sampleRate);
-  mixBuffer(buf, synthesizePitchSweepSine(sampleRate, 0.3, 112 * p, 37 * p, 0.035, 0.07), 0, 1.4, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.3, 0.045, { hp: 90, lp: 900 * p }), 0, 1.2, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.12, 0.024, { bp: 420 * p, q: 1.6 }), 0, 1.2, sampleRate);
-  mixBuffer(buf, synthesizeModalBank(sampleRate, 0.12, [[310 * p, 0.03, 1], [642 * p, 0.022, 0.7], [985 * p, 0.016, 0.5], [2200, 0.006, 0.3]], rng), 0.055, 0.3, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.02, 0.004, { bp: 1800, q: 1 }), 0.055, 0.25, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.012, 0.002, { hp: 1500, lp: 6000 }),
+    0,
+    0.7,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizePitchSweepSine(sampleRate, 0.3, 112 * p, 37 * p, 0.035, 0.07),
+    0,
+    1.4,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.3, 0.045, { hp: 90, lp: 900 * p }),
+    0,
+    1.2,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.12, 0.024, { bp: 420 * p, q: 1.6 }),
+    0,
+    1.2,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeModalBank(
+      sampleRate,
+      0.12,
+      [
+        [310 * p, 0.03, 1],
+        [642 * p, 0.022, 0.7],
+        [985 * p, 0.016, 0.5],
+        [2200, 0.006, 0.3],
+      ],
+      rng,
+    ),
+    0.055,
+    0.3,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.02, 0.004, { bp: 1800, q: 1 }),
+    0.055,
+    0.25,
+    sampleRate,
+  );
   return applySoftSaturation(scaleBuffer(buf, 0.42), 1.8);
 }
 const S8 = synthHoundFire;
@@ -1118,11 +1862,51 @@ function synthHoundStep(sampleRate, rng, variant) {
   mixBuffer(buf, synthesizeChirp(sampleRate, 0.035, 920 * p, 610 * p), 0, 0.06, sampleRate);
 
   const contactTime = 0.03;
-  mixBuffer(buf, synthesizePitchSweepSine(sampleRate, 0.2, 84 * p, 41, 0.03, 0.05, 0.002), contactTime, 1.1, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.12, 0.03, { lp: 360 }), contactTime, 1.1, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.03, 0.006, { lp: 2600, hp: 500 }), contactTime, 0.4, sampleRate);
-  mixBuffer(buf, synthesizeModalBank(sampleRate, 0.12, [[522 * p, 0.026, 1], [1133 * p, 0.02, 0.7], [1871 * p, 0.014, 0.5], [3040 * p, 0.008, 0.3]], rng), contactTime, 0.2, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.14, 0.04, { hp: 3000, att: 0.006 }), contactTime + 0.01, 0.06, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizePitchSweepSine(sampleRate, 0.2, 84 * p, 41, 0.03, 0.05, 0.002),
+    contactTime,
+    1.1,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.12, 0.03, { lp: 360 }),
+    contactTime,
+    1.1,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.03, 0.006, { lp: 2600, hp: 500 }),
+    contactTime,
+    0.4,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeModalBank(
+      sampleRate,
+      0.12,
+      [
+        [522 * p, 0.026, 1],
+        [1133 * p, 0.02, 0.7],
+        [1871 * p, 0.014, 0.5],
+        [3040 * p, 0.008, 0.3],
+      ],
+      rng,
+    ),
+    contactTime,
+    0.2,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.14, 0.04, { hp: 3000, att: 0.006 }),
+    contactTime + 0.01,
+    0.06,
+    sampleRate,
+  );
   return applySoftSaturation(buf, 1.5);
 }
 const T8 = synthHoundStep;
@@ -1131,7 +1915,13 @@ const T8 = synthHoundStep;
 function synthGullDie(sampleRate, rng) {
   const buf = createAudioBufferArray(sampleRate, 1.5);
   const rotorPhases = [0, 0, 0, 0];
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.02, 0.004, { hp: 2500 }), 0, 0.9, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.02, 0.004, { hp: 2500 }),
+    0,
+    0.9,
+    sampleRate,
+  );
 
   const rotorFrequencies = [184, 207, 233, 258];
   const spinSamples = Math.round(1.1 * sampleRate);
@@ -1141,22 +1931,85 @@ function synthGullDie(sampleRate, rng) {
     let rotorSum = 0;
     for (let r = 0; r < 4; r++) {
       rotorPhases[r] += (TWO_PI * rotorFrequencies[r] * spinFactor) / sampleRate;
-      rotorSum += Math.sin(rotorPhases[r]) + 0.5 * Math.sin(2 * rotorPhases[r]) + 0.3 * Math.sin(3 * rotorPhases[r]);
+      rotorSum +=
+        Math.sin(rotorPhases[r]) +
+        0.5 * Math.sin(2 * rotorPhases[r]) +
+        0.3 * Math.sin(3 * rotorPhases[r]);
     }
     const stutter = 0.6 + 0.4 * Math.sign(Math.sin(TWO_PI * (26 - 16 * t) * t));
     buf[i] += rotorSum * 0.16 * stutter * Math.exp(-t / 0.55) * (1 - Math.exp(-t / 0.01));
   }
 
   const fireWhoosh = generateWhiteNoise(sampleRate, 1.0, rng);
-  applyDynamicBiquadFilter(fireWhoosh, 'bp', createFreqSweep(3200, 500), 1.0, sampleRate);
-  mixBuffer(buf, applyEnvelope(fireWhoosh, sampleRate, createExpDecayEnvelope(0.35, 0.01)), 0, 0.3, sampleRate);
+  applyDynamicBiquadFilter(fireWhoosh, "bp", createFreqSweep(3200, 500), 1.0, sampleRate);
+  mixBuffer(
+    buf,
+    applyEnvelope(fireWhoosh, sampleRate, createExpDecayEnvelope(0.35, 0.01)),
+    0,
+    0.3,
+    sampleRate,
+  );
 
   const blastTime = 0.72;
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.2, 0.035, { lp: 3000 }), blastTime, 1.0, sampleRate);
-  mixBuffer(buf, synthesizePitchSweepSine(sampleRate, 0.12, 130, 55, 0.02, 0.035), blastTime, 0.8, sampleRate);
-  mixBuffer(buf, synthesizeModalBank(sampleRate, 0.4, [[705, 0.07, 1], [1490, 0.05, 0.7], [2610, 0.035, 0.5], [4020, 0.02, 0.3]], rng), blastTime, 0.28, sampleRate);
-  mixBuffer(buf, synthesizeGranularDebris(sampleRate, rng, 0.7, 26, { from: 0.02, fall: 1.7, hp: 1500, ampFall: 0.2, maxLen: 0.008 }), blastTime, 0.5, sampleRate);
-  mixBuffer(buf, synthesizeModalBank(sampleRate, 0.2, [[1900, 0.03, 1], [3350, 0.02, 0.6]], rng), blastTime + 0.19, 0.14, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.2, 0.035, { lp: 3000 }),
+    blastTime,
+    1.0,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizePitchSweepSine(sampleRate, 0.12, 130, 55, 0.02, 0.035),
+    blastTime,
+    0.8,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeModalBank(
+      sampleRate,
+      0.4,
+      [
+        [705, 0.07, 1],
+        [1490, 0.05, 0.7],
+        [2610, 0.035, 0.5],
+        [4020, 0.02, 0.3],
+      ],
+      rng,
+    ),
+    blastTime,
+    0.28,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeGranularDebris(sampleRate, rng, 0.7, 26, {
+      from: 0.02,
+      fall: 1.7,
+      hp: 1500,
+      ampFall: 0.2,
+      maxLen: 0.008,
+    }),
+    blastTime,
+    0.5,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeModalBank(
+      sampleRate,
+      0.2,
+      [
+        [1900, 0.03, 1],
+        [3350, 0.02, 0.6],
+      ],
+      rng,
+    ),
+    blastTime + 0.19,
+    0.14,
+    sampleRate,
+  );
   return applySoftSaturation(buf, 1.4);
 }
 const A8 = synthGullDie;
@@ -1174,20 +2027,74 @@ function synthHoundDie(sampleRate, rng) {
     motorPhase += motorFreq / sampleRate;
     whinePhase += (180 + 1050 * Math.exp(-t / 0.3)) / sampleRate;
     engineDecay[i] =
-      (2 * (motorPhase - Math.floor(motorPhase)) - 1) * (1 - Math.exp(-t / 0.02)) * Math.pow(1 - t / 1.3, 0.7) +
+      (2 * (motorPhase - Math.floor(motorPhase)) - 1) *
+        (1 - Math.exp(-t / 0.02)) *
+        Math.pow(1 - t / 1.3, 0.7) +
       Math.sin(TWO_PI * whinePhase) * 0.25 * Math.exp(-t / 0.4);
   }
-  applyDynamicBiquadFilter(engineDecay, 'lp', createFreqSweep(1100, 160), 2.5, sampleRate);
+  applyDynamicBiquadFilter(engineDecay, "lp", createFreqSweep(1100, 160), 2.5, sampleRate);
   mixBuffer(buf, engineDecay, 0, 0.55, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.03, 0.006, { hp: 2000 }), 0, 0.5, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.03, 0.006, { hp: 2000 }),
+    0,
+    0.5,
+    sampleRate,
+  );
 
   // 肢体部件连续撞地破碎
-  for (const [crashDelay, crashVol, crashPitch] of [[0.62, 1.0, 1.0], [0.84, 0.75, 1.22], [0.98, 0.5, 0.86], [1.17, 0.42, 1.4], [1.33, 0.22, 1.1]]) {
-    mixBuffer(buf, synthesizePitchSweepSine(sampleRate, 0.1, 105 * crashPitch, 48, 0.02, 0.035), crashDelay, crashVol * 0.9, sampleRate);
-    mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.08, 0.016, { lp: 2400 }), crashDelay, crashVol * 0.8, sampleRate);
-    mixBuffer(buf, synthesizeModalBank(sampleRate, 0.3, [[388 * crashPitch, 0.07, 1], [861 * crashPitch, 0.05, 0.7], [1540 * crashPitch, 0.035, 0.5], [2750 * crashPitch, 0.02, 0.35]], rng), crashDelay, crashVol * 0.3, sampleRate);
+  for (const [crashDelay, crashVol, crashPitch] of [
+    [0.62, 1.0, 1.0],
+    [0.84, 0.75, 1.22],
+    [0.98, 0.5, 0.86],
+    [1.17, 0.42, 1.4],
+    [1.33, 0.22, 1.1],
+  ]) {
+    mixBuffer(
+      buf,
+      synthesizePitchSweepSine(sampleRate, 0.1, 105 * crashPitch, 48, 0.02, 0.035),
+      crashDelay,
+      crashVol * 0.9,
+      sampleRate,
+    );
+    mixBuffer(
+      buf,
+      synthesizeNoiseBurst(sampleRate, rng, 0.08, 0.016, { lp: 2400 }),
+      crashDelay,
+      crashVol * 0.8,
+      sampleRate,
+    );
+    mixBuffer(
+      buf,
+      synthesizeModalBank(
+        sampleRate,
+        0.3,
+        [
+          [388 * crashPitch, 0.07, 1],
+          [861 * crashPitch, 0.05, 0.7],
+          [1540 * crashPitch, 0.035, 0.5],
+          [2750 * crashPitch, 0.02, 0.35],
+        ],
+        rng,
+      ),
+      crashDelay,
+      crashVol * 0.3,
+      sampleRate,
+    );
   }
-  mixBuffer(buf, synthesizeGranularDebris(sampleRate, rng, 1.0, 22, { from: 0, fall: 1.2, hp: 1800, ampFall: 0.4, maxLen: 0.007 }), 0.62, 0.3, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizeGranularDebris(sampleRate, rng, 1.0, 22, {
+      from: 0,
+      fall: 1.2,
+      hp: 1800,
+      ampFall: 0.4,
+      maxLen: 0.007,
+    }),
+    0.62,
+    0.3,
+    sampleRate,
+  );
   return applySoftSaturation(scaleBuffer(buf, 0.55), 1.5);
 }
 const R8 = synthHoundDie;
@@ -1207,7 +2114,9 @@ function synthAlert(sampleRate, rng, isHound) {
       const t = i / sampleRate;
       phase += (TWO_PI * freq * (1 + chirpRate * p)) / sampleRate;
       const wave = Math.sin(phase + 1.6 * Math.sin(phase * 0.25) + 0.4 * Math.sin(TWO_PI * 71 * t));
-      buf[offset + i] += Math.tanh(wave * 2.2) * Math.min(1, i / (0.004 * sampleRate), (samples - i) / (0.012 * sampleRate));
+      buf[offset + i] +=
+        Math.tanh(wave * 2.2) *
+        Math.min(1, i / (0.004 * sampleRate), (samples - i) / (0.012 * sampleRate));
     }
   };
 
@@ -1215,8 +2124,14 @@ function synthAlert(sampleRate, rng, isHound) {
   addChirpTone(0.12, 0.17, harmonicFreq, -0.05);
   if (isHound) addChirpTone(0.3, 0.2, baseFreq * 0.5, 0.5);
 
-  applyBiquadFilter(buf, 'bp', isHound ? 1100 : 2100, 0.6, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.4, 0.2, { hp: 4000, att: 0.02 }), 0, 0.03, sampleRate);
+  applyBiquadFilter(buf, "bp", isHound ? 1100 : 2100, 0.6, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.4, 0.2, { hp: 4000, att: 0.02 }),
+    0,
+    0.03,
+    sampleRate,
+  );
   return buf;
 }
 const C8 = synthAlert;
@@ -1232,35 +2147,48 @@ function synthTelegraph(sampleRate, rng, isMelee) {
   for (let i = 0; i < len; i++) {
     const t = i / sampleRate;
     const progress = Math.min(1, t / duration);
-    const envelope = Math.pow(progress, 1.4) * (t < duration ? 1 : Math.exp(-(t - duration) / 0.008));
+    const envelope =
+      Math.pow(progress, 1.4) * (t < duration ? 1 : Math.exp(-(t - duration) / 0.008));
 
     if (isMelee) {
       phase1 += (170 + 380 * progress * progress) / sampleRate;
       phase2 += (680 + 900 * progress) / sampleRate;
       const saw = 2 * (phase1 - Math.floor(phase1)) - 1;
-      buf[i] = (saw * (0.7 + 0.3 * Math.sin(TWO_PI * 38 * t)) + 0.35 * Math.sin(TWO_PI * phase2)) * envelope;
+      buf[i] =
+        (saw * (0.7 + 0.3 * Math.sin(TWO_PI * 38 * t)) + 0.35 * Math.sin(TWO_PI * phase2)) *
+        envelope;
     } else {
       phase1 += (620 + 1900 * Math.pow(progress, 3)) / sampleRate;
       phase2 += ((1240 + 3800 * Math.pow(progress, 3)) * 1.003) / sampleRate;
       buf[i] =
-        (Math.sin(TWO_PI * phase1) + 0.4 * Math.sin(TWO_PI * phase2) + 0.25 * Math.sign(Math.sin(TWO_PI * phase1 * 0.5))) *
+        (Math.sin(TWO_PI * phase1) +
+          0.4 * Math.sin(TWO_PI * phase2) +
+          0.25 * Math.sign(Math.sin(TWO_PI * phase1 * 0.5))) *
         envelope *
         (0.8 + 0.2 * Math.sin(TWO_PI * (20 + 60 * progress) * t));
     }
   }
 
-  applyBiquadFilter(buf, 'lp', isMelee ? 2600 : 7000, 0.7, sampleRate);
-  applyBiquadFilter(buf, 'hp', isMelee ? 120 : 400, 0.7, sampleRate);
+  applyBiquadFilter(buf, "lp", isMelee ? 2600 : 7000, 0.7, sampleRate);
+  applyBiquadFilter(buf, "hp", isMelee ? 120 : 400, 0.7, sampleRate);
 
   const blipCount = isMelee ? 7 : 5;
   for (let b = 0; b < blipCount; b++) {
     const blipTime = duration * Math.sqrt(b / blipCount);
     mixBuffer(
       buf,
-      synthesizeModalBank(sampleRate, 0.03, [[isMelee ? 1500 : 3800, 0.004, 1], [isMelee ? 2600 : 6100, 0.003, 0.6]], rng),
+      synthesizeModalBank(
+        sampleRate,
+        0.03,
+        [
+          [isMelee ? 1500 : 3800, 0.004, 1],
+          [isMelee ? 2600 : 6100, 0.003, 0.6],
+        ],
+        rng,
+      ),
       blipTime,
       0.12 + (0.2 * b) / blipCount,
-      sampleRate
+      sampleRate,
     );
   }
   return buf;
@@ -1271,27 +2199,78 @@ const P8 = synthTelegraph;
 function synthExplosion(sampleRate, rng, isClose) {
   const buf = createAudioBufferArray(sampleRate, 3.0);
   const p = isClose ? 0.9 : 1.0;
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.03, 0.006, { hp: 1500 }), 0, 1.8, sampleRate);
-  mixBuffer(buf, synthesizePitchSweepSine(sampleRate, 1.6, 96 * p, 27, 0.16, 0.36, 0.001), 0, 0.85, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.03, 0.006, { hp: 1500 }),
+    0,
+    1.8,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizePitchSweepSine(sampleRate, 1.6, 96 * p, 27, 0.16, 0.36, 0.001),
+    0,
+    0.85,
+    sampleRate,
+  );
 
   const rumble = generateWhiteNoise(sampleRate, 1.6, rng);
-  applyDynamicBiquadFilter(rumble, 'lp', createFreqSweep(2800, 260, 0.5), 0.7, sampleRate);
-  mixBuffer(buf, applyEnvelope(rumble, sampleRate, createExpDecayEnvelope(0.26, 0.002)), 0, 3.2, sampleRate);
+  applyDynamicBiquadFilter(rumble, "lp", createFreqSweep(2800, 260, 0.5), 0.7, sampleRate);
+  mixBuffer(
+    buf,
+    applyEnvelope(rumble, sampleRate, createExpDecayEnvelope(0.26, 0.002)),
+    0,
+    3.2,
+    sampleRate,
+  );
 
   const subRumble = generateWhiteNoise(sampleRate, 2.6, rng);
-  applyBiquadFilter(subRumble, 'lp', 120, 0.7, sampleRate);
-  mixBuffer(buf, applyEnvelope(subRumble, sampleRate, createExpDecayEnvelope(0.7, 0.03)), 0, 2.2, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.5, 0.09, { bp: 520 * p, q: 1.2 }), 0, 1.3, sampleRate);
-  mixBuffer(buf, synthesizeGranularDebris(sampleRate, rng, 2.5, 120, { from: 0.25, fall: 1.5, hp: 1500, lp: 9000, ampFall: 0.8, maxLen: 0.01 }), 0, 0.5, sampleRate);
+  applyBiquadFilter(subRumble, "lp", 120, 0.7, sampleRate);
+  mixBuffer(
+    buf,
+    applyEnvelope(subRumble, sampleRate, createExpDecayEnvelope(0.7, 0.03)),
+    0,
+    2.2,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.5, 0.09, { bp: 520 * p, q: 1.2 }),
+    0,
+    1.3,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeGranularDebris(sampleRate, rng, 2.5, 120, {
+      from: 0.25,
+      fall: 1.5,
+      hp: 1500,
+      lp: 9000,
+      ampFall: 0.8,
+      maxLen: 0.01,
+    }),
+    0,
+    0.5,
+    sampleRate,
+  );
 
   for (let i = 0; i < 7; i++) {
     const f = randomRange(rng, 900, 3600);
     mixBuffer(
       buf,
-      synthesizeModalBank(sampleRate, 0.2, [[f, randomRange(rng, 0.02, 0.06), 1], [f * 1.61, 0.02, 0.5]], rng),
+      synthesizeModalBank(
+        sampleRate,
+        0.2,
+        [
+          [f, randomRange(rng, 0.02, 0.06), 1],
+          [f * 1.61, 0.02, 0.5],
+        ],
+        rng,
+      ),
       randomRange(rng, 0.4, 1.9),
       randomRange(rng, 0.03, 0.09),
-      sampleRate
+      sampleRate,
     );
   }
   return applySoftSaturation(scaleBuffer(buf, 0.36), 1.7);
@@ -1301,15 +2280,25 @@ const I8 = synthExplosion;
 /** 切断/入侵中继器线路电火花声 (Relay Terminal Cut) */
 function synthRelayCut(sampleRate, rng) {
   const buf = createAudioBufferArray(sampleRate, 1.7);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.01, 0.002, { hp: 2500 }), 0, 1.0, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.01, 0.002, { hp: 2500 }),
+    0,
+    1.0,
+    sampleRate,
+  );
 
   const zap = generateWhiteNoise(sampleRate, 0.5, rng);
-  applyBiquadFilter(zap, 'bp', 3000, 0.8, sampleRate);
+  applyBiquadFilter(zap, "bp", 3000, 0.8, sampleRate);
   let strobe = 1;
   for (let i = 0; i < zap.length; i++) {
     const t = i / sampleRate;
     if (i % 220 === 0) strobe = rng() < 0.55 + 0.4 * (1 - t / 0.5) ? 1 : 0;
-    zap[i] = (zap[i] * (Math.sin(TWO_PI * 100 * t) > -0.2 ? 1 : 0.15) + 0.35 * Math.sign(Math.sin(TWO_PI * 100 * t)) * (rng() - 0.3)) * strobe * Math.exp(-t / 0.3);
+    zap[i] =
+      (zap[i] * (Math.sin(TWO_PI * 100 * t) > -0.2 ? 1 : 0.15) +
+        0.35 * Math.sign(Math.sin(TWO_PI * 100 * t)) * (rng() - 0.3)) *
+      strobe *
+      Math.exp(-t / 0.3);
   }
   mixBuffer(buf, zap, 0.005, 0.8, sampleRate);
 
@@ -1322,13 +2311,23 @@ function synthRelayCut(sampleRate, rng) {
     phasePower += (TWO_PI * 100 * downProgress) / sampleRate;
     phaseHum += (TWO_PI * (150 + 1900 * Math.pow(1 - t / 1.25, 2.2))) / sampleRate;
     powerDown[i] =
-      ((Math.sin(phasePower) + 0.6 * Math.sin(2 * phasePower) + 0.4 * Math.sin(3 * phasePower) + 0.25 * Math.sin(5 * phasePower)) * 0.5 +
+      ((Math.sin(phasePower) +
+        0.6 * Math.sin(2 * phasePower) +
+        0.4 * Math.sin(3 * phasePower) +
+        0.25 * Math.sin(5 * phasePower)) *
+        0.5 +
         Math.sin(phaseHum) * 0.22) *
       Math.pow(1 - t / 1.25, 1.2) *
       (1 - Math.exp(-t / 0.03));
   }
   mixBuffer(buf, powerDown, 0.4, 0.8, sampleRate);
-  mixBuffer(buf, synthesizePitchSweepSine(sampleRate, 0.12, 140, 60, 0.03, 0.04), 0.4, 0.5, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizePitchSweepSine(sampleRate, 0.12, 140, 60, 0.03, 0.04),
+    0.4,
+    0.5,
+    sampleRate,
+  );
   return applySoftSaturation(buf, 1.3);
 }
 const z8 = synthRelayCut;
@@ -1338,12 +2337,22 @@ function* synthThunder(sampleRate, rng, isClose) {
   const buf = createAudioBufferArray(sampleRate, 6.5);
   const noise = generateWhiteNoise(sampleRate, 6.4, rng);
   yield;
-  applyDynamicBiquadFilter(noise, 'lp', createFreqSweep(isClose ? 520 : 380, 70, 0.6), 0.7, sampleRate);
+  applyDynamicBiquadFilter(
+    noise,
+    "lp",
+    createFreqSweep(isClose ? 520 : 380, 70, 0.6),
+    0.7,
+    sampleRate,
+  );
   yield;
 
   const rumbleBursts = [];
   for (let i = 0; i < 9; i++) {
-    rumbleBursts.push([randomRange(rng, 0.05, 3.6), randomRange(rng, 0.12, 0.5), randomRange(rng, 0.4, 1.0)]);
+    rumbleBursts.push([
+      randomRange(rng, 0.05, 3.6),
+      randomRange(rng, 0.12, 0.5),
+      randomRange(rng, 0.4, 1.0),
+    ]);
   }
 
   for (let i = 0; i < noise.length; i++) {
@@ -1359,9 +2368,22 @@ function* synthThunder(sampleRate, rng, isClose) {
   yield;
 
   const subRumble = generateWhiteNoise(sampleRate, 6.0, rng);
-  applyBiquadFilter(subRumble, 'bp', 48, 1.2, sampleRate);
-  mixBuffer(buf, applyEnvelope(subRumble, sampleRate, createExpDecayEnvelope(2.0, 0.2)), 0.05, 3.0, sampleRate);
-  if (isClose) mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.3, 0.06, { hp: 300, lp: 2500 }), 0.02, 0.25, sampleRate);
+  applyBiquadFilter(subRumble, "bp", 48, 1.2, sampleRate);
+  mixBuffer(
+    buf,
+    applyEnvelope(subRumble, sampleRate, createExpDecayEnvelope(2.0, 0.2)),
+    0.05,
+    3.0,
+    sampleRate,
+  );
+  if (isClose)
+    mixBuffer(
+      buf,
+      synthesizeNoiseBurst(sampleRate, rng, 0.3, 0.06, { hp: 300, lp: 2500 }),
+      0.02,
+      0.25,
+      sampleRate,
+    );
   return buf;
 }
 const D8 = synthThunder;
@@ -1376,7 +2398,10 @@ function synthFoghorn(sampleRate, rng) {
   for (let i = 0; i < len; i++) {
     const t = i / sampleRate;
     const flutter = 0.0025 * Math.sin(TWO_PI * 4.3 * t);
-    const env = Math.min(1, t / 0.45) * Math.min(1, (5 - t) / 1.5) * (t < 3.2 ? 1 : Math.exp(-(t - 3.2) / 0.7));
+    const env =
+      Math.min(1, t / 0.45) *
+      Math.min(1, (5 - t) / 1.5) *
+      (t < 3.2 ? 1 : Math.exp(-(t - 3.2) / 0.7));
     let tone = 0;
     for (let h = 1; h <= 7; h++) {
       tone += Math.sin(TWO_PI * 92.5 * h * t * (1 + flutter) + h) * FOGHORN_HARMONICS[h];
@@ -1386,7 +2411,7 @@ function synthFoghorn(sampleRate, rng) {
     }
     buf[i] = tone * env;
   }
-  applyBiquadFilter(buf, 'lp', 520, 0.7, sampleRate);
+  applyBiquadFilter(buf, "lp", 520, 0.7, sampleRate);
   return buf;
 }
 const L8 = synthFoghorn;
@@ -1410,14 +2435,17 @@ function synthGullCry(sampleRate, rng, isVariant) {
       phase += (TWO_PI * freq) / sampleRate;
       const vibrato = 1 + 0.3 * Math.sin((TWO_PI * 63 * i) / sampleRate);
       buf[startSample + i] +=
-        (Math.sin(phase) + 0.6 * Math.sin(2 * phase + 0.5) + 0.35 * Math.sin(3 * phase) + 0.15 * Math.sin(4 * phase)) *
+        (Math.sin(phase) +
+          0.6 * Math.sin(2 * phase + 0.5) +
+          0.35 * Math.sin(3 * phase) +
+          0.15 * Math.sin(4 * phase)) *
         vibrato *
         Math.pow(Math.sin(Math.PI * p), 0.7) *
         (1 - c * 0.14);
     }
     offset += cryDur + randomRange(rng, 0.05, 0.12);
   }
-  applyBiquadFilter(buf, 'lp', 4200, 0.7, sampleRate);
+  applyBiquadFilter(buf, "lp", 4200, 0.7, sampleRate);
   return buf;
 }
 const k8 = synthGullCry;
@@ -1432,18 +2460,29 @@ function synthHalyard(sampleRate, rng, isVariant) {
   for (let i = 0; i < count; i++) {
     mixBuffer(
       buf,
-      synthesizeModalBank(sampleRate, 0.5, [
-        [2310 * p, randomRange(rng, 0.06, 0.13), 1.0],
-        [3740 * p, 0.07, 0.7],
-        [5910 * p, 0.04, 0.5],
-        [8130 * p, 0.025, 0.3],
-        [10120 * p, 0.03, 0.3]
-      ], rng),
+      synthesizeModalBank(
+        sampleRate,
+        0.5,
+        [
+          [2310 * p, randomRange(rng, 0.06, 0.13), 1.0],
+          [3740 * p, 0.07, 0.7],
+          [5910 * p, 0.04, 0.5],
+          [8130 * p, 0.025, 0.3],
+          [10120 * p, 0.03, 0.3],
+        ],
+        rng,
+      ),
       offset,
       randomRange(rng, 0.35, 1.0),
-      sampleRate
+      sampleRate,
     );
-    mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.004, 0.001, { hp: 3000 }), offset, 0.3, sampleRate);
+    mixBuffer(
+      buf,
+      synthesizeNoiseBurst(sampleRate, rng, 0.004, 0.001, { hp: 3000 }),
+      offset,
+      0.3,
+      sampleRate,
+    );
     offset += randomRange(rng, 0.09, 0.26);
   }
   return buf;
@@ -1456,19 +2495,30 @@ function synthContainerBang(sampleRate, rng) {
   const subBang = createAudioBufferArray(sampleRate, 2.2);
   mixBuffer(
     subBang,
-    synthesizeModalBank(sampleRate, 2.2, [
-      [47, 0.7, 1.0],
-      [77, 0.55, 0.9],
-      [121, 0.4, 0.7],
-      [163, 0.3, 0.5],
-      [214, 0.22, 0.4],
-      [330, 0.12, 0.25]
-    ], rng),
+    synthesizeModalBank(
+      sampleRate,
+      2.2,
+      [
+        [47, 0.7, 1.0],
+        [77, 0.55, 0.9],
+        [121, 0.4, 0.7],
+        [163, 0.3, 0.5],
+        [214, 0.22, 0.4],
+        [330, 0.12, 0.25],
+      ],
+      rng,
+    ),
     0,
     0.5,
-    sampleRate
+    sampleRate,
   );
-  mixBuffer(subBang, synthesizeNoiseBurst(sampleRate, rng, 0.5, 0.11, { lp: 420 }), 0, 1.0, sampleRate);
+  mixBuffer(
+    subBang,
+    synthesizeNoiseBurst(sampleRate, rng, 0.5, 0.11, { lp: 420 }),
+    0,
+    1.0,
+    sampleRate,
+  );
   mixBuffer(buf, subBang, 0, 1.0, sampleRate);
   mixBuffer(buf, subBang, 0.36, 0.3, sampleRate);
   mixBuffer(buf, subBang, 0.61, 0.12, sampleRate);
@@ -1479,8 +2529,29 @@ const U8 = synthContainerBang;
 /** UI 点击按压轻脆声 (UI Click) */
 function synthUiClick(sampleRate, rng) {
   const buf = createAudioBufferArray(sampleRate, 0.09);
-  mixBuffer(buf, synthesizeModalBank(sampleRate, 0.08, [[1820, 0.009, 1], [2730, 0.007, 0.6], [640, 0.012, 0.5]], rng), 0, 1.0, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, rng, 0.004, 0.001, { hp: 2500 }), 0, 0.5, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizeModalBank(
+      sampleRate,
+      0.08,
+      [
+        [1820, 0.009, 1],
+        [2730, 0.007, 0.6],
+        [640, 0.012, 0.5],
+      ],
+      rng,
+    ),
+    0,
+    1.0,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.004, 0.001, { hp: 2500 }),
+    0,
+    0.5,
+    sampleRate,
+  );
   return buf;
 }
 const N8 = synthUiClick;
@@ -1488,7 +2559,21 @@ const N8 = synthUiClick;
 /** UI 鼠标悬停聚焦微声 (UI Hover) */
 function synthUiHover(sampleRate, rng) {
   const buf = createAudioBufferArray(sampleRate, 0.06);
-  mixBuffer(buf, synthesizeModalBank(sampleRate, 0.05, [[3200, 0.008, 1], [4800, 0.005, 0.3]], rng), 0, 1.0, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizeModalBank(
+      sampleRate,
+      0.05,
+      [
+        [3200, 0.008, 1],
+        [4800, 0.005, 0.3],
+      ],
+      rng,
+    ),
+    0,
+    1.0,
+    sampleRate,
+  );
   return buf;
 }
 const B8 = synthUiHover;
@@ -1501,13 +2586,13 @@ const B8 = synthUiHover;
 function* synthRainLoop(sampleRate, rng) {
   const buildChannel = function* (chRng) {
     const wideNoise = buildSeamlessLoop(sampleRate, 6.0, chRng, (buf) => {
-      applyBiquadFilter(buf, 'hp', 900, 0.6, sampleRate);
-      applyBiquadFilter(buf, 'lp', 8500, 0.6, sampleRate);
+      applyBiquadFilter(buf, "hp", 900, 0.6, sampleRate);
+      applyBiquadFilter(buf, "lp", 8500, 0.6, sampleRate);
     });
     yield;
 
     const bodyNoise = buildSeamlessLoop(sampleRate, 6.0, chRng, (buf) => {
-      applyBiquadFilter(buf, 'bp', 420, 0.5, sampleRate);
+      applyBiquadFilter(buf, "bp", 420, 0.5, sampleRate);
     });
 
     const totalLen = wideNoise.length;
@@ -1524,12 +2609,18 @@ function* synthRainLoop(sampleRate, rng) {
       }
     }
     yield;
-    applyDynamicBiquadFilter(droplets, 'hp', () => 2200, 0.7, sampleRate, 2);
+    applyDynamicBiquadFilter(droplets, "hp", () => 2200, 0.7, sampleRate, 2);
     yield;
 
     for (let i = 0; i < 30; i++) {
       const f = randomRange(chRng, 700, 2100);
-      mixBufferWrapped(droplets, synthesizeChirp(sampleRate, randomRange(chRng, 0.008, 0.02), f, f * 1.7), chRng() * 6.0, randomRange(chRng, 0.08, 0.3), sampleRate);
+      mixBufferWrapped(
+        droplets,
+        synthesizeChirp(sampleRate, randomRange(chRng, 0.008, 0.02), f, f * 1.7),
+        chRng() * 6.0,
+        randomRange(chRng, 0.08, 0.3),
+        sampleRate,
+      );
     }
 
     for (let i = 0; i < totalLen; i++) {
@@ -1547,28 +2638,41 @@ const O8 = synthRainLoop;
 function* synthInteriorRainLoop(sampleRate, rng) {
   const buildChannel = function* (chRng) {
     const roofThump = buildSeamlessLoop(sampleRate, 6.0, chRng, (buf) => {
-      applyBiquadFilter(buf, 'lp', 1300, 0.6, sampleRate);
-      applyBiquadFilter(buf, 'hp', 110, 0.7, sampleRate);
+      applyBiquadFilter(buf, "lp", 1300, 0.6, sampleRate);
+      applyBiquadFilter(buf, "hp", 110, 0.7, sampleRate);
     });
     const len = roofThump.length;
     const impactGrains = new Float32Array(len);
 
     for (let i = 0; i < 1560; i++) {
-      impactGrains[Math.floor(chRng() * len)] += (chRng() * 2 - 1) * (0.2 + Math.pow(chRng(), 4) * 3);
+      impactGrains[Math.floor(chRng() * len)] +=
+        (chRng() * 2 - 1) * (0.2 + Math.pow(chRng(), 4) * 3);
     }
     const mixed = sumTracks(len, [roofThump, 0.8]);
 
     // 铁皮波纹板共振模态
-    for (const [modalF, modalQ, modalGain] of [[1820, 14, 1.0], [2740, 16, 0.8], [4150, 18, 0.6], [6200, 14, 0.35], [940, 8, 0.7]]) {
+    for (const [modalF, modalQ, modalGain] of [
+      [1820, 14, 1.0],
+      [2740, 16, 0.8],
+      [4150, 18, 0.6],
+      [6200, 14, 0.35],
+      [940, 8, 0.7],
+    ]) {
       const resonantTrack = Float32Array.from(impactGrains);
-      applyDynamicBiquadFilter(resonantTrack, 'bp', () => modalF, modalQ, sampleRate, 2);
+      applyDynamicBiquadFilter(resonantTrack, "bp", () => modalF, modalQ, sampleRate, 2);
       for (let p = 0; p < len; p++) mixed[p] += resonantTrack[p] * modalGain * 5;
       yield;
     }
 
     for (let i = 0; i < 4; i++) {
       const f = randomRange(chRng, 900, 1600);
-      mixBufferWrapped(mixed, synthesizeChirp(sampleRate, 0.014, f, f * 1.8), chRng() * 6.0, 0.25, sampleRate);
+      mixBufferWrapped(
+        mixed,
+        synthesizeChirp(sampleRate, 0.014, f, f * 1.8),
+        chRng() * 6.0,
+        0.25,
+        sampleRate,
+      );
     }
     return mixed;
   };
@@ -1583,15 +2687,27 @@ function synthWindLoop(sampleRate, rng) {
   const noise1 = generateWhiteNoise(sampleRate, 8.5, rng);
   const noise2 = Float32Array.from(noise1);
 
-  applyDynamicBiquadFilter(noise1, 'bp', (progress) => {
-    const t = progress * 8.5;
-    return 380 + 190 * Math.sin((TWO_PI * t) / 8.0) + 90 * Math.sin((TWO_PI * t) / 2.667 + 1);
-  }, 1.3, sampleRate);
+  applyDynamicBiquadFilter(
+    noise1,
+    "bp",
+    (progress) => {
+      const t = progress * 8.5;
+      return 380 + 190 * Math.sin((TWO_PI * t) / 8.0) + 90 * Math.sin((TWO_PI * t) / 2.667 + 1);
+    },
+    1.3,
+    sampleRate,
+  );
 
-  applyDynamicBiquadFilter(noise2, 'bp', (progress) => {
-    const t = progress * 8.5;
-    return 1350 + 260 * Math.sin((TWO_PI * t) / 4.0 + 2);
-  }, 9.0, sampleRate);
+  applyDynamicBiquadFilter(
+    noise2,
+    "bp",
+    (progress) => {
+      const t = progress * 8.5;
+      return 1350 + 260 * Math.sin((TWO_PI * t) / 4.0 + 2);
+    },
+    9.0,
+    sampleRate,
+  );
 
   for (let i = 0; i < noise1.length; i++) {
     const t = i / sampleRate;
@@ -1610,10 +2726,10 @@ function* synthOceanLoop(sampleRate, rng) {
   const waveMid = generateWhiteNoise(sampleRate, 8.5, rng);
   yield;
 
-  applyBiquadFilter(waveLow, 'lp', 1100, 0.6, sampleRate);
-  applyBiquadFilter(waveLow, 'hp', 70, 0.7, sampleRate);
-  applyBiquadFilter(waveSpray, 'hp', 2400, 0.7, sampleRate);
-  applyBiquadFilter(waveMid, 'bp', 520, 1.2, sampleRate);
+  applyBiquadFilter(waveLow, "lp", 1100, 0.6, sampleRate);
+  applyBiquadFilter(waveLow, "hp", 70, 0.7, sampleRate);
+  applyBiquadFilter(waveSpray, "hp", 2400, 0.7, sampleRate);
+  applyBiquadFilter(waveMid, "bp", 520, 1.2, sampleRate);
   yield;
 
   for (let i = 0; i < waveLow.length; i++) {
@@ -1623,7 +2739,10 @@ function* synthOceanLoop(sampleRate, rng) {
     const foam = Math.exp(-Math.pow((waveCycle - 0.5) / 0.05, 2));
     const hiss = Math.exp(-Math.pow((waveCycle - 0.68) / 0.16, 2));
     const seaBreath = 0.5 - 0.5 * Math.cos((TWO_PI * ((t + 1.3) % 2.667)) / 2.667);
-    waveLow[i] = waveLow[i] * (0.3 + 0.7 * swell + 0.25 * seaBreath) + waveMid[i] * foam * 1.8 + waveSpray[i] * hiss * 0.35;
+    waveLow[i] =
+      waveLow[i] * (0.3 + 0.7 * swell + 0.25 * seaBreath) +
+      waveMid[i] * foam * 1.8 +
+      waveSpray[i] * hiss * 0.35;
   }
   return crossfadeLoopBuffer(waveLow, sampleRate * 8, true);
 }
@@ -1634,7 +2753,7 @@ const MUSIC_CONFIG = {
   bpm: 100,
   bar: 2.4, // 每小节 2.4 秒 (4/4 拍, 100 BPM)
   loopBars: 8,
-  sr: 32000
+  sr: 32000,
 };
 const Fr = MUSIC_CONFIG;
 
@@ -1642,7 +2761,7 @@ const CHORD_PROGRESSIONS = [
   { root: 38, tones: [0, 3, 7, 12, 10], base: 50 }, // Dm (D2)
   { root: 34, tones: [0, 4, 7, 12, 11], base: 46 }, // Bb (Bb1)
   { root: 31, tones: [0, 3, 7, 12, 10], base: 43 }, // Gm (G1)
-  { root: 33, tones: [0, 5, 7, 12, 10], base: 45 }  // Am / Asust4 (A1)
+  { root: 33, tones: [0, 5, 7, 12, 10], base: 45 }, // Am / Asust4 (A1)
 ];
 const Cv = CHORD_PROGRESSIONS;
 
@@ -1661,9 +2780,10 @@ function synthDetunedPolyTone(sampleRate, freq, duration, attack, release, detun
       phases[v] -= Math.floor(phases[v]);
       sumSaw += 2 * phases[v] - 1;
     }
-    const env = t < duration
-      ? 1 - Math.exp(-t / attack)
-      : (1 - Math.exp(-duration / attack)) * Math.exp(-(t - duration) / (release * 0.3));
+    const env =
+      t < duration
+        ? 1 - Math.exp(-t / attack)
+        : (1 - Math.exp(-duration / attack)) * Math.exp(-(t - duration) / (release * 0.3));
     out[i] = sumSaw * env * 0.33;
   }
   applyBoundaryFade(out, sampleRate, 0, 0.1);
@@ -1681,14 +2801,47 @@ function* synthMusicDroneTrack(sampleRate, rng) {
     for (let c = 0; c < 4; c++) {
       const chord = CHORD_PROGRESSIONS[c];
       const chordTime = c * 4.8;
-      for (const [interval, gain] of [[0, 1.0], [7, 0.6], [12, 0.5], [chord.tones[1] + 12, 0.28]]) {
-        mixBufferWrapped(track, synthDetunedPolyTone(sampleRate, midiToFreq(chord.root + interval), 4.6, 1.3, 1.8, 0.0035, chRng), chordTime - 0.5, gain * 0.3, sampleRate);
+      for (const [interval, gain] of [
+        [0, 1.0],
+        [7, 0.6],
+        [12, 0.5],
+        [chord.tones[1] + 12, 0.28],
+      ]) {
+        mixBufferWrapped(
+          track,
+          synthDetunedPolyTone(
+            sampleRate,
+            midiToFreq(chord.root + interval),
+            4.6,
+            1.3,
+            1.8,
+            0.0035,
+            chRng,
+          ),
+          chordTime - 0.5,
+          gain * 0.3,
+          sampleRate,
+        );
         yield;
       }
     }
-    mixBufferWrapped(track, synthDetunedPolyTone(sampleRate, midiToFreq(26), totalSec - 0.2, 2.5, 0.2, 0.002, chRng), 0.1, 0.16, sampleRate);
+    mixBufferWrapped(
+      track,
+      synthDetunedPolyTone(sampleRate, midiToFreq(26), totalSec - 0.2, 2.5, 0.2, 0.002, chRng),
+      0.1,
+      0.16,
+      sampleRate,
+    );
     yield;
-    applyDynamicBiquadFilter(track, 'lp', (progress) => 560 + 300 * Math.sin(TWO_PI * progress * 2) + 120 * Math.sin(TWO_PI * progress * 5 + 1), 0.9, sampleRate, 2);
+    applyDynamicBiquadFilter(
+      track,
+      "lp",
+      (progress) =>
+        560 + 300 * Math.sin(TWO_PI * progress * 2) + 120 * Math.sin(TWO_PI * progress * 5 + 1),
+      0.9,
+      sampleRate,
+      2,
+    );
     yield;
     return track;
   };
@@ -1733,12 +2886,18 @@ function* synthMusicOstinatoTrack(sampleRate) {
   const totalSec = MUSIC_CONFIG.bar * 8;
   const track = new Float32Array(Math.round(totalSec * sampleRate));
   const patternIndex = [0, 0, 2, 0, 1, 0, 2, 0, 3, 0, 2, 0, 1, 0, 4, 2];
-  const velocities = [1.0, 0.45, 0.7, 0.45, 0.85, 0.45, 0.7, 0.5, 1.0, 0.45, 0.7, 0.45, 0.85, 0.5, 0.8, 0.6];
+  const velocities = [
+    1.0, 0.45, 0.7, 0.45, 0.85, 0.45, 0.7, 0.5, 1.0, 0.45, 0.7, 0.45, 0.85, 0.5, 0.8, 0.6,
+  ];
 
   for (let step = 0; step < 128; step++) {
     const chord = CHORD_PROGRESSIONS[(step >> 5) & 3];
     const pat16 = step & 15;
-    const note = n_(sampleRate, midiToFreq(chord.base + chord.tones[patternIndex[pat16]]), velocities[pat16]);
+    const note = n_(
+      sampleRate,
+      midiToFreq(chord.base + chord.tones[patternIndex[pat16]]),
+      velocities[pat16],
+    );
     mixBufferWrapped(track, note, step * 0.15, 0.5 * (0.5 + 0.5 * velocities[pat16]), sampleRate);
     mixBufferWrapped(track, note, step * 0.15 + 0.45, 0.14, sampleRate);
     if ((step & 7) === 7) yield;
@@ -1757,17 +2916,18 @@ function* synthMusicPercussionTrack(sampleRate, rng) {
       Math.round(0.9 * sampleRate),
       [synthesizePitchSweepSine(sampleRate, 0.9, 74, 34, 0.07, 0.24, 0.002), 1.0],
       [synthesizeNoiseBurst(sampleRate, rng, 0.4, 0.07, { lp: 240 }), 1.2],
-      [synthesizeNoiseBurst(sampleRate, rng, 0.05, 0.008, { bp: 1400, q: 0.8 }), 0.25]
+      [synthesizeNoiseBurst(sampleRate, rng, 0.05, 0.008, { bp: 1400, q: 0.8 }), 0.25],
     );
 
   const synthSnare = (f) =>
     sumTracks(
       Math.round(0.5 * sampleRate),
       [synthesizePitchSweepSine(sampleRate, 0.5, f, f * 0.55, 0.05, 0.12, 0.002), 1.0],
-      [synthesizeNoiseBurst(sampleRate, rng, 0.1, 0.02, { lp: 600 }), 0.5]
+      [synthesizeNoiseBurst(sampleRate, rng, 0.1, 0.02, { lp: 600 }), 0.5],
     );
 
-  const synthHiHat = (accent) => synthesizeNoiseBurst(sampleRate, rng, 0.06, 0.008 + accent * 0.01, { hp: 6500 });
+  const synthHiHat = (accent) =>
+    synthesizeNoiseBurst(sampleRate, rng, 0.06, 0.008 + accent * 0.01, { hp: 6500 });
 
   for (let bar = 0; bar < 4; bar++) {
     const barStart = bar * 2.4;
@@ -1776,13 +2936,24 @@ function* synthMusicPercussionTrack(sampleRate, rng) {
     if (bar % 2 === 1) mixBufferWrapped(track, synthKick(), barStart + 2.1, 0.6, sampleRate);
 
     for (let h = 0; h < 16; h++) {
-      mixBufferWrapped(track, synthHiHat(h % 4 === 2 ? 1 : 0), barStart + h * 0.15, h % 4 === 2 ? 0.34 : h % 2 ? 0.11 : 0.2, sampleRate);
+      mixBufferWrapped(
+        track,
+        synthHiHat(h % 4 === 2 ? 1 : 0),
+        barStart + h * 0.15,
+        h % 4 === 2 ? 0.34 : h % 2 ? 0.11 : 0.2,
+        sampleRate,
+      );
     }
     yield;
   }
 
   // 加花过门 (Fill)
-  for (const [fillStep, tomFreq] of [[12, 120], [13, 104], [14, 88], [15, 74]]) {
+  for (const [fillStep, tomFreq] of [
+    [12, 120],
+    [13, 104],
+    [14, 88],
+    [15, 74],
+  ]) {
     mixBufferWrapped(track, synthSnare(tomFreq), 7.2 + fillStep * 0.15, 0.6, sampleRate);
   }
   return applySoftSaturation(track, 1.3);
@@ -1811,7 +2982,7 @@ function synthBrassChordVoice(sampleRate, freq, duration) {
     p2 -= Math.floor(p2);
 
     if ((i & 31) === 0) {
-      filterCoeffs = calcBiquadCoefficients('lp', 240 + 1700 * swell * swell, 1.1, sampleRate);
+      filterCoeffs = calcBiquadCoefficients("lp", 240 + 1700 * swell * swell, 1.1, sampleRate);
     }
 
     const saw = 2 * p1 - 1 + (2 * p2 - 1);
@@ -1830,8 +3001,19 @@ function* synthMusicBrassTrack(sampleRate) {
   const track = new Float32Array(Math.round(totalSec * sampleRate));
   for (let c = 0; c < 4; c++) {
     const chord = CHORD_PROGRESSIONS[c];
-    for (const [interval, gain] of [[12, 1.0], [19, 0.7], [24 + chord.tones[1], 0.5], [24, 0.4]]) {
-      mixBufferWrapped(track, synthBrassChordVoice(sampleRate, midiToFreq(chord.root + interval), 4.7), c * 4.8 + 0.05, gain * 0.3, sampleRate);
+    for (const [interval, gain] of [
+      [12, 1.0],
+      [19, 0.7],
+      [24 + chord.tones[1], 0.5],
+      [24, 0.4],
+    ]) {
+      mixBufferWrapped(
+        track,
+        synthBrassChordVoice(sampleRate, midiToFreq(chord.root + interval), 4.7),
+        c * 4.8 + 0.05,
+        gain * 0.3,
+        sampleRate,
+      );
       yield;
     }
   }
@@ -1846,7 +3028,7 @@ function synthBellTone(sampleRate, freq, duration) {
     [freq * 2.003, duration * 0.18, 0.4],
     [freq * 3.01, duration * 0.1, 0.18],
     [freq * 4.2, duration * 0.05, 0.1],
-    [freq * 0.5, duration * 0.3, 0.25]
+    [freq * 0.5, duration * 0.3, 0.25],
   ]);
   const fadeSamples = Math.round(0.006 * sampleRate);
   for (let i = 0; i < fadeSamples; i++) out[i] *= i / fadeSamples;
@@ -1867,11 +3049,21 @@ function* synthMusicMotifTrack(sampleRate) {
     mixBufferWrapped(track, tone, startSec + 0.9, gain * 0.1, sampleRate);
   };
 
-  for (const [startT, midi] of [[0, 62], [0.9, 69], [1.8, 70], [3, 65]]) {
+  for (const [startT, midi] of [
+    [0, 62],
+    [0.9, 69],
+    [1.8, 70],
+    [3, 65],
+  ]) {
     addBellNote(startT, midi, 0.5);
     yield;
   }
-  for (const [startT, midi] of [[0, 62], [0.9, 69], [1.8, 72], [3, 67]]) {
+  for (const [startT, midi] of [
+    [0, 62],
+    [0.9, 69],
+    [1.8, 72],
+    [3, 67],
+  ]) {
     addBellNote(9.6 + startT, midi, 0.42);
     yield;
   }
@@ -1883,8 +3075,20 @@ const $8 = synthMusicMotifTrack;
 function* synthObjectiveDoneSting(sampleRate) {
   const buf = createAudioBufferArray(sampleRate, 2.8);
   [57, 62, 65, 69].forEach((midi, idx) => {
-    mixBuffer(buf, synthBellTone(sampleRate, midiToFreq(midi), 1.6), idx * 0.15, 0.45 + idx * 0.08, sampleRate);
-    mixBuffer(buf, synthAcidBassPluck(sampleRate, midiToFreq(midi), 0.8), idx * 0.15, 0.35, sampleRate);
+    mixBuffer(
+      buf,
+      synthBellTone(sampleRate, midiToFreq(midi), 1.6),
+      idx * 0.15,
+      0.45 + idx * 0.08,
+      sampleRate,
+    );
+    mixBuffer(
+      buf,
+      synthAcidBassPluck(sampleRate, midiToFreq(midi), 0.8),
+      idx * 0.15,
+      0.35,
+      sampleRate,
+    );
   });
   yield;
   mixBuffer(buf, synthBrassChordVoice(sampleRate, midiToFreq(62), 2.2), 0.6, 0.55, sampleRate);
@@ -1898,7 +3102,13 @@ function* synthObjectiveAllDoneSting(sampleRate) {
   const buf = createAudioBufferArray(sampleRate, 4.2);
   [50, 57, 62, 65, 69, 74].forEach((midi, idx) => {
     mixBuffer(buf, synthBellTone(sampleRate, midiToFreq(midi), 2.5), idx * 0.14, 0.5, sampleRate);
-    mixBuffer(buf, synthAcidBassPluck(sampleRate, midiToFreq(midi - 12), 0.9), idx * 0.14, 0.4, sampleRate);
+    mixBuffer(
+      buf,
+      synthAcidBassPluck(sampleRate, midiToFreq(midi - 12), 0.9),
+      idx * 0.14,
+      0.4,
+      sampleRate,
+    );
   });
   yield;
   mixBuffer(buf, synthBrassChordVoice(sampleRate, midiToFreq(50), 3.4), 0.8, 0.7, sampleRate);
@@ -1914,14 +3124,34 @@ function* synthCompleteTheme(sampleRate) {
     [50, [0, 7, 12, 16], 0],
     [46, [0, 7, 12, 15], 1.8],
     [43, [0, 7, 12, 15], 3.6],
-    [45, [0, 7, 12, 17], 5.2]
+    [45, [0, 7, 12, 17], 5.2],
   ];
 
   for (const [root, notes, startT] of chords) {
     for (const interval of notes) {
-      mixBuffer(buf, synthBrassChordVoice(sampleRate, midiToFreq(root + interval), 2.2), startT, 0.35, sampleRate);
+      mixBuffer(
+        buf,
+        synthBrassChordVoice(sampleRate, midiToFreq(root + interval), 2.2),
+        startT,
+        0.35,
+        sampleRate,
+      );
     }
-    mixBuffer(buf, synthDetunedPolyTone(sampleRate, midiToFreq(root - 12), 2.0, 0.3, 0.6, 0.003, createPrng(root)), startT, 0.4, sampleRate);
+    mixBuffer(
+      buf,
+      synthDetunedPolyTone(
+        sampleRate,
+        midiToFreq(root - 12),
+        2.0,
+        0.3,
+        0.6,
+        0.003,
+        createPrng(root),
+      ),
+      startT,
+      0.4,
+      sampleRate,
+    );
     yield;
   }
   return applySoftSaturation(buf, 1.2);
@@ -1931,12 +3161,30 @@ const J8 = synthCompleteTheme;
 /** 阵亡特遣干员心跳骤停与哀乐 (Death Defeat Theme) */
 function* synthDeathTheme(sampleRate) {
   const buf = createAudioBufferArray(sampleRate, 5.0);
-  mixBuffer(buf, synthesizePitchSweepSine(sampleRate, 1.2, 58, 22, 0.2, 0.5, 0.002), 0, 1.3, sampleRate);
-  mixBuffer(buf, synthesizeNoiseBurst(sampleRate, createPrng(100), 1.5, 0.3, { lp: 160 }), 0, 1.5, sampleRate);
+  mixBuffer(
+    buf,
+    synthesizePitchSweepSine(sampleRate, 1.2, 58, 22, 0.2, 0.5, 0.002),
+    0,
+    1.3,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, createPrng(100), 1.5, 0.3, { lp: 160 }),
+    0,
+    1.5,
+    sampleRate,
+  );
   yield;
 
   [38, 41, 45, 48].forEach((midi, idx) => {
-    mixBuffer(buf, synthDetunedPolyTone(sampleRate, midiToFreq(midi), 3.5, 0.8, 1.2, 0.004, createPrng(midi)), 0.3 + idx * 0.1, 0.3, sampleRate);
+    mixBuffer(
+      buf,
+      synthDetunedPolyTone(sampleRate, midiToFreq(midi), 3.5, 0.8, 1.2, 0.004, createPrng(midi)),
+      0.3 + idx * 0.1,
+      0.3,
+      sampleRate,
+    );
   });
   yield;
   return buf;
@@ -1960,118 +3208,208 @@ const pl = SAMPLE_RATE_LOW;
  */
 const SOUND_REGISTRY = {
   // 制式武器与换弹系统
-  rifle_shot:      { gen: KR, n: 4, sr: ki, peak: 0.97, bus: 'near', max: 5, pri: 9, boot: 1 },
-  rifle_tail_out:  { gen: QR, n: 2, sr: Xn, peak: 0.50, bus: 'dry',  max: 3, pri: 8, boot: 1 },
-  rifle_tail_in:   { gen: e8, n: 2, sr: Xn, peak: 0.62, bus: 'dry',  max: 3, pri: 8, boot: 1 },
-  rifle_dry:       { gen: t8, n: 1, sr: ki, peak: 0.50, bus: 'near', max: 2, pri: 6, boot: 1 },
-  reload_magout:   { gen: n8, n: 1, sr: ki, peak: 0.60, bus: 'near', max: 2, pri: 6 },
-  reload_magin:    { gen: i8, n: 1, sr: ki, peak: 0.65, bus: 'near', max: 2, pri: 6 },
-  reload_bolt:     { gen: s8, n: 1, sr: ki, peak: 0.80, bus: 'near', max: 2, pri: 6 },
-  shell_bounce:    { gen: o8, n: 3, sr: ki, peak: 0.30, bus: 'world', max: 4, pri: 1, ref: 2, roll: 1 },
+  rifle_shot: { gen: KR, n: 4, sr: ki, peak: 0.97, bus: "near", max: 5, pri: 9, boot: 1 },
+  rifle_tail_out: { gen: QR, n: 2, sr: Xn, peak: 0.5, bus: "dry", max: 3, pri: 8, boot: 1 },
+  rifle_tail_in: { gen: e8, n: 2, sr: Xn, peak: 0.62, bus: "dry", max: 3, pri: 8, boot: 1 },
+  rifle_dry: { gen: t8, n: 1, sr: ki, peak: 0.5, bus: "near", max: 2, pri: 6, boot: 1 },
+  reload_magout: { gen: n8, n: 1, sr: ki, peak: 0.6, bus: "near", max: 2, pri: 6 },
+  reload_magin: { gen: i8, n: 1, sr: ki, peak: 0.65, bus: "near", max: 2, pri: 6 },
+  reload_bolt: { gen: s8, n: 1, sr: ki, peak: 0.8, bus: "near", max: 2, pri: 6 },
+  shell_bounce: { gen: o8, n: 3, sr: ki, peak: 0.3, bus: "world", max: 4, pri: 1, ref: 2, roll: 1 },
 
   // 玩家机动与受击
-  step_concrete:   { gen: r8, n: 4, sr: Xn, peak: 0.45, bus: 'near', max: 3, pri: 3, boot: 1 },
-  step_water:      { gen: a8, n: 3, sr: Xn, peak: 0.50, bus: 'near', max: 3, pri: 3, boot: 1 },
-  step_metal:      { gen: l8, n: 3, sr: Xn, peak: 0.50, bus: 'near', max: 3, pri: 3, boot: 1 },
-  land:            { gen: c8, n: 1, sr: Xn, peak: 0.70, bus: 'near', max: 2, pri: 4 },
-  jump:            { gen: u8, n: 1, sr: Xn, peak: 0.35, bus: 'near', max: 2, pri: 3 },
-  hurt:            { gen: h8, n: 1, sr: Xn, peak: 0.85, bus: 'dry',  max: 2, pri: 8 },
-  ear_ring:        { gen: f8, n: 1, sr: pl, peak: 0.20, bus: 'dry',  max: 1, pri: 5 },
+  step_concrete: { gen: r8, n: 4, sr: Xn, peak: 0.45, bus: "near", max: 3, pri: 3, boot: 1 },
+  step_water: { gen: a8, n: 3, sr: Xn, peak: 0.5, bus: "near", max: 3, pri: 3, boot: 1 },
+  step_metal: { gen: l8, n: 3, sr: Xn, peak: 0.5, bus: "near", max: 3, pri: 3, boot: 1 },
+  land: { gen: c8, n: 1, sr: Xn, peak: 0.7, bus: "near", max: 2, pri: 4 },
+  jump: { gen: u8, n: 1, sr: Xn, peak: 0.35, bus: "near", max: 2, pri: 3 },
+  hurt: { gen: h8, n: 1, sr: Xn, peak: 0.85, bus: "dry", max: 2, pri: 8 },
+  ear_ring: { gen: f8, n: 1, sr: pl, peak: 0.2, bus: "dry", max: 1, pri: 5 },
 
   // 弹道命中表面与近失弹
-  impact_metal:    { gen: d8, n: 3, sr: ki, peak: 0.70, bus: 'world', max: 4, pri: 4, ref: 4, roll: 0.7 },
-  impact_concrete: { gen: p8, n: 3, sr: ki, peak: 0.70, bus: 'world', max: 4, pri: 4, ref: 4, roll: 0.7 },
-  impact_wood:     { gen: m8, n: 2, sr: ki, peak: 0.70, bus: 'world', max: 3, pri: 4, ref: 4, roll: 0.7 },
-  impact_water:    { gen: g8, n: 2, sr: Xn, peak: 0.60, bus: 'world', max: 3, pri: 4, ref: 4, roll: 0.7 },
-  impact_enemy:    { gen: v8, n: 3, sr: ki, peak: 0.75, bus: 'world', max: 4, pri: 5, ref: 5, roll: 0.6 },
-  impact_glass:    { gen: x8, n: 1, sr: ki, peak: 0.60, bus: 'world', max: 2, pri: 4, ref: 4, roll: 0.7 },
-  whiz:            { gen: b8, n: 3, sr: ki, peak: 0.50, bus: 'world', max: 3, pri: 5, ref: 2.5, roll: 0.6 },
-  ricochet:        { gen: y8, n: 3, sr: ki, peak: 0.40, bus: 'world', max: 2, pri: 3, ref: 5, roll: 0.6 },
+  impact_metal: {
+    gen: d8,
+    n: 3,
+    sr: ki,
+    peak: 0.7,
+    bus: "world",
+    max: 4,
+    pri: 4,
+    ref: 4,
+    roll: 0.7,
+  },
+  impact_concrete: {
+    gen: p8,
+    n: 3,
+    sr: ki,
+    peak: 0.7,
+    bus: "world",
+    max: 4,
+    pri: 4,
+    ref: 4,
+    roll: 0.7,
+  },
+  impact_wood: {
+    gen: m8,
+    n: 2,
+    sr: ki,
+    peak: 0.7,
+    bus: "world",
+    max: 3,
+    pri: 4,
+    ref: 4,
+    roll: 0.7,
+  },
+  impact_water: {
+    gen: g8,
+    n: 2,
+    sr: Xn,
+    peak: 0.6,
+    bus: "world",
+    max: 3,
+    pri: 4,
+    ref: 4,
+    roll: 0.7,
+  },
+  impact_enemy: {
+    gen: v8,
+    n: 3,
+    sr: ki,
+    peak: 0.75,
+    bus: "world",
+    max: 4,
+    pri: 5,
+    ref: 5,
+    roll: 0.6,
+  },
+  impact_glass: {
+    gen: x8,
+    n: 1,
+    sr: ki,
+    peak: 0.6,
+    bus: "world",
+    max: 2,
+    pri: 4,
+    ref: 4,
+    roll: 0.7,
+  },
+  whiz: { gen: b8, n: 3, sr: ki, peak: 0.5, bus: "world", max: 3, pri: 5, ref: 2.5, roll: 0.6 },
+  ricochet: { gen: y8, n: 3, sr: ki, peak: 0.4, bus: "world", max: 2, pri: 3, ref: 5, roll: 0.6 },
 
   // 机械敌军战术交火与步态
-  gull_fire:       { gen: E8, n: 2, sr: ki, peak: 0.85, bus: 'world', max: 5, pri: 7, ref: 7, roll: 0.55 },
-  hound_fire:      { gen: S8, n: 2, sr: ki, peak: 0.95, bus: 'world', max: 5, pri: 7, ref: 8, roll: 0.5 },
-  hound_step:      { gen: T8, n: 3, sr: Xn, peak: 0.70, bus: 'world', max: 4, pri: 3, ref: 5, roll: 0.8 },
-  gull_die:        { gen: A8, n: 1, sr: Xn, peak: 0.85, bus: 'world', max: 3, pri: 7, ref: 7, roll: 0.5 },
-  hound_die:       { gen: R8, n: 1, sr: Xn, peak: 0.90, bus: 'world', max: 3, pri: 7, ref: 7, roll: 0.5 },
-  telegraph:       { gen: P8, n: 2, sr: Xn, peak: 0.42, bus: 'world', max: 4, pri: 6, ref: 6, roll: 0.6 },
-  alert:           { gen: C8, n: 2, sr: Xn, peak: 0.50, bus: 'world', max: 3, pri: 6, ref: 8, roll: 0.5 },
-  explosion:       { gen: I8, n: 2, sr: ki, peak: 0.97, bus: 'world', max: 3, pri: 10, ref: 12, roll: 0.5 },
-  relay_cut:       { gen: z8, n: 1, sr: Xn, peak: 0.75, bus: 'world', max: 2, pri: 8, ref: 6, roll: 0.5 },
+  gull_fire: {
+    gen: E8,
+    n: 2,
+    sr: ki,
+    peak: 0.85,
+    bus: "world",
+    max: 5,
+    pri: 7,
+    ref: 7,
+    roll: 0.55,
+  },
+  hound_fire: {
+    gen: S8,
+    n: 2,
+    sr: ki,
+    peak: 0.95,
+    bus: "world",
+    max: 5,
+    pri: 7,
+    ref: 8,
+    roll: 0.5,
+  },
+  hound_step: { gen: T8, n: 3, sr: Xn, peak: 0.7, bus: "world", max: 4, pri: 3, ref: 5, roll: 0.8 },
+  gull_die: { gen: A8, n: 1, sr: Xn, peak: 0.85, bus: "world", max: 3, pri: 7, ref: 7, roll: 0.5 },
+  hound_die: { gen: R8, n: 1, sr: Xn, peak: 0.9, bus: "world", max: 3, pri: 7, ref: 7, roll: 0.5 },
+  telegraph: { gen: P8, n: 2, sr: Xn, peak: 0.42, bus: "world", max: 4, pri: 6, ref: 6, roll: 0.6 },
+  alert: { gen: C8, n: 2, sr: Xn, peak: 0.5, bus: "world", max: 3, pri: 6, ref: 8, roll: 0.5 },
+  explosion: {
+    gen: I8,
+    n: 2,
+    sr: ki,
+    peak: 0.97,
+    bus: "world",
+    max: 3,
+    pri: 10,
+    ref: 12,
+    roll: 0.5,
+  },
+  relay_cut: { gen: z8, n: 1, sr: Xn, peak: 0.75, bus: "world", max: 2, pri: 8, ref: 6, roll: 0.5 },
 
   // 港区环境音景
-  thunder:         { gen: D8, n: 2, sr: pl, peak: 0.80, bus: 'dry',   max: 2, pri: 6 },
-  foghorn:         { gen: L8, n: 1, sr: pl, peak: 0.50, bus: 'world', max: 1, pri: 2 },
-  gull_cry:        { gen: k8, n: 2, sr: pl, peak: 0.40, bus: 'world', max: 2, pri: 1 },
-  halyard:         { gen: F8, n: 2, sr: Xn, peak: 0.30, bus: 'world', max: 2, pri: 1 },
-  container_bang:  { gen: U8, n: 1, sr: pl, peak: 0.60, bus: 'world', max: 1, pri: 2 },
-  ui_click:        { gen: N8, n: 1, sr: ki, peak: 0.30, bus: 'dry',   max: 2, pri: 9 },
-  ui_hover:        { gen: B8, n: 1, sr: ki, peak: 0.12, bus: 'dry',   max: 2, pri: 9 },
+  thunder: { gen: D8, n: 2, sr: pl, peak: 0.8, bus: "dry", max: 2, pri: 6 },
+  foghorn: { gen: L8, n: 1, sr: pl, peak: 0.5, bus: "world", max: 1, pri: 2 },
+  gull_cry: { gen: k8, n: 2, sr: pl, peak: 0.4, bus: "world", max: 2, pri: 1 },
+  halyard: { gen: F8, n: 2, sr: Xn, peak: 0.3, bus: "world", max: 2, pri: 1 },
+  container_bang: { gen: U8, n: 1, sr: pl, peak: 0.6, bus: "world", max: 1, pri: 2 },
+  ui_click: { gen: N8, n: 1, sr: ki, peak: 0.3, bus: "dry", max: 2, pri: 9 },
+  ui_hover: { gen: B8, n: 1, sr: ki, peak: 0.12, bus: "dry", max: 2, pri: 9 },
 
   // 战术任务音乐刺音 (Stings)
-  objective:       { gen: Z8, n: 1, sr: Xn, peak: 0.60, bus: 'music', max: 1, pri: 9 },
-  objective_all:   { gen: j8, n: 1, sr: Xn, peak: 0.65, bus: 'music', max: 1, pri: 9 },
-  complete:        { gen: J8, n: 1, sr: Xn, peak: 0.70, bus: 'music', max: 1, pri: 9 },
-  death:           { gen: K8, n: 1, sr: Xn, peak: 0.75, bus: 'music', max: 1, pri: 9 },
+  objective: { gen: Z8, n: 1, sr: Xn, peak: 0.6, bus: "music", max: 1, pri: 9 },
+  objective_all: { gen: j8, n: 1, sr: Xn, peak: 0.65, bus: "music", max: 1, pri: 9 },
+  complete: { gen: J8, n: 1, sr: Xn, peak: 0.7, bus: "music", max: 1, pri: 9 },
+  death: { gen: K8, n: 1, sr: Xn, peak: 0.75, bus: "music", max: 1, pri: 9 },
 
   // 循环音频 (Loops)
-  gull_rotor:      { gen: _8, n: 1, sr: Xn, peak: 0.60, loop: 1, ref: 5, roll: 0.9 },
-  hound_servo:     { gen: M8, n: 1, sr: Xn, peak: 0.42, loop: 1, ref: 4, roll: 1.0 },
-  relay_hum:       { gen: w8, n: 1, sr: Xn, peak: 0.40, loop: 1, ref: 2.5, roll: 1.4 },
-  rain:            { gen: O8, n: 1, sr: Xn, peak: 0.50, loop: 1 },
-  rain_interior:   { gen: H8, n: 1, sr: Xn, peak: 0.70, loop: 1 },
-  wind:            { gen: V8, n: 1, sr: pl, peak: 0.50, loop: 1 },
-  sea:             { gen: W8, n: 1, sr: pl, peak: 0.50, loop: 1, ref: 10, roll: 0.6 },
+  gull_rotor: { gen: _8, n: 1, sr: Xn, peak: 0.6, loop: 1, ref: 5, roll: 0.9 },
+  hound_servo: { gen: M8, n: 1, sr: Xn, peak: 0.42, loop: 1, ref: 4, roll: 1.0 },
+  relay_hum: { gen: w8, n: 1, sr: Xn, peak: 0.4, loop: 1, ref: 2.5, roll: 1.4 },
+  rain: { gen: O8, n: 1, sr: Xn, peak: 0.5, loop: 1 },
+  rain_interior: { gen: H8, n: 1, sr: Xn, peak: 0.7, loop: 1 },
+  wind: { gen: V8, n: 1, sr: pl, peak: 0.5, loop: 1 },
+  sea: { gen: W8, n: 1, sr: pl, peak: 0.5, loop: 1, ref: 10, roll: 0.6 },
 
   // 5 轨自适应交战音乐层 (5 Adaptive Music Layers)
-  music_drone:     { gen: G8, n: 1, sr: Fr.sr, peak: 0.50, loop: 1, music: 1 },
-  music_ost:       { gen: q8, n: 1, sr: Fr.sr, peak: 0.45, loop: 1, music: 1 },
-  music_perc:      { gen: X8, n: 1, sr: Fr.sr, peak: 0.60, loop: 1, music: 1 },
-  music_brass:     { gen: Y8, n: 1, sr: Fr.sr, peak: 0.50, loop: 1, music: 1 },
-  music_motif:     { gen: $8, n: 1, sr: Fr.sr, peak: 0.40, loop: 1, music: 1 },
+  music_drone: { gen: G8, n: 1, sr: Fr.sr, peak: 0.5, loop: 1, music: 1 },
+  music_ost: { gen: q8, n: 1, sr: Fr.sr, peak: 0.45, loop: 1, music: 1 },
+  music_perc: { gen: X8, n: 1, sr: Fr.sr, peak: 0.6, loop: 1, music: 1 },
+  music_brass: { gen: Y8, n: 1, sr: Fr.sr, peak: 0.5, loop: 1, music: 1 },
+  music_motif: { gen: $8, n: 1, sr: Fr.sr, peak: 0.4, loop: 1, music: 1 },
 
   // 空间混响脉冲响应 (Convolution Reverb IRs)
-  ir_outdoor:      { gen: QR, n: 1, sr: null, peak: 0.9, ir: 1 },
-  ir_shed:         { gen: e8, n: 1, sr: null, peak: 0.9, ir: 1 }
+  ir_outdoor: { gen: QR, n: 1, sr: null, peak: 0.9, ir: 1 },
+  ir_shed: { gen: e8, n: 1, sr: null, peak: 0.9, ir: 1 },
 };
 
 const Go = SOUND_REGISTRY;
 
 // 别名重定向映射表 (Alias Redirection)
 const SOUND_ALIASES = {
-  footstep: 'step_concrete',
-  impact: 'impact_concrete',
-  hurt: 'hurt',
-  objective_done: 'objective',
-  extraction: 'complete',
-  enemy_alert: 'alert'
+  footstep: "step_concrete",
+  impact: "impact_concrete",
+  hurt: "hurt",
+  objective_done: "objective",
+  extraction: "complete",
+  enemy_alert: "alert",
 };
 const i_ = SOUND_ALIASES;
 
 // 物理表面命中与脚步材质映射表
 const SURFACE_IMPACT_MAP = {
-  metal: 'impact_metal',
-  concrete: 'impact_concrete',
-  wood: 'impact_wood',
-  water: 'impact_water',
-  glass: 'impact_glass',
-  dirt: 'impact_concrete',
-  rubber: 'impact_wood'
+  metal: "impact_metal",
+  concrete: "impact_concrete",
+  wood: "impact_wood",
+  water: "impact_water",
+  glass: "impact_glass",
+  dirt: "impact_concrete",
+  rubber: "impact_wood",
 };
 const l_ = SURFACE_IMPACT_MAP;
 
 const SURFACE_STEP_MAP = {
-  metal: 'step_metal',
-  water: 'step_water',
-  concrete: 'step_concrete',
-  wood: 'step_concrete',
-  dirt: 'step_concrete',
-  glass: 'step_concrete',
-  rubber: 'step_concrete'
+  metal: "step_metal",
+  water: "step_water",
+  concrete: "step_concrete",
+  wood: "step_concrete",
+  dirt: "step_concrete",
+  glass: "step_concrete",
+  rubber: "step_concrete",
 };
 const Iv = SURFACE_STEP_MAP;
 
-const isGenerator = (obj) => obj && typeof obj.next === 'function';
+const isGenerator = (obj) => obj && typeof obj.next === "function";
 
 /**
  * 样本峰值归一化与声道格式封装
@@ -2089,7 +3427,7 @@ function packageBufferChannels(def, rawData, sampleRate) {
   return {
     sr: sampleRate,
     ch: channels,
-    loop: !!def.loop
+    loop: !!def.loop,
   };
 }
 
@@ -2132,7 +3470,7 @@ function createSoundStepper(soundName, variantIdx = 0, overrideSampleRate) {
         genInstance = res.value;
       }
       return (bakedResult = packageBufferChannels(def, genInstance, sr));
-    }
+    },
   };
 }
 
@@ -2143,23 +3481,75 @@ const smoothstep01 = (edge0, edge1, x) => {
 };
 
 const LAZY_LOAD_SET = new Set([
-  'thunder', 'foghorn', 'objective', 'objective_all', 'complete',
-  'death', 'explosion', 'rifle_tail_in', 'gull_die', 'hound_die',
-  'relay_cut', 'container_bang', 'ear_ring'
+  "thunder",
+  "foghorn",
+  "objective",
+  "objective_all",
+  "complete",
+  "death",
+  "explosion",
+  "rifle_tail_in",
+  "gull_die",
+  "hound_die",
+  "relay_cut",
+  "container_bang",
+  "ear_ring",
 ]);
 
 const BOOT_QUEUE_ORDER = [
-  'ir_outdoor', 'ir_shed', 'rain', 'whiz', 'reload_magout', 'reload_magin', 'reload_bolt',
-  'shell_bounce', 'impact_concrete', 'impact_metal', 'land', 'jump', 'hurt', 'music_drone',
-  'wind', 'music_motif', 'impact_enemy', 'impact_wood', 'impact_water', 'impact_glass',
-  'ricochet', 'gull_rotor', 'hound_servo', 'alert', 'telegraph', 'gull_fire', 'hound_fire',
-  'hound_step', 'ui_click', 'ui_hover', 'sea', 'rain_interior', 'relay_hum', 'gull_die',
-  'hound_die', 'explosion', 'ear_ring', 'death', 'music_ost', 'music_perc', 'music_brass',
-  'relay_cut', 'objective', 'thunder', 'objective_all', 'complete', 'gull_cry', 'halyard',
-  'foghorn', 'container_bang'
+  "ir_outdoor",
+  "ir_shed",
+  "rain",
+  "whiz",
+  "reload_magout",
+  "reload_magin",
+  "reload_bolt",
+  "shell_bounce",
+  "impact_concrete",
+  "impact_metal",
+  "land",
+  "jump",
+  "hurt",
+  "music_drone",
+  "wind",
+  "music_motif",
+  "impact_enemy",
+  "impact_wood",
+  "impact_water",
+  "impact_glass",
+  "ricochet",
+  "gull_rotor",
+  "hound_servo",
+  "alert",
+  "telegraph",
+  "gull_fire",
+  "hound_fire",
+  "hound_step",
+  "ui_click",
+  "ui_hover",
+  "sea",
+  "rain_interior",
+  "relay_hum",
+  "gull_die",
+  "hound_die",
+  "explosion",
+  "ear_ring",
+  "death",
+  "music_ost",
+  "music_perc",
+  "music_brass",
+  "relay_cut",
+  "objective",
+  "thunder",
+  "objective_all",
+  "complete",
+  "gull_cry",
+  "halyard",
+  "foghorn",
+  "container_bang",
 ];
 
-const MUSIC_LAYER_KEYS = ['music_drone', 'music_ost', 'music_perc', 'music_brass', 'music_motif'];
+const MUSIC_LAYER_KEYS = ["music_drone", "music_ost", "music_perc", "music_brass", "music_motif"];
 
 // ============================================================================
 // 六、 空音频占位器与引擎实例化入口 (Engine Factory)
@@ -2181,9 +3571,9 @@ function createSilentAudioEngine() {
     setInterior: noop,
     setVolume: noop,
     setPaused: noop,
-    debug: () => ({ state: 'none' }),
+    debug: () => ({ state: "none" }),
     names: Object.keys(SOUND_REGISTRY),
-    ready: Promise.resolve()
+    ready: Promise.resolve(),
   };
 }
 
@@ -2192,18 +3582,19 @@ function createSilentAudioEngine() {
  * @param {object} engineCtx 全局引擎上下文 (包含 events, camera, player, level, enemies)
  */
 async function createAudioEngine(engineCtx) {
-  const AudioContextClass = typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext);
+  const AudioContextClass =
+    typeof window !== "undefined" && (window.AudioContext || window.webkitAudioContext);
   let audioCtx = null;
   try {
     if (AudioContextClass) {
-      audioCtx = new AudioContextClass({ latencyHint: 'interactive' });
+      audioCtx = new AudioContextClass({ latencyHint: "interactive" });
     }
   } catch {
     audioCtx = null;
   }
 
   if (!audioCtx) {
-    console.warn('[audio] WebAudio API unavailable — running in silent mode');
+    console.warn("[audio] WebAudio API unavailable — running in silent mode");
     return createSilentAudioEngine();
   }
 
@@ -2220,7 +3611,7 @@ async function createAudioEngine(engineCtx) {
 function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
   const eventBus = engineCtx.events;
   const rand = Math.random;
-  const isAudioRunning = () => (preheatedCache ? true : audioCtx.state === 'running');
+  const isAudioRunning = () => (preheatedCache ? true : audioCtx.state === "running");
 
   // 音频缓冲区与回调缓存表
   const bufferCache = preheatedCache ? preheatedCache.bufs : new Map();
@@ -2244,7 +3635,11 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
     if (callbacks) {
       readyCallbacks.delete(key);
       for (const cb of callbacks) {
-        try { cb(audioBuf); } catch (err) { console.error('[audio] ready callback threw', err); }
+        try {
+          cb(audioBuf);
+        } catch (err) {
+          console.error("[audio] ready callback threw", err);
+        }
       }
     }
     return audioBuf;
@@ -2255,7 +3650,7 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
   function bakeBufferImmediate(name, variant) {
     const t0 = performance.now();
     const pkg = bakeSoundSync(name, variant, getTargetSampleRate(name));
-    const buf = registerAudioBuffer(name + '#' + variant, pkg);
+    const buf = registerAudioBuffer(name + "#" + variant, pkg);
     synthesisElapsedMs += performance.now() - t0;
     return buf;
   }
@@ -2269,7 +3664,7 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
     if (!def || registeredNames.has(name)) continue;
     registeredNames.add(name);
     for (let v = 0; v < def.n; v++) {
-      const key = name + '#' + v;
+      const key = name + "#" + v;
       if (!bufferCache.has(key)) {
         if (def.boot) {
           bakeBufferImmediate(name, v);
@@ -2306,7 +3701,7 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
       try {
         pkg = task.steps.step();
       } catch (err) {
-        console.error('[audio] synthesis failed for ' + task.k, err);
+        console.error("[audio] synthesis failed for " + task.k, err);
         compileQueue.shift();
         continue;
       }
@@ -2335,7 +3730,7 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
   }
 
   function requestBufferAsync(name, variant, onReady) {
-    const key = name + '#' + variant;
+    const key = name + "#" + variant;
     const existing = bufferCache.get(key);
     if (existing) {
       onReady(existing);
@@ -2379,7 +3774,7 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
     }
     masterWaveShaper.curve = curve;
     try {
-      masterWaveShaper.oversample = '2x';
+      masterWaveShaper.oversample = "2x";
     } catch {}
   }
 
@@ -2394,7 +3789,7 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
 
   // 受伤/耳鸣闷音低通滤波器 (Muffled Hearing Lowpass on Damage)
   const muffledLowpass = audioCtx.createBiquadFilter();
-  muffledLowpass.type = 'lowpass';
+  muffledLowpass.type = "lowpass";
   muffledLowpass.frequency.value = 20000;
   muffledLowpass.Q.value = 0.5;
 
@@ -2405,10 +3800,10 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
   // 子总线 (Sub-buses)
   const buses = {
     world: makeGain(1.0),
-    near:  makeGain(0.95),
-    amb:   makeGain(0.55),
-    dry:   makeGain(1.0),
-    music: makeGain(0.62)
+    near: makeGain(0.95),
+    amb: makeGain(0.55),
+    dry: makeGain(1.0),
+    music: makeGain(0.62),
   };
 
   buses.world.connect(muffledLowpass);
@@ -2423,15 +3818,15 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
   // 空间混响卷积器 (Convolution Reverb Nodes)
   const reverbBus = makeGain(1.0);
   const outdoorReverbSendGain = makeGain(1.0);
-  const indoorReverbSendGain  = makeGain(0.0);
+  const indoorReverbSendGain = makeGain(0.0);
 
   const outdoorConvolver = audioCtx.createConvolver();
-  const indoorConvolver  = audioCtx.createConvolver();
+  const indoorConvolver = audioCtx.createConvolver();
   const outdoorReverbReturnGain = makeGain(0.75);
-  const indoorReverbReturnGain  = makeGain(0.95);
+  const indoorReverbReturnGain = makeGain(0.95);
 
   const worldReverbSend = makeGain(0.9);
-  const nearReverbSend  = makeGain(0.32);
+  const nearReverbSend = makeGain(0.32);
   const musicReverbSend = makeGain(0.2);
 
   buses.world.connect(worldReverbSend);
@@ -2454,8 +3849,12 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
   buses.music.connect(musicReverbSend);
   musicReverbSend.connect(indoorConvolver);
 
-  requestBufferAsync('ir_outdoor', 0, (buf) => { outdoorConvolver.buffer = buf; });
-  requestBufferAsync('ir_shed',    0, (buf) => { indoorConvolver.buffer  = buf; });
+  requestBufferAsync("ir_outdoor", 0, (buf) => {
+    outdoorConvolver.buffer = buf;
+  });
+  requestBufferAsync("ir_shed", 0, (buf) => {
+    indoorConvolver.buffer = buf;
+  });
 
   // 3. 3D 声道定位与声道池 (Spatial 3D Voice Pooling)
   function setPannerPosition(panner, x, y, z) {
@@ -2470,8 +3869,8 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
 
   function create3DPanner(useHrtf) {
     const panner = audioCtx.createPanner();
-    panner.panningModel = useHrtf ? 'HRTF' : 'equalpower';
-    panner.distanceModel = 'inverse';
+    panner.panningModel = useHrtf ? "HRTF" : "equalpower";
+    panner.distanceModel = "inverse";
     panner.refDistance = 3.0;
     panner.rolloffFactor = 0.6;
     panner.maxDistance = 400.0;
@@ -2481,9 +3880,9 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
 
   const voicePools = {
     world: [],
-    near:  [],
-    dry:   [],
-    music: []
+    near: [],
+    dry: [],
+    music: [],
   };
 
   function allocateVoice(busName, hasPanner) {
@@ -2493,8 +3892,8 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
       src: null,
       end: 0,
       start: 0,
-      name: '',
-      pri: 0
+      name: "",
+      pri: 0,
     };
     if (hasPanner) {
       voice.pan = create3DPanner(false);
@@ -2506,19 +3905,19 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
     voicePools[busName].push(voice);
   }
 
-  for (let i = 0; i < 22; i++) allocateVoice('world', true);
-  for (let i = 0; i < 12; i++) allocateVoice('near',  false);
-  for (let i = 0; i < 8;  i++) allocateVoice('dry',   false);
-  for (let i = 0; i < 3;  i++) allocateVoice('music', false);
+  for (let i = 0; i < 22; i++) allocateVoice("world", true);
+  for (let i = 0; i < 12; i++) allocateVoice("near", false);
+  for (let i = 0; i < 8; i++) allocateVoice("dry", false);
+  for (let i = 0; i < 3; i++) allocateVoice("music", false);
 
   // 4. 状态机与物理位置跟踪 (State Machine & Position Tracking)
   const listenerPos = { x: 0, y: 1.7, z: 0 };
   let isResumed = false;
   let isPaused = false;
   let userVolume = 0.9;
-  let gameState = (engineCtx.game && engineCtx.game.state) || 'title';
+  let gameState = (engineCtx.game && engineCtx.game.state) || "title";
 
-  let targetInteriorFactor = 0;  // 0: 室外开阔码头, 1: 室内集装箱仓库
+  let targetInteriorFactor = 0; // 0: 室外开阔码头, 1: 室内集装箱仓库
   let currentInteriorFactor = 0;
   let manualIntensity = 0;
   let combatIntensityAccumulator = 0;
@@ -2560,7 +3959,11 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
         activeSameCount++;
         if (!oldestSameVoice || v.start < oldestSameVoice.start) oldestSameVoice = v;
       }
-      if (!lowestPriVoice || v.pri < lowestPriVoice.pri || (v.pri === lowestPriVoice.pri && v.start < lowestPriVoice.start)) {
+      if (
+        !lowestPriVoice ||
+        v.pri < lowestPriVoice.pri ||
+        (v.pri === lowestPriVoice.pri && v.start < lowestPriVoice.start)
+      ) {
         lowestPriVoice = v;
       }
     }
@@ -2576,8 +3979,8 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
   function playSound(sfxName, options = {}) {
     sfxName = SOUND_ALIASES[sfxName] || sfxName;
     if (options.surface) {
-      if (sfxName === 'impact_concrete') sfxName = SURFACE_IMPACT_MAP[options.surface] || sfxName;
-      else if (sfxName === 'step_concrete') sfxName = SURFACE_STEP_MAP[options.surface] || sfxName;
+      if (sfxName === "impact_concrete") sfxName = SURFACE_IMPACT_MAP[options.surface] || sfxName;
+      else if (sfxName === "step_concrete") sfxName = SURFACE_STEP_MAP[options.surface] || sfxName;
     }
 
     const sfxDef = SOUND_REGISTRY[sfxName];
@@ -2585,12 +3988,13 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
 
     let variantIdx = options.variant;
     if (variantIdx == null) {
-      variantIdx = variantCounters[sfxName] = ((variantCounters[sfxName] || 0) + 1 + (sfxDef.n > 2 && rand() < 0.3 ? 1 : 0)) % sfxDef.n;
+      variantIdx = variantCounters[sfxName] =
+        ((variantCounters[sfxName] || 0) + 1 + (sfxDef.n > 2 && rand() < 0.3 ? 1 : 0)) % sfxDef.n;
     } else {
       variantIdx %= sfxDef.n;
     }
 
-    let audioBuf = bufferCache.get(sfxName + '#' + variantIdx);
+    let audioBuf = bufferCache.get(sfxName + "#" + variantIdx);
     if (!audioBuf) {
       if (LAZY_LOAD_SET.has(sfxName)) {
         const reqTime = audioCtx.currentTime;
@@ -2605,8 +4009,10 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
     }
 
     const now = audioCtx.currentTime;
-    const is3D = !!options.pos && sfxDef.bus === 'world';
-    const targetPool = is3D ? voicePools.world : voicePools[sfxDef.bus === 'world' ? 'near' : sfxDef.bus];
+    const is3D = !!options.pos && sfxDef.bus === "world";
+    const targetPool = is3D
+      ? voicePools.world
+      : voicePools[sfxDef.bus === "world" ? "near" : sfxDef.bus];
     const voice = findAvailableVoice(targetPool, sfxName, sfxDef, now);
     if (!voice) return false;
 
@@ -2616,21 +4022,30 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
 
     if (voice.end > now && voice.src) {
       gainParam.setTargetAtTime(0, now, 0.004);
-      try { voice.src.stop(now + 0.025); } catch {}
+      try {
+        voice.src.stop(now + 0.025);
+      } catch {}
       startTime = Math.max(startTime, now + 0.025);
     }
 
     const jitter = options.jitter != null ? options.jitter : 0.035;
-    const playbackPitch = clampNumber((options.pitch || 1.0) * (1 + (rand() * 2 - 1) * jitter), 0.25, 4.0);
+    const playbackPitch = clampNumber(
+      (options.pitch || 1.0) * (1 + (rand() * 2 - 1) * jitter),
+      0.25,
+      4.0,
+    );
     const targetGain = (options.gain != null ? options.gain : 1.0) * (1 - rand() * 0.08);
 
     gainParam.setValueAtTime(targetGain, startTime);
 
     if (is3D) {
-      const pos = Array.isArray(options.pos) ? { x: options.pos[0], y: options.pos[1], z: options.pos[2] } : options.pos;
+      const pos = Array.isArray(options.pos)
+        ? { x: options.pos[0], y: options.pos[1], z: options.pos[2] }
+        : options.pos;
       setPannerPosition(voice.pan, pos.x || 0, pos.y || 0, pos.z || 0);
       voice.pan.refDistance = options.ref || sfxDef.ref || 3.0;
-      voice.pan.rolloffFactor = options.roll != null ? options.roll : sfxDef.roll != null ? sfxDef.roll : 0.6;
+      voice.pan.rolloffFactor =
+        options.roll != null ? options.roll : sfxDef.roll != null ? sfxDef.roll : 0.6;
     }
 
     const srcNode = audioCtx.createBufferSource();
@@ -2638,7 +4053,9 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
     srcNode.playbackRate.value = playbackPitch;
     srcNode.connect(voice.g);
     srcNode.onended = () => {
-      try { srcNode.disconnect(); } catch {}
+      try {
+        srcNode.disconnect();
+      } catch {}
     };
     srcNode.start(startTime);
 
@@ -2655,13 +4072,19 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
   const trackedNpcLoops = new Set();
   const dummyNoop = () => {};
   let isNpcTrackingActive = false;
-  const dummyLoopHandle = { setPos: dummyNoop, setGain: dummyNoop, setPitch: dummyNoop, stop: dummyNoop, alive: false };
+  const dummyLoopHandle = {
+    setPos: dummyNoop,
+    setGain: dummyNoop,
+    setPitch: dummyNoop,
+    stop: dummyNoop,
+    alive: false,
+  };
 
   function createLoop(loopName, options = {}) {
     const sfxDef = SOUND_REGISTRY[loopName];
     if (!sfxDef || !sfxDef.loop) return dummyLoopHandle;
 
-    const isNpcLoop = (loopName === 'gull_rotor' || loopName === 'hound_servo') && !options._auto;
+    const isNpcLoop = (loopName === "gull_rotor" || loopName === "hound_servo") && !options._auto;
     if (isNpcLoop && !options.hrtf) {
       options = Object.assign({ hrtf: true }, options);
     }
@@ -2681,19 +4104,22 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
       src: null,
       g: makeGain(0),
       pan: null,
-      rate: options.fade || 6.0
+      rate: options.fade || 6.0,
     };
 
     let targetInputNode = handle.g;
     if (options.pos) {
       handle.pan = create3DPanner(!!options.hrtf);
       handle.pan.refDistance = options.ref || sfxDef.ref || 3.0;
-      handle.pan.rolloffFactor = options.roll != null ? options.roll : sfxDef.roll != null ? sfxDef.roll : 0.6;
+      handle.pan.rolloffFactor =
+        options.roll != null ? options.roll : sfxDef.roll != null ? sfxDef.roll : 0.6;
       handle.g.connect(handle.pan);
       targetInputNode = handle.pan;
     }
 
-    targetInputNode.connect(buses[options.bus || (options.pos ? 'world' : sfxDef.music ? 'music' : 'amb')]);
+    targetInputNode.connect(
+      buses[options.bus || (options.pos ? "world" : sfxDef.music ? "music" : "amb")],
+    );
 
     handle.setPos = (pos) => {
       if (handle.pan && pos) {
@@ -2734,13 +4160,16 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
         if (handle.src) handle.src.stop(now + fTime + 0.03);
       } catch {}
 
-      setTimeout(() => {
-        try {
-          if (handle.src) handle.src.disconnect();
-          handle.g.disconnect();
-          if (handle.pan) handle.pan.disconnect();
-        } catch {}
-      }, (fTime + 0.3) * 1000);
+      setTimeout(
+        () => {
+          try {
+            if (handle.src) handle.src.disconnect();
+            handle.g.disconnect();
+            if (handle.pan) handle.pan.disconnect();
+          } catch {}
+        },
+        (fTime + 0.3) * 1000,
+      );
     };
 
     if (options.pos) handle.setPos(options.pos);
@@ -2779,14 +4208,14 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
   function startMusicLayersIfReady() {
     if (musicSystem.on || !isAudioRunning()) return;
     for (const key of MUSIC_LAYER_KEYS) {
-      if (!bufferCache.has(key + '#0')) return;
+      if (!bufferCache.has(key + "#0")) return;
     }
 
     const tStart = audioCtx.currentTime + 0.08;
     for (const key of MUSIC_LAYER_KEYS) {
       const layerGain = makeGain(0);
       const src = audioCtx.createBufferSource();
-      src.buffer = bufferCache.get(key + '#0');
+      src.buffer = bufferCache.get(key + "#0");
       src.loop = true;
       src.connect(layerGain);
       layerGain.connect(buses.music);
@@ -2801,37 +4230,37 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
    * 根据当前交战强度 (0.0 ~ 1.0) 计算 5 条音乐轨道的动态增益
    */
   function calcMusicLayerGains(intensity) {
-    if (gameState === 'title')    return [0.85, 0, 0, 0, 0.9];
-    if (gameState === 'intro')    return [0.80, 0, 0, 0, 0.6];
-    if (gameState === 'dead')     return [0.75, 0, 0, 0, 0];
-    if (gameState === 'complete') return [0.60, 0, 0, 0, 0.7];
+    if (gameState === "title") return [0.85, 0, 0, 0, 0.9];
+    if (gameState === "intro") return [0.8, 0, 0, 0, 0.6];
+    if (gameState === "dead") return [0.75, 0, 0, 0, 0];
+    if (gameState === "complete") return [0.6, 0, 0, 0, 0.7];
 
     return [
-      0.6 + 0.3 * intensity,                              // Layer 1: Ambient Drone (始终垫底)
-      smoothstep01(0.05, 0.5, intensity) * 0.85,           // Layer 2: Bass Ostinato (张力渐入)
-      smoothstep01(0.40, 0.8, intensity) * 0.95,           // Layer 3: Percussion (交火战术鼓点)
-      smoothstep01(0.62, 1.0, intensity) * 0.80,           // Layer 4: Climax Brass (战况高潮铜管)
-      0                                                    // Layer 5: Motif Chime (事件刺音)
+      0.6 + 0.3 * intensity, // Layer 1: Ambient Drone (始终垫底)
+      smoothstep01(0.05, 0.5, intensity) * 0.85, // Layer 2: Bass Ostinato (张力渐入)
+      smoothstep01(0.4, 0.8, intensity) * 0.95, // Layer 3: Percussion (交火战术鼓点)
+      smoothstep01(0.62, 1.0, intensity) * 0.8, // Layer 4: Climax Brass (战况高潮铜管)
+      0, // Layer 5: Motif Chime (事件刺音)
     ];
   }
 
   // 常规持续环境背景声循环
   const envLoops = {
-    rain:   createLoop('rain',          { gain: 0, fade: 2.0 }),
-    rainIn: createLoop('rain_interior', { gain: 0, fade: 2.0 }),
-    wind:   createLoop('wind',          { gain: 0, fade: 2.0 }),
-    sea:    createLoop('sea',           { gain: 0, pos: [33, -1, 0], fade: 2.0, bus: 'amb' })
+    rain: createLoop("rain", { gain: 0, fade: 2.0 }),
+    rainIn: createLoop("rain_interior", { gain: 0, fade: 2.0 }),
+    wind: createLoop("wind", { gain: 0, fade: 2.0 }),
+    sea: createLoop("sea", { gain: 0, pos: [33, -1, 0], fade: 2.0, bus: "amb" }),
   };
 
   let windGustCurrent = 0.4;
-  let windGustTarget  = 0.4;
+  let windGustTarget = 0.4;
   let windTimer = 2.0;
 
   const ambientSpurTimers = {
     fog: 14 + rand() * 14,
     gull: 5 + rand() * 8,
-    hal:  4 + rand() * 6,
-    bang: 20 + rand() * 25
+    hal: 4 + rand() * 6,
+    bang: 20 + rand() * 25,
   };
 
   /**
@@ -2843,12 +4272,12 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
     if ((ambientSpurTimers.fog -= dt) <= 0) {
       ambientSpurTimers.fog = 40 + rand() * 30;
       const zOffset = listenerPos.z + (rand() * 2 - 1) * 250;
-      playSound('foghorn', {
+      playSound("foghorn", {
         pos: [listenerPos.x + 320, 8, zOffset],
         ref: 400,
         gain: 0.34 * masterScale * outdoorDamp,
         pitch: rand() < 0.3 ? 0.89 : 1.0,
-        jitter: 0.01
+        jitter: 0.01,
       });
     }
 
@@ -2856,34 +4285,38 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
       ambientSpurTimers.gull = 9 + rand() * 16;
       const angle = rand() * TWO_PI;
       const dist = 35 + rand() * 50;
-      playSound('gull_cry', {
-        pos: [listenerPos.x + Math.cos(angle) * dist, 14 + rand() * 18, listenerPos.z + Math.sin(angle) * dist],
+      playSound("gull_cry", {
+        pos: [
+          listenerPos.x + Math.cos(angle) * dist,
+          14 + rand() * 18,
+          listenerPos.z + Math.sin(angle) * dist,
+        ],
         ref: dist,
         roll: 1.0,
         gain: (0.16 + rand() * 0.16) * masterScale * outdoorDamp,
-        jitter: 0.1
+        jitter: 0.1,
       });
     }
 
     if ((ambientSpurTimers.hal -= dt) <= 0) {
       ambientSpurTimers.hal = 6 + rand() * 11;
-      playSound('halyard', {
+      playSound("halyard", {
         pos: [29 + rand() * 8, 3 + rand() * 6, -8 + rand() * 32],
         ref: 16,
         roll: 0.5,
         gain: (0.3 + rand() * 0.3) * masterScale * outdoorDamp,
-        jitter: 0.08
+        jitter: 0.08,
       });
     }
 
     if ((ambientSpurTimers.bang -= dt) <= 0) {
       ambientSpurTimers.bang = 28 + rand() * 34;
       const angle = 1.6 + rand() * 3.2;
-      playSound('container_bang', {
+      playSound("container_bang", {
         pos: [listenerPos.x + Math.cos(angle) * 150, 4, listenerPos.z + Math.sin(angle) * 150],
         ref: 150,
         gain: (0.2 + rand() * 0.16) * masterScale * outdoorDamp,
-        jitter: 0.12
+        jitter: 0.12,
       });
     }
   }
@@ -2896,13 +4329,13 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
     if (!enemy || isNpcTrackingActive || trackedEnemies.has(enemy) || enemy.alive === false) return;
     trackedEnemies.set(enemy, {
       h: null,
-      type: enemy.type === 'hound' ? 'hound' : 'gull',
+      type: enemy.type === "hound" ? "hound" : "gull",
       lx: enemy.pos ? enemy.pos.x : 0,
       ly: enemy.pos ? enemy.pos.y : 0,
       lz: enemy.pos ? enemy.pos.z : 0,
       sp: 0,
       d: 1e9,
-      tune: 0.96 + rand() * 0.1
+      tune: 0.96 + rand() * 0.1,
     });
   }
 
@@ -2922,7 +4355,11 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
       npcSortTimer = 0.25;
       sortedCandidates.length = 0;
       for (const loopItem of trackedNpcLoops) {
-        loopItem.d = Math.hypot(loopItem.px - listenerPos.x, loopItem.py - listenerPos.y, loopItem.pz - listenerPos.z);
+        loopItem.d = Math.hypot(
+          loopItem.px - listenerPos.x,
+          loopItem.py - listenerPos.y,
+          loopItem.pz - listenerPos.z,
+        );
         sortedCandidates.push(loopItem);
       }
       sortedCandidates.sort((a, b) => a.d - b.d);
@@ -2949,7 +4386,11 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
         }
         const pos = enemy.pos;
         if (pos) {
-          record.d = Math.hypot(pos.x - listenerPos.x, pos.y - listenerPos.y, pos.z - listenerPos.z);
+          record.d = Math.hypot(
+            pos.x - listenerPos.x,
+            pos.y - listenerPos.y,
+            pos.z - listenerPos.z,
+          );
           sortedCandidates.push(record);
         }
       }
@@ -2959,12 +4400,12 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
         const item = sortedCandidates[i];
         const isNear = i < 6 && item.d < 90;
         if (isNear && !item.h) {
-          item.h = createLoop(item.type === 'gull' ? 'gull_rotor' : 'hound_servo', {
+          item.h = createLoop(item.type === "gull" ? "gull_rotor" : "hound_servo", {
             pos: [item.lx, item.ly, item.lz],
             gain: 0,
             hrtf: true,
             fade: 5.0,
-            _auto: true
+            _auto: true,
           });
         } else if (!isNear && item.h) {
           item.h.stop(0.25);
@@ -2986,7 +4427,7 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
 
         if (record.h) {
           record.h.setPos(pos);
-          if (record.type === 'gull') {
+          if (record.type === "gull") {
             record.h.setGain(1.0);
             record.h.setPitch(record.tune * (0.94 + 0.3 * clampNumber(record.sp / 10, 0, 1)));
           } else {
@@ -3014,10 +4455,10 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
             id: obj.id,
             index: idx,
             pos: { x: obj.pos.x, y: (obj.pos.y || 0) + 1.2, z: obj.pos.z },
-            h: createLoop('relay_hum', {
+            h: createLoop("relay_hum", {
               pos: [obj.pos.x, (obj.pos.y || 0) + 1.2, obj.pos.z],
-              gain: 0.9
-            })
+              gain: 0.9,
+            }),
           });
         }
       });
@@ -3035,18 +4476,18 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
       const node = activeRelayNodes[foundIdx];
       node.h.stop(0.08);
       activeRelayNodes.splice(foundIdx, 1);
-      playSound('relay_cut', { pos: node.pos, gain: 1.0 });
+      playSound("relay_cut", { pos: node.pos, gain: 1.0 });
     } else {
-      playSound('relay_cut', { gain: 0.8 });
+      playSound("relay_cut", { gain: 0.8 });
     }
   }
 
-  const formatVector = (vec) => (vec && typeof vec.x === 'number' ? vec : null);
+  const formatVector = (vec) => (vec && typeof vec.x === "number" ? vec : null);
 
   function triggerGunshotReverbTail(gainScale) {
     const occl = currentInteriorFactor;
-    if (occl < 0.95) playSound('rifle_tail_out', { gain: gainScale * (1 - occl), jitter: 0.03 });
-    if (occl > 0.05) playSound('rifle_tail_in',  { gain: gainScale * occl, jitter: 0.03 });
+    if (occl < 0.95) playSound("rifle_tail_out", { gain: gainScale * (1 - occl), jitter: 0.03 });
+    if (occl > 0.05) playSound("rifle_tail_in", { gain: gainScale * occl, jitter: 0.03 });
     lastReverbTailTime = audioCtx.currentTime;
   }
 
@@ -3054,14 +4495,18 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
   const on = (evtName, handler) => {
     if (eventBus && eventBus.on) {
       eventBus.on(evtName, (payload) => {
-        try { handler(payload || {}); } catch (err) { console.error('[audio] event ' + evtName, err); }
+        try {
+          handler(payload || {});
+        } catch (err) {
+          console.error("[audio] event " + evtName, err);
+        }
       });
     }
   };
 
-  on('weapon:fire', () => {
+  on("weapon:fire", () => {
     rifleVariantCycler = (rifleVariantCycler + 1) & 3;
-    playSound('rifle_shot', { variant: rifleVariantCycler, gain: 1.0, jitter: 0.012 });
+    playSound("rifle_shot", { variant: rifleVariantCycler, gain: 1.0, jitter: 0.012 });
 
     const now = audioCtx.currentTime;
     lastGunshotTime = now;
@@ -3073,33 +4518,33 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
     }
   });
 
-  on('weapon:dry', () => playSound('rifle_dry', { gain: 0.9 }));
+  on("weapon:dry", () => playSound("rifle_dry", { gain: 0.9 }));
 
-  on('weapon:reload', (payload) => {
-    if (payload.phase === 'magout') playSound('reload_magout');
-    else if (payload.phase === 'magin') playSound('reload_magin');
-    else if (payload.phase === 'bolt') playSound('reload_bolt');
-    else if (payload.phase === 'start') playSound('jump', { gain: 0.5, pitch: 1.3 });
+  on("weapon:reload", (payload) => {
+    if (payload.phase === "magout") playSound("reload_magout");
+    else if (payload.phase === "magin") playSound("reload_magin");
+    else if (payload.phase === "bolt") playSound("reload_bolt");
+    else if (payload.phase === "start") playSound("jump", { gain: 0.5, pitch: 1.3 });
   });
 
-  on('weapon:melee', () => playSound('jump', { gain: 0.9, pitch: 1.2 }));
+  on("weapon:melee", () => playSound("jump", { gain: 0.9, pitch: 1.2 }));
 
-  on('shell:bounce', (payload) => {
+  on("shell:bounce", (payload) => {
     const now = audioCtx.currentTime;
     if (now - lastBounceTime < 0.04) return;
     lastBounceTime = now;
-    if (payload.surface === 'water') {
-      playSound('impact_water', { pos: formatVector(payload.pos), gain: 0.25, pitch: 1.7 });
+    if (payload.surface === "water") {
+      playSound("impact_water", { pos: formatVector(payload.pos), gain: 0.25, pitch: 1.7 });
     } else {
-      playSound('shell_bounce', {
+      playSound("shell_bounce", {
         pos: formatVector(payload.pos),
-        gain: payload.surface === 'metal' ? 1.0 : 0.8,
-        pitch: payload.surface === 'metal' ? 1.12 : 1.0
+        gain: payload.surface === "metal" ? 1.0 : 0.8,
+        pitch: payload.surface === "metal" ? 1.12 : 1.0,
       });
     }
   });
 
-  on('impact', (payload) => {
+  on("impact", (payload) => {
     const now = audioCtx.currentTime;
     if (now - lastImpactTime < 0.022) return;
     lastImpactTime = now;
@@ -3108,166 +4553,198 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
     const surfaceType = payload.surface;
 
     if (payload.enemy) {
-      playSound('impact_enemy', {
+      playSound("impact_enemy", {
         pos: hitPoint,
-        gain: payload.part === 'weak' ? 1.0 : 0.85,
-        pitch: payload.part === 'weak' ? 1.25 : 1.0
+        gain: payload.part === "weak" ? 1.0 : 0.85,
+        pitch: payload.part === "weak" ? 1.25 : 1.0,
       });
       return;
     }
 
     // 敌方子弹近失弹探测 (Near-Miss Bullet Whiz & Ricochet Detection)
-    if (payload.from === 'enemy' && hitPoint && payload.dir && typeof payload.dir.x === 'number' && now - lastWhizTime > 0.09) {
+    if (
+      payload.from === "enemy" &&
+      hitPoint &&
+      payload.dir &&
+      typeof payload.dir.x === "number" &&
+      now - lastWhizTime > 0.09
+    ) {
       const dir = payload.dir;
       const dirLenSq = dir.x * dir.x + dir.y * dir.y + dir.z * dir.z || 1;
-      const projDist = ((listenerPos.x - hitPoint.x) * dir.x + (listenerPos.y - hitPoint.y) * dir.y + (listenerPos.z - hitPoint.z) * dir.z) / dirLenSq;
+      const projDist =
+        ((listenerPos.x - hitPoint.x) * dir.x +
+          (listenerPos.y - hitPoint.y) * dir.y +
+          (listenerPos.z - hitPoint.z) * dir.z) /
+        dirLenSq;
 
       if (projDist > 0 && projDist < 30) {
         const closestX = hitPoint.x + dir.x * projDist;
         const closestY = hitPoint.y + dir.y * projDist;
         const closestZ = hitPoint.z + dir.z * projDist;
-        const earDist = Math.hypot(listenerPos.x - closestX, listenerPos.y - closestY, listenerPos.z - closestZ);
+        const earDist = Math.hypot(
+          listenerPos.x - closestX,
+          listenerPos.y - closestY,
+          listenerPos.z - closestZ,
+        );
 
         if (earDist < 3.5) {
           lastWhizTime = now;
           if (rand() < 0.45) {
-            playSound('ricochet', { pos: [closestX, closestY, closestZ], gain: clampNumber(1 - earDist / 3.5, 0.4, 1.0) });
+            playSound("ricochet", {
+              pos: [closestX, closestY, closestZ],
+              gain: clampNumber(1 - earDist / 3.5, 0.4, 1.0),
+            });
           } else {
-            playSound('whiz', { pos: [closestX, closestY, closestZ], gain: clampNumber(1 - earDist / 3.5, 0.5, 1.0) });
+            playSound("whiz", {
+              pos: [closestX, closestY, closestZ],
+              gain: clampNumber(1 - earDist / 3.5, 0.5, 1.0),
+            });
           }
         }
       }
     }
 
-    playSound('impact_concrete', { pos: hitPoint, surface: surfaceType });
+    playSound("impact_concrete", { pos: hitPoint, surface: surfaceType });
   });
 
-  on('player:step', (payload) => {
-    let surface = payload.surface || 'concrete';
+  on("player:step", (payload) => {
+    let surface = payload.surface || "concrete";
     try {
-      if (payload.pos && engineCtx.ground && engineCtx.ground.isPuddle && engineCtx.ground.isPuddle(payload.pos.x, payload.pos.z)) {
-        surface = 'water';
+      if (
+        payload.pos &&
+        engineCtx.ground &&
+        engineCtx.ground.isPuddle &&
+        engineCtx.ground.isPuddle(payload.pos.x, payload.pos.z)
+      ) {
+        surface = "water";
       }
     } catch {}
 
     const isSprint = !!payload.sprint;
-    playSound('step_concrete', {
+    playSound("step_concrete", {
       surface,
       gain: isSprint ? 0.95 : 0.65,
-      pitch: isSprint ? 1.05 : 1.0
+      pitch: isSprint ? 1.05 : 1.0,
     });
   });
 
-  on('player:jump', () => playSound('jump', { gain: 0.8 }));
+  on("player:jump", () => playSound("jump", { gain: 0.8 }));
 
-  on('player:land', (payload) => {
+  on("player:land", (payload) => {
     const gain = clampNumber(0.35 + (Math.abs(payload.speed) || 4.0) / 10, 0.35, 1.0);
-    playSound('land', { gain });
-    if (payload.surface === 'water') playSound('impact_water', { gain: gain * 0.7, pitch: 0.9 });
+    playSound("land", { gain });
+    if (payload.surface === "water") playSound("impact_water", { gain: gain * 0.7, pitch: 0.9 });
   });
 
-  on('player:hit', (payload) => {
+  on("player:hit", (payload) => {
     const dmg = +payload.amount || 10;
-    playSound('hurt', { gain: clampNumber(0.5 + dmg / 40, 0.5, 1.0), jitter: 0.05 });
+    playSound("hurt", { gain: clampNumber(0.5 + dmg / 40, 0.5, 1.0), jitter: 0.05 });
     if (dmg > 22 && audioCtx.currentTime - lastAlertTime > 2.0) {
       lastAlertTime = audioCtx.currentTime;
-      playSound('ear_ring', { gain: clampNumber(dmg / 60, 0.3, 0.8) });
+      playSound("ear_ring", { gain: clampNumber(dmg / 60, 0.3, 0.8) });
     }
     // 受到伤害时高频骤减 (耳鸣与闷音滤波)
     muffledHearingFactor = Math.min(1.0, muffledHearingFactor + 0.4 + dmg * 0.015);
     combatIntensityAccumulator = Math.min(1.0, combatIntensityAccumulator + 0.35);
   });
 
-  on('enemy:alert', (payload) => {
+  on("enemy:alert", (payload) => {
     const now = audioCtx.currentTime;
     if (now - lastAlertTime < 0.12) return;
     lastAlertTime = now;
     const enemy = payload.enemy || {};
-    playSound('alert', {
+    playSound("alert", {
       pos: formatVector(enemy.pos) || formatVector(payload.pos),
-      variant: enemy.type === 'hound' ? 1 : 0
+      variant: enemy.type === "hound" ? 1 : 0,
     });
     combatIntensityAccumulator = Math.min(1.0, combatIntensityAccumulator + 0.3);
   });
 
-  on('enemy:fire', (payload) => {
+  on("enemy:fire", (payload) => {
     const type = payload.type || (payload.enemy && payload.enemy.type);
     const pos = formatVector(payload.pos) || (payload.enemy && formatVector(payload.enemy.pos));
-    playSound(type === 'hound' ? 'hound_fire' : 'gull_fire', { pos });
+    playSound(type === "hound" ? "hound_fire" : "gull_fire", { pos });
     combatIntensityAccumulator = Math.min(1.0, combatIntensityAccumulator + 0.08);
   });
 
-  on('enemy:telegraph', (payload) => {
+  on("enemy:telegraph", (payload) => {
     const enemy = payload.enemy || {};
     const type = payload.type || enemy.type;
     const dur = clampNumber(+payload.time || 0.55, 0.15, 1.5);
-    playSound('telegraph', {
+    playSound("telegraph", {
       pos: formatVector(payload.pos) || formatVector(enemy.pos),
-      variant: type === 'hound' ? 1 : 0,
-      pitch: clampNumber(0.55 / dur, 0.6, 1.8)
+      variant: type === "hound" ? 1 : 0,
+      pitch: clampNumber(0.55 / dur, 0.6, 1.8),
     });
   });
 
-  on('enemy:step', (payload) => {
+  on("enemy:step", (payload) => {
     const pos = formatVector(payload.pos) || (payload.enemy && formatVector(payload.enemy.pos));
-    playSound('hound_step', { pos, gain: 1.0, pitch: payload.crash ? 0.75 : 1.0 });
+    playSound("hound_step", { pos, gain: 1.0, pitch: payload.crash ? 0.75 : 1.0 });
   });
 
-  on('enemy:killed', (payload) => {
+  on("enemy:killed", (payload) => {
     const enemy = payload.enemy;
     const type = payload.type || (enemy && enemy.type);
     const pos = formatVector(payload.pos) || (enemy && formatVector(enemy.pos));
     if (enemy) removeTrackedEnemy(enemy);
-    playSound(type === 'hound' ? 'hound_die' : 'gull_die', { pos, gain: 1.0 });
+    playSound(type === "hound" ? "hound_die" : "gull_die", { pos, gain: 1.0 });
   });
 
-  on('explosion', (payload) => {
+  on("explosion", (payload) => {
     const size = clampNumber(+payload.size || 1.0, 0.3, 3.0);
     const pos = formatVector(payload.pos);
-    playSound('explosion', { pos, gain: clampNumber(0.6 + size * 0.35, 0.6, 1.4), pitch: clampNumber(1.3 - size * 0.3, 0.6, 1.4) });
+    playSound("explosion", {
+      pos,
+      gain: clampNumber(0.6 + size * 0.35, 0.6, 1.4),
+      pitch: clampNumber(1.3 - size * 0.3, 0.6, 1.4),
+    });
 
     if (pos) {
       const dist = Math.hypot(pos.x - listenerPos.x, pos.y - listenerPos.y, pos.z - listenerPos.z);
-      muffledHearingFactor = Math.max(muffledHearingFactor, clampNumber(1 - (dist - 5) / 10, 0, 0.95));
-      if (dist < 18) playSound('ear_ring', { gain: clampNumber(1 - dist / 18, 0.2, 0.75) });
+      muffledHearingFactor = Math.max(
+        muffledHearingFactor,
+        clampNumber(1 - (dist - 5) / 10, 0, 0.95),
+      );
+      if (dist < 18) playSound("ear_ring", { gain: clampNumber(1 - dist / 18, 0.2, 0.75) });
     }
     combatIntensityAccumulator = Math.min(1.0, combatIntensityAccumulator + 0.45);
   });
 
-  on('objective:done', (payload) => {
+  on("objective:done", (payload) => {
     handleRelayHacked(payload);
-    playSound('objective', { gain: 1.0, jitter: 0 });
+    playSound("objective", { gain: 1.0, jitter: 0 });
     manualIntensity = 0.15;
   });
 
-  on('objective:all_done', () => {
-    playSound('objective_all', { gain: 1.0, jitter: 0 });
+  on("objective:all_done", () => {
+    playSound("objective_all", { gain: 1.0, jitter: 0 });
     manualIntensity = 0.8;
   });
 
-  on('extraction', () => {
+  on("extraction", () => {
     const now = audioCtx.currentTime;
     if (now - lastCompleteMusicTime > 6.0) {
       lastCompleteMusicTime = now;
-      playSound('complete', { gain: 1.0, jitter: 0 });
+      playSound("complete", { gain: 1.0, jitter: 0 });
     }
   });
 
-  on('thunder', (payload) => {
+  on("thunder", (payload) => {
     const intensity = clampNumber(payload.intensity != null ? +payload.intensity : 0.6, 0.1, 1.0);
-    playSound('thunder', { variant: intensity > 0.6 ? 1 : 0, gain: intensity });
+    playSound("thunder", { variant: intensity > 0.6 ? 1 : 0, gain: intensity });
   });
 
-  on('game:state', (payload) => {
+  on("game:state", (payload) => {
     const prevState = gameState;
     gameState = payload.state || gameState;
-    if (gameState === 'playing' && prevState !== 'paused') {
+    if (gameState === "playing" && prevState !== "paused") {
       combatIntensityAccumulator = 0;
       muffledHearingFactor = 0;
       resetRelayAudioNodes();
       for (const key of Object.keys(envLoops)) envLoops[key].setGain(1);
     }
-    if (gameState === 'title') {
+    if (gameState === "title") {
       resetRelayAudioNodes();
       manualIntensity = 0;
     }
@@ -3276,7 +4753,7 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
   // 10. 浏览器用户手势音频上下文恢复 (Resume on User Gesture)
   function resumeAudio() {
     isResumed = true;
-    if (audioCtx.state !== 'running' && audioCtx.state !== 'closed') {
+    if (audioCtx.state !== "running" && audioCtx.state !== "closed") {
       try {
         const p = audioCtx.resume();
         if (p && p.catch) p.catch(() => {});
@@ -3284,16 +4761,16 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
     }
   }
 
-  if (typeof window !== 'undefined' && !preheatedCache) {
+  if (typeof window !== "undefined" && !preheatedCache) {
     const unlockHandler = () => {
       resumeAudio();
       if (isAudioRunning()) {
-        for (const evt of ['pointerdown', 'keydown', 'touchend', 'mousedown']) {
+        for (const evt of ["pointerdown", "keydown", "touchend", "mousedown"]) {
           window.removeEventListener(evt, unlockHandler);
         }
       }
     };
-    for (const evt of ['pointerdown', 'keydown', 'touchend', 'mousedown']) {
+    for (const evt of ["pointerdown", "keydown", "touchend", "mousedown"]) {
       window.addEventListener(evt, unlockHandler, { passive: true });
     }
   }
@@ -3336,10 +4813,15 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
       for (let i = 0; i < interiorBoxes.length; i++) {
         const box = interiorBoxes[i];
         if (
-          box && box.min && box.max &&
-          listenerPos.x > box.min.x && listenerPos.x < box.max.x &&
-          listenerPos.y > box.min.y - 0.5 && listenerPos.y < box.max.y &&
-          listenerPos.z > box.min.z && listenerPos.z < box.max.z
+          box &&
+          box.min &&
+          box.max &&
+          listenerPos.x > box.min.x &&
+          listenerPos.x < box.max.x &&
+          listenerPos.y > box.min.y - 0.5 &&
+          listenerPos.y < box.max.y &&
+          listenerPos.z > box.min.z &&
+          listenerPos.z < box.max.z
         ) {
           isInside = 1;
           break;
@@ -3353,7 +4835,7 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
     // 3. 室内外混响与音景平滑衰减
     currentInteriorFactor += (targetInteriorFactor - currentInteriorFactor) * dampExp(3.0);
     outdoorReverbSendGain.gain.value = 1.0 - 0.9 * currentInteriorFactor;
-    indoorReverbSendGain.gain.value  = currentInteriorFactor;
+    indoorReverbSendGain.gain.value = currentInteriorFactor;
 
     if (!isAudioRunning()) return;
 
@@ -3364,17 +4846,21 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
       triggerGunshotReverbTail(0.9);
     }
 
-    const isActiveGameplay = gameState === 'playing' || gameState === 'intro';
+    const isActiveGameplay = gameState === "playing" || gameState === "intro";
     ambientMasterGain +=
-      ((isPaused ? 0 : gameState === 'title' ? 0.6 : gameState === 'dead' ? 0.7 : 1.0) - ambientMasterGain) *
+      ((isPaused ? 0 : gameState === "title" ? 0.6 : gameState === "dead" ? 0.7 : 1.0) -
+        ambientMasterGain) *
       dampExp(1.2);
 
     masterMuffleGain += ((isPaused ? 0 : 1.0) - masterMuffleGain) * dampExp(12.0);
     muffledPostGain.gain.value = masterMuffleGain;
 
     // 4. 受击耳鸣闷音低通滤波频率动态响应 (20000Hz -> 600Hz)
-    muffledHearingFactor += ((gameState === 'dead' ? 0.85 : 0) - muffledHearingFactor) * dampExp(gameState === 'dead' ? 3.0 : 0.9);
-    muffledLowpass.frequency.value = 20000 * Math.pow(0.03, clampNumber(muffledHearingFactor, 0, 1));
+    muffledHearingFactor +=
+      ((gameState === "dead" ? 0.85 : 0) - muffledHearingFactor) *
+      dampExp(gameState === "dead" ? 3.0 : 0.9);
+    muffledLowpass.frequency.value =
+      20000 * Math.pow(0.03, clampNumber(muffledHearingFactor, 0, 1));
     masterGain.gain.value = userVolume;
 
     // 5. 风力循环周期性突风调制 (Wind Gust Cycles)
@@ -3386,21 +4872,30 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
 
     envLoops.rain.setGain(ambientMasterGain * (1 - 0.93 * currentInteriorFactor) * 0.95);
     envLoops.rainIn.setGain(ambientMasterGain * currentInteriorFactor * 0.95);
-    envLoops.wind.setGain(ambientMasterGain * (0.3 + 0.7 * windGustCurrent) * (1 - 0.65 * currentInteriorFactor) * 0.75);
+    envLoops.wind.setGain(
+      ambientMasterGain * (0.3 + 0.7 * windGustCurrent) * (1 - 0.65 * currentInteriorFactor) * 0.75,
+    );
     envLoops.wind.setPitch(0.9 + 0.25 * windGustCurrent);
     envLoops.sea.setGain(ambientMasterGain * (1 - 0.5 * currentInteriorFactor) * 1.0);
     envLoops.sea.setPos([33, -1, clampNumber(listenerPos.z, -28, 26)]);
 
-    if (!isPaused && (isActiveGameplay || gameState === 'title' || gameState === 'complete')) {
-      updateAmbientStings(dt, gameState === 'title' ? 0.7 : 1.0);
+    if (!isPaused && (isActiveGameplay || gameState === "title" || gameState === "complete")) {
+      updateAmbientStings(dt, gameState === "title" ? 0.7 : 1.0);
     }
     if (!isPaused) updateNpcAudioTracking(dt);
 
     // 6. 交战强度自适应与音乐分轨渐变 (Combat Intensity Layer Fading)
-    combatIntensityAccumulator = Math.max(0, combatIntensityAccumulator - dt * (trackedEnemies.size ? 0.045 : 0.14));
-    const targetIntensity = isActiveGameplay || isPaused
-      ? Math.max(manualIntensity, audioManager.autoIntensity ? Math.max(0.15, combatIntensityAccumulator) : 0)
-      : 0;
+    combatIntensityAccumulator = Math.max(
+      0,
+      combatIntensityAccumulator - dt * (trackedEnemies.size ? 0.045 : 0.14),
+    );
+    const targetIntensity =
+      isActiveGameplay || isPaused
+        ? Math.max(
+            manualIntensity,
+            audioManager.autoIntensity ? Math.max(0.15, combatIntensityAccumulator) : 0,
+          )
+        : 0;
 
     currentMusicIntensity += (targetIntensity - currentMusicIntensity) * dampExp(2.0);
     musicDuckingTarget += (1.0 - musicDuckingTarget) * dampExp(3.5);
@@ -3443,7 +4938,7 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
       },
       emit(name, payload) {
         for (const cb of testEventMap.get(name) || []) cb(payload);
-      }
+      },
     };
 
     const mockCamMat = new Float32Array(16);
@@ -3451,9 +4946,9 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
     mockCamMat[13] = 1.7;
 
     const mockEnemies = [
-      { type: 'gull', alive: true, pos: { x: 6, y: 4, z: -9 } },
-      { type: 'hound', alive: true, pos: { x: -8, y: 0, z: -14 } },
-      { type: 'gull', alive: true, pos: { x: 0, y: 5, z: -30 } }
+      { type: "gull", alive: true, pos: { x: 6, y: 4, z: -9 } },
+      { type: "hound", alive: true, pos: { x: -8, y: 0, z: -14 } },
+      { type: "gull", alive: true, pos: { x: 0, y: 5, z: -30 } },
     ];
 
     const mockInteriorBox = { min: { x: -99, y: -9, z: -99 }, max: { x: 99, y: 99, z: 99 } };
@@ -3467,8 +4962,8 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
         interiorBoxes: testOptions.interior
           ? [mockInteriorBox]
           : [{ min: { x: 500, y: 0, z: 500 }, max: { x: 501, y: 1, z: 501 } }],
-        objectives: [{ id: 'A', pos: { x: 4, y: 0, z: 3 } }]
-      }
+        objectives: [{ id: "A", pos: { x: 4, y: 0, z: 3 } }],
+      },
     };
 
     const testAudioEngine = setupAudioGraph(mockEngineContext, offlineCtx, { bufs: bufferCache });
@@ -3477,37 +4972,57 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
 
     const triggerSimulatedEvents = (step) => {
       const t = step * stepDt;
-      if (step === 0) testEvents.emit('game:state', { state: 'playing' });
-      if (t < 3.0 && step % 23 === 0) testEvents.emit('player:step', { surface: 'concrete', sprint: false });
+      if (step === 0) testEvents.emit("game:state", { state: "playing" });
+      if (t < 3.0 && step % 23 === 0)
+        testEvents.emit("player:step", { surface: "concrete", sprint: false });
 
       if (step === 150) {
         for (const e of mockEnemies) {
           mockEngineContext.enemies.list.push(e);
-          testEvents.emit('enemy:spawn', { enemy: e });
+          testEvents.emit("enemy:spawn", { enemy: e });
         }
-        testEvents.emit('enemy:alert', { enemy: mockEnemies[0] });
+        testEvents.emit("enemy:alert", { enemy: mockEnemies[0] });
         testAudioEngine.setIntensity(1.0);
       }
 
       if (t >= 3.0 && t < 6.0) {
         if (step % 4 === 0 && (t < 4.2 || t > 4.8)) {
-          testEvents.emit('weapon:fire', {});
-          testEvents.emit('impact', { point: { x: 4, y: 1, z: -12 }, surface: step % 8 ? 'metal' : 'concrete', from: 'player' });
-          testEvents.emit('shell:bounce', { pos: { x: 0.6, y: 0, z: 0.2 }, surface: 'concrete' });
+          testEvents.emit("weapon:fire", {});
+          testEvents.emit("impact", {
+            point: { x: 4, y: 1, z: -12 },
+            surface: step % 8 ? "metal" : "concrete",
+            from: "player",
+          });
+          testEvents.emit("shell:bounce", { pos: { x: 0.6, y: 0, z: 0.2 }, surface: "concrete" });
         }
-        if (step % 13 === 0) testEvents.emit('enemy:fire', { enemy: mockEnemies[0], pos: mockEnemies[0].pos, type: 'gull' });
-        if (step % 17 === 0) testEvents.emit('enemy:fire', { enemy: mockEnemies[1], pos: mockEnemies[1].pos, type: 'hound' });
-        if (step % 25 === 0) testEvents.emit('enemy:step', { pos: mockEnemies[1].pos, type: 'hound' });
+        if (step % 13 === 0)
+          testEvents.emit("enemy:fire", {
+            enemy: mockEnemies[0],
+            pos: mockEnemies[0].pos,
+            type: "gull",
+          });
+        if (step % 17 === 0)
+          testEvents.emit("enemy:fire", {
+            enemy: mockEnemies[1],
+            pos: mockEnemies[1].pos,
+            type: "hound",
+          });
+        if (step % 25 === 0)
+          testEvents.emit("enemy:step", { pos: mockEnemies[1].pos, type: "hound" });
       }
 
-      if (step === 300) testEvents.emit('explosion', { pos: { x: 3, y: 0, z: -5 }, size: 1.5 });
-      if (step === 350) testEvents.emit('player:hit', { amount: 20 });
+      if (step === 300) testEvents.emit("explosion", { pos: { x: 3, y: 0, z: -5 }, size: 1.5 });
+      if (step === 350) testEvents.emit("player:hit", { amount: 20 });
       if (step === 360) {
         mockEnemies[0].alive = false;
-        testEvents.emit('enemy:killed', { enemy: mockEnemies[0], pos: mockEnemies[0].pos, type: 'gull' });
+        testEvents.emit("enemy:killed", {
+          enemy: mockEnemies[0],
+          pos: mockEnemies[0].pos,
+          type: "gull",
+        });
       }
       if (step === 400) {
-        testEvents.emit('objective:done', { id: 'A', index: 0, total: 3 });
+        testEvents.emit("objective:done", { id: "A", index: 0, total: 3 });
         testAudioEngine.setIntensity(0.15);
       }
     };
@@ -3536,7 +5051,7 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
       over: 0,
       nan: 0,
       rmsDb: [],
-      inst: testAudioEngine.debug()
+      inst: testAudioEngine.debug(),
     };
 
     const leftData = renderedBuffer.getChannelData(0);
@@ -3570,17 +5085,27 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
     update,
     ready: readyPromise,
     selfTest: runSelfTest,
-    setIntensity(val) { manualIntensity = clampNumber(+val || 0, 0, 1); },
-    setInterior(val) { targetInteriorFactor = clampNumber(+val || 0, 0, 1); },
+    setIntensity(val) {
+      manualIntensity = clampNumber(+val || 0, 0, 1);
+    },
+    setInterior(val) {
+      targetInteriorFactor = clampNumber(+val || 0, 0, 1);
+    },
     setVolume(val) {
       userVolume = clampNumber(+val, 0, 1);
       if (!Number.isFinite(userVolume)) userVolume = 0.9;
       masterGain.gain.value = userVolume;
     },
-    setPaused(val) { isPaused = !!val; },
+    setPaused(val) {
+      isPaused = !!val;
+    },
     names: Object.keys(SOUND_REGISTRY).filter((name) => !SOUND_REGISTRY[name].ir),
-    get intensity() { return currentMusicIntensity; },
-    get interior() { return currentInteriorFactor; },
+    get intensity() {
+      return currentMusicIntensity;
+    },
+    get interior() {
+      return currentInteriorFactor;
+    },
     debug() {
       let activeVoices = 0;
       const now = audioCtx.currentTime;
@@ -3603,9 +5128,9 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
         intensity: +currentMusicIntensity.toFixed(2),
         interior: +currentInteriorFactor.toFixed(2),
         gameState,
-        reverb: [!!outdoorConvolver.buffer, !!indoorConvolver.buffer]
+        reverb: [!!outdoorConvolver.buffer, !!indoorConvolver.buffer],
       };
-    }
+    },
   });
 }
 

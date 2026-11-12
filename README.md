@@ -13,7 +13,16 @@
 ├── 几猫国产3A大作_V1.html       # 原始单文件发行版（完整保留）
 ├── index.html                 # 现代开发调试入口页（引入 ESM 模块）
 ├── package.json               # NPM 依赖与构建脚本配置
-├── vite.config.js             # Vite 构建配置（支持 singlefile 单文件打包）
+├── vite.config.js             # Vite 构建配置（支持 singlefile 单文件打包与 @ 路径别名）
+├── eslint.config.js           # ESLint 9 Flat Config 代码规范基线
+├── .prettierrc.json           # Prettier 代码格式化配置
+├── .editorconfig              # 跨编辑器编码/缩进约定
+├── commitlint.config.js       # Conventional Commits 提交信息校验
+├── tsconfig.json              # 编辑器 TypeScript/JS 类型提示配置
+├── tsconfig.typecheck.json    # 核心模块严格类型检查配置
+├── .github/workflows/ci.yml   # GitHub Actions 质量门禁与 E2E 流水线
+├── CONTRIBUTING.md            # 协作流程、提交规范与质量门禁说明
+├── CHANGELOG.md               # 版本变更记录
 ├── README.md                  # 工程架构与逆向分析技术文档
 ├── scripts/                   # 逆向分析、提取与验证自动化工具
 │   ├── analyze_sections.py    # 模块切片与代码区段分析脚本
@@ -52,41 +61,77 @@
 ## 快速上手
 
 ### 1. 安装依赖
+
 ```bash
 npm install
 ```
 
 ### 2. 启动本地开发服务（热更新）
+
 ```bash
 npm run dev
 ```
+
 打开浏览器访问 `http://localhost:3000` 即可开始游玩与调试。
 
 ### 3. 构建单文件发行版
+
 ```bash
 npm run build
 ```
+
 构建产物输出在 `dist/index.html`，为一个完全内联独立的单个 HTML 文件，可在任何没有 Web 服务器的环境中双击直接运行！
+
+---
+
+## 工程化与质量门禁
+
+### 环境要求
+
+- Node.js >= 20（仓库提供 `.nvmrc`，可执行 `nvm use`）
+- npm >= 10
+
+### 常用脚本
+
+| 命令                   | 作用                                            |
+| :--------------------- | :---------------------------------------------- |
+| `npm run dev`          | 启动 Vite 热更新开发服务器                      |
+| `npm run build`        | 构建单文件发行版到 `dist/index.html`            |
+| `npm run lint`         | ESLint 静态检查                                 |
+| `npm run lint:fix`     | ESLint 自动修复                                 |
+| `npm run format`       | Prettier 全量格式化                             |
+| `npm run format:check` | 校验格式是否符合规范                            |
+| `npm run typecheck`    | 对核心模块执行 TypeScript/JSDoc 编译期检查      |
+| `npm test`             | Headless Chrome E2E 回归与截图                  |
+| `npm run check`        | 本地完整门禁：lint + format + typecheck + build |
+
+### 提交与 CI
+
+- **pre-commit**：通过 `lint-staged` 对暂存文件执行 ESLint 修复与 Prettier 格式化。
+- **commit-msg**：通过 `commitlint` 校验 Conventional Commits 格式，例如 `feat: 新增后处理泛光`。
+- **CI**：`.github/workflows/ci.yml` 在 push / PR 时依次执行 lint、format check、typecheck、build，并在独立 job 中运行 E2E 回归。
 
 ---
 
 ## 游戏控制与玩法
 
 ### 键盘与鼠标操作
-| 按键 | 功能 |
-| :--- | :--- |
-| **W / A / S / D** | 前进 / 左移 / 后退 / 右移 |
-| **鼠标移动** | 转动视角（点击画面进入准星锁定） |
-| **鼠标左键** | 开火射击（KR-7 制式步枪） |
-| **鼠标右键** | 精确瞄准（ADS 开镜） |
-| **R** | 更换弹匣 |
-| **Shift** | 快速冲刺 |
-| **Space** | 跳跃 |
-| **C** | 蹲伏 / 滑铲 |
-| **E** | 交互（切断/入侵港区安全中继器） |
-| **Esc** | 暂停菜单 / 呼出设置 |
+
+| 按键              | 功能                             |
+| :---------------- | :------------------------------- |
+| **W / A / S / D** | 前进 / 左移 / 后退 / 右移        |
+| **鼠标移动**      | 转动视角（点击画面进入准星锁定） |
+| **鼠标左键**      | 开火射击（KR-7 制式步枪）        |
+| **鼠标右键**      | 精确瞄准（ADS 开镜）             |
+| **R**             | 更换弹匣                         |
+| **Shift**         | 快速冲刺                         |
+| **Space**         | 跳跃                             |
+| **C**             | 蹲伏 / 滑铲                      |
+| **E**             | 交互（切断/入侵港区安全中继器）  |
+| **Esc**           | 暂停菜单 / 呼出设置              |
 
 ### 移动端触屏支持
+
 - **左侧半屏**：虚拟摇杆控制角色全向移动
 - **右侧半屏**：滑动控制视角瞄准
 - **虚拟屏幕按键**：开火、开镜、跳跃、换弹
@@ -98,9 +143,11 @@ npm run build
 游戏内置了丰富的调试和基准测试支持，可在 URL 后添加 Query 参数：
 
 1. **基准性能跑分模式**：
+
    ```
    http://localhost:3000/?bench=1
    ```
+
    自动禁用音频并进入轨道运镜测试，实时计算平均帧时间（Avg ms）、中位数、P99 延迟及 FPS 稳定性。
 
 2. **单模块隔离陈列室模式（Showcase Mode）**：
@@ -122,12 +169,15 @@ npm run build
 ## 核心系统架构分析
 
 ### 1. 零资源程序化生成（Procedural Asset Generation）
+
 整个游戏不依赖任何外部图片、GLTF 模型或音频文件：
+
 - **贴图合成**：利用 HTML5 2D Canvas 动态生成漫反射图与粗糙度蒙版，绘制出包括“几猫远洋”、“几猫北航”、“四号泊位”等中文集装箱箱标，以及 3 级易燃物、高压危险等警示标志。
 - **几何体构造**：通过自定义几何算法生成倒角集装箱壁波纹板、岸桥桁架、叉车车身管线。
 - **声效合成**：借助 Web Audio API 振荡器（OscillatorNode）、粉红噪声发生器和双二阶滤波器，实时计算生成枪击爆破声、弹壳清脆落地声、金属踩踏回音及环境海浪声。
 
 ### 2. 战术关卡与任务流
+
 - **目标设定**：港区安全主控失控，玩家需潜入四号泊位，依次入侵并切断分布在露天堆场、大型仓库与装卸码头的 3 处安全中继器。
 - **波次防御**：每切断一处中继器，警戒等级提升，激活机械增援波次（空中巡弋机械飞鸥 + 地面围攻机械猎犬）。
 - **撤离行动**：切断全部中继器后，撤离艇在码头南端舷梯到位，玩家登船即可完成封锁解除，并进入“行动简报”评级结算。
@@ -135,9 +185,11 @@ npm run build
 ---
 
 ### 4. 自动化回归测试 (Headless E2E Tests)
+
 ```bash
 npm test
 ```
+
 通过 Headless Chrome 与 Puppeteer 自动加载单文件发行版（`dist/index.html`）、原版 HTML 对比、Showcase 独立展示厅及战斗开火交互，并自动截取高清渲染画面输出至 `tests/artifacts/`。
 
 ---
@@ -156,4 +208,3 @@ npm test
 - **[8. 四号泊位港区关卡与工业场景建模 (docs/WIKI_LEVEL.md)](docs/WIKI_LEVEL.md)** — 四大战术分区尺度、36 种程序化工业道具库、ISO 6346 真实集装箱放样、钢结构仓库、深水码头岸壁与静态几何体合批。
 - **[9. 物理系统、港区世界与远景海洋环境 (docs/WIKI_PHYSICS_WORLD.md)](docs/WIKI_PHYSICS_WORLD.md)** — 极速 Slab 算法 AABB 光线投射、0.42m 台阶自动跨越扫掠胶囊体、142×124 障碍物膨胀二叉堆 A* 寻路与 Gerstner 风暴洋面波浪模拟。
 - **[10. 渲染管线与视觉特效引擎深度解密 (docs/WIKI_RENDER_FX.md)](docs/WIKI_RENDER_FX.md)** — 半精度 HDR 前向增强管线、SSAO 泊松采样、双重滤波 6 级泛光金字塔、AgX 胶片色调映射、4×2 纯程序化烟雾/火花/弹孔图集与粒子物理。
-

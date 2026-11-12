@@ -3,6 +3,7 @@ import * as THREE from "three";
 const { Vector3 } = THREE;
 
 import { Zn, sl, kn, Fo } from "./constants.js";
+import { disposeHierarchy } from "./geo.js";
 import { t, onLanguageChange } from "./i18n.js";
 import {
   createMenu,
@@ -180,6 +181,14 @@ function createGameManager(ctx) {
     debugCut() {
       const targetRelay = runState.relays.find((r) => !r.cut);
       if (targetRelay) cutRelay(targetRelay);
+    },
+    dispose() {
+      setGameState("disposed");
+      if (menu && typeof menu.dispose === "function") menu.dispose();
+      safeCall(ctx.enemies, "clear");
+      safeCall(ctx.fx, "clear");
+      safeCall(ctx.weapon, "reset");
+      if (ctx.scene) disposeHierarchy(ctx.scene);
     },
   };
 

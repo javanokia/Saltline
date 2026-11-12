@@ -460,6 +460,33 @@ export function createMeshWithShadows(geom, material, { cast = true, recv = true
   return mesh;
 }
 
+/**
+ * 递归释放三维节点树的所有几何体、材质与关联纹理显存资源
+ * @param {THREE.Object3D} root 待销毁的根节点
+ */
+export function disposeHierarchy(root) {
+  if (!root) return;
+  root.traverse((node) => {
+    const meshNode = /** @type {any} */ (node);
+    if (meshNode.geometry && typeof meshNode.geometry.dispose === "function") {
+      meshNode.geometry.dispose();
+    }
+    if (meshNode.material) {
+      const mats = Array.isArray(meshNode.material) ? meshNode.material : [meshNode.material];
+      for (const mat of mats) {
+        if (!mat) continue;
+        for (const key of Object.keys(mat)) {
+          const prop = mat[key];
+          if (prop && prop.isTexture && typeof prop.dispose === "function") {
+            prop.dispose();
+          }
+        }
+        if (typeof mat.dispose === "function") mat.dispose();
+      }
+    }
+  });
+}
+
 // ============================================================================
 // 四、 兼容别名导出 (Legacy Alias Exports)
 // ============================================================================

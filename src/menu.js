@@ -627,6 +627,11 @@ export function createMenu(ctx, callbacks) {
       if (fieldEl("rating")) fieldEl("rating").textContent = savedStats.rating;
     },
     applySettings,
+    dispose() {
+      if (rootEl && rootEl.parentNode) {
+        rootEl.parentNode.removeChild(rootEl);
+      }
+    },
   };
 
   syncSettingsUI();

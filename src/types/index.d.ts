@@ -303,6 +303,21 @@ export interface DebugSuite {
   destroy(): void;
 }
 
+export interface GameManager {
+  state: string;
+  flow: Record<string, any>;
+  run: Record<string, any>;
+  menus: any;
+  start(opts?: { skipIntro?: boolean; quick?: boolean }): void;
+  pause(): void;
+  resume(): void;
+  update(dt: number): boolean;
+  debugCut(): void;
+  dispose(): void;
+}
+
+export function disposeHierarchy(root: THREE.Object3D): void;
+
 export interface EngineContext {
   THREE: typeof THREE;
   params: Record<string, string>;
@@ -333,7 +348,7 @@ export interface EngineContext {
   weapon: WeaponState;
   enemies: any;
   hud: any;
-  game: any;
+  game: GameManager;
   debug?: DebugSuite;
   bench?: { frame(dt: number): void };
 }

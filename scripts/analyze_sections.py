@@ -1,0 +1,36 @@
+import re
+
+with open('几猫国产3A大作_V1.html', 'r', encoding='utf-8') as f:
+    c = f.read()
+
+sections = [
+    ('config_utils', 734207, 737678),
+    ('geo_utils', 737678, 745117),
+    ('render', 745117, 800772),
+    ('materials', 800772, 876808),
+    ('physics', 876808, 883672),
+    ('props', 883672, 1000933),
+    ('level', 1000933, 1046199),
+    ('backdrop', 1046199, 1099350),
+    ('ground', 1099350, 1139816),
+    ('fx', 1139816, 1227622),
+    ('audio', 1227622, 1249275),
+    ('input', 1249275, 1257725),
+    ('player', 1257725, 1264467),
+    ('combat', 1264467, 1266124),
+    ('weapon', 1266124, 1324207),
+    ('enemies', 1324207, 1379168),
+    ('hud', 1379168, 1402617),
+    ('game', 1402617, 1414377),
+    ('boot', 1414377, 1422098)
+]
+
+print("=== PROJECT MODULE BREAKDOWN ===")
+for name, s, e in sections:
+    chunk = c[s:e]
+    # Find br(...) if any
+    exports = re.findall(r'br\(([a-zA-Z0-9_$]+),\s*\{([^}]+)\}\)', chunk)
+    exp_str = ""
+    if exports:
+        exp_str = f"exports: {exports[0][1].replace('()=>', '').strip()}"
+    print(f"{name:15} | bytes: {len(chunk):7} | start: {s:7} | end: {e:7} | {exp_str}")

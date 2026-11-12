@@ -1,0 +1,22 @@
+{
+  "name": "jm-3a-game",
+  "version": "1.0.0",
+  "private": true,
+  "description": "几猫国产3A大作 - Fable 5.2 自主研发国产FPS第一人称射击游戏（逆向还原工程）",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node scripts/run_e2e_test.js"
+  },
+  "dependencies": {
+    "three": "0.180.0"
+  },
+  "devDependencies": {
+    "acorn": "^8.19.0",
+    "puppeteer-core": "^25.17.0",
+    "vite": "^6.2.0",
+    "vite-plugin-singlefile": "^2.1.0"
+  }
+}

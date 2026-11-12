@@ -15,9 +15,13 @@
   --line: rgba(232, 228, 218, 0.2);
   --plate: rgba(11, 13, 15, 0.6);
   --plate-solid: rgba(11, 13, 15, 0.9);
-  --f-display: "Big Shoulders Display", "Impact", "Haettenschweiler", "Arial Narrow", sans-serif;
-  --f-label: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
-  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --f-display:
+    "Big Shoulders Display", "Impact", "Haettenschweiler", "Arial Narrow", "PingFang SC",
+    "Microsoft YaHei", sans-serif;
+  --f-label:
+    "Barlow Condensed", "Arial Narrow", system-ui, -apple-system, "PingFang SC", "Microsoft YaHei",
+    sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, "PingFang SC", monospace;
   --sat: env(safe-area-inset-top, 0px);
   --sab: env(safe-area-inset-bottom, 0px);
   --sal: env(safe-area-inset-left, 0px);
@@ -1092,6 +1096,17 @@ body {
   color: var(--bone);
   white-space: nowrap;
   text-shadow: 0 2px 30px rgba(0, 0, 0, 0.35);
+}
+.m-word .m-subtitle {
+  display: inline-block;
+  font-family: var(--f-label);
+  font-size: 0.36em;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  vertical-align: middle;
+  margin-left: 0.25em;
+  color: var(--signal);
+  opacity: 0.95;
 }
 .m-premise {
   position: relative;

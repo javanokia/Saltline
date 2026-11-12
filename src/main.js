@@ -22,6 +22,7 @@
 import * as THREE from "three";
 import { Pi, Dy, il, zy, dr } from "./constants.js";
 import { Qi } from "./geo.js";
+import { initI18n, t, getLanguage } from "./i18n.js";
 
 // 导入全套解耦 ESM 核心系统
 import * as render from "./render.js";
@@ -94,7 +95,7 @@ function showFatalError(error) {
     fatalEl.id = "fatal";
     document.getElementById("app")?.appendChild(fatalEl);
   }
-  fatalEl.textContent = "Saltline could not start: " + errMsg;
+  fatalEl.textContent = t("boot.fatalPrefix") + errMsg;
 }
 
 // 捕获未处理的运行时异常
@@ -263,7 +264,7 @@ function createBenchmarkHUD(engineCtx) {
         const drawBufSize = engineCtx.renderer.getDrawingBufferSize(new THREE.Vector2());
 
         hudEl.textContent = [
-          `SALTLINE BENCH  t=${elapsedTime.toFixed(0)}s`,
+          `${t("bench.title")}  t=${elapsedTime.toFixed(0)}s`,
           `GPU: ${gpuRendererName}`,
           `buffer ${drawBufSize.x}x${drawBufSize.y}  quality ${engineCtx.quality.name}  dpr ${window.devicePixelRatio}`,
           `frame ms avg ${avg.toFixed(1)}  median ${median.toFixed(1)}  p99 ${p99.toFixed(1)}  => ${(1000 / avg).toFixed(0)} fps`,
@@ -285,6 +286,9 @@ export async function bootstrapEngine() {
     rawSearch = "?" + location.pathname.replace(/^\//, "");
   }
   const urlParams = Object.fromEntries(new URLSearchParams(rawSearch));
+  initI18n(urlParams.lang);
+  if (bootMsgEl) bootMsgEl.textContent = t("boot.sub");
+
   const isBenchmark = !!urlParams.bench || location.hash === "#bench";
   if (isBenchmark) {
     urlParams.noaudio = "1";
@@ -344,14 +348,14 @@ export async function bootstrapEngine() {
   }
 
   // 5. 按拓扑顺序依次异步拉起子系统
-  await updateBootProgress("Waking the renderer", 0.04);
+  await updateBootProgress(t("boot.step1"), 0.04);
   await loadModule("render", "render", () => render.create(engineCtx), true);
   engineCtx.renderer = engineCtx.render.renderer;
   engineCtx.scene = engineCtx.render.scene;
   engineCtx.camera = engineCtx.render.camera;
   engineCtx.viewCamera = engineCtx.render.viewCamera;
 
-  await updateBootProgress("Mixing paint, rust and rain", 0.12);
+  await updateBootProgress(t("boot.step2"), 0.12);
   await loadModule("mats", "materials", () => materials.create(engineCtx));
 
   engineCtx.physics = physics.create(engineCtx);
@@ -416,13 +420,13 @@ export async function bootstrapEngine() {
     }
   } else {
     // 主战役模式：拉起完整世界
-    await updateBootProgress("Stacking containers", 0.34);
+    await updateBootProgress(t("boot.step3"), 0.34);
     await loadModule("level", "level", () => level.create(engineCtx), true);
 
-    await updateBootProgress("Raising the cranes", 0.5);
+    await updateBootProgress(t("boot.step4"), 0.5);
     await loadModule("backdrop", "backdrop", () => backdrop.create(engineCtx));
 
-    await updateBootProgress("Flooding the apron", 0.58);
+    await updateBootProgress(t("boot.step5"), 0.58);
     await loadModule("ground", "ground", () => ground.create(engineCtx));
     if (engineCtx.ground.stub) {
       const fallbackGround = Qi(
@@ -435,10 +439,9 @@ export async function bootstrapEngine() {
 
     engineCtx.physics.build();
 
-    await updateBootProgress("Loading tracers and smoke", 0.66);
+    await updateBootProgress(t("boot.step6"), 0.66);
     await loadModule("fx", "fx", () => fx.create(engineCtx));
 
-    await updateBootProgress("Starting audio engine", 0.7);
     await loadModule("audio", "audio", () =>
       urlParams.noaudio ? dr.audio() : audio.create(engineCtx),
     );
@@ -446,10 +449,10 @@ export async function bootstrapEngine() {
     engineCtx.player = player.create(engineCtx);
     engineCtx.combat = combat.create(engineCtx);
 
-    await updateBootProgress("Checking the rifle", 0.74);
+    await updateBootProgress(t("boot.step7"), 0.74);
     await loadModule("weapon", "weapon", () => weapon.create(engineCtx));
 
-    await updateBootProgress("Waking the Harbormaster", 0.82);
+    await updateBootProgress(t("boot.step8"), 0.82);
     await loadModule("enemies", "enemies", () => enemies.create(engineCtx));
     await loadModule("hud", "hud", () => hud.create(engineCtx));
 
@@ -457,7 +460,7 @@ export async function bootstrapEngine() {
   }
 
   // 7. 首帧编译与着色器预热 (Shader Warm-up)
-  await updateBootProgress("Waiting for first light", 0.92);
+  await updateBootProgress(t("boot.step9"), 0.92);
   try {
     await engineCtx.render.onLevelReady();
   } catch (err) {
@@ -494,7 +497,7 @@ export async function bootstrapEngine() {
   // 挂载开发者可视化调试套件 (Debug Suite)
   engineCtx.debug = debug.create(engineCtx);
 
-  await updateBootProgress("Ready", 1.0);
+  await updateBootProgress(t("boot.stepReady"), 1.0);
   bootOverlayEl?.classList.add("done");
   setTimeout(() => {
     if (bootOverlayEl) bootOverlayEl.hidden = true;

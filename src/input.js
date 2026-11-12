@@ -5,6 +5,8 @@
  * ============================================================================
  */
 
+import { t, onLanguageChange } from "./i18n.js";
+
 // ============================================================================
 // 一、 按键映射配置与敏感度常量 (Keymap & Sensitivity)
 // ============================================================================
@@ -136,12 +138,12 @@ export function createInputManager(engineCtx) {
 
     describeMode() {
       return inputState.mode === "touch"
-        ? "Touch controls active"
+        ? t("hud.touchActive")
         : inputState.mode === "drag"
-          ? "Mouse capture unavailable — move the mouse to look, rest it at a screen edge to keep turning · click fires · arrows or IJKL also turn"
+          ? t("hud.dragNotice")
           : inputState.locked
-            ? "Mouse captured — Esc releases it"
-            : "Click the view to capture the mouse";
+            ? t("hud.mouseCaptured")
+            : t("hud.clickToCapture");
     },
   };
 
@@ -373,12 +375,12 @@ export function createInputManager(engineCtx) {
     root.className = "touch";
     root.innerHTML = `
       <div class="t-stick"><i class="t-ring"></i><i class="t-nub"></i></div>
-      <button class="t-btn t-fire" data-a="fire" aria-label="Fire"><span>FIRE</span></button>
-      <button class="t-btn t-ads" data-a="ads" aria-label="Aim"><span>AIM</span></button>
-      <button class="t-btn t-reload" data-a="reload" aria-label="Reload"><span>RLD</span></button>
-      <button class="t-btn t-jump" data-a="jump" aria-label="Jump"><span>JUMP</span></button>
-      <button class="t-btn t-interact" data-a="interact" aria-label="Interact"><span>USE</span></button>
-      <button class="t-btn t-pause" data-a="pause" aria-label="Pause"><span>PAUSE</span></button>
+      <button class="t-btn t-fire" data-a="fire" aria-label="${t("controls.kFire")}"><span>${t("touchBtns.fire")}</span></button>
+      <button class="t-btn t-ads" data-a="ads" aria-label="${t("controls.kAim")}"><span>${t("touchBtns.aim")}</span></button>
+      <button class="t-btn t-reload" data-a="reload" aria-label="${t("controls.kReload")}"><span>${t("touchBtns.reload")}</span></button>
+      <button class="t-btn t-jump" data-a="jump" aria-label="${t("controls.kJump")}"><span>${t("touchBtns.jump")}</span></button>
+      <button class="t-btn t-interact" data-a="interact" aria-label="${t("touchBtns.interact")}"><span>${t("touchBtns.interact")}</span></button>
+      <button class="t-btn t-pause" data-a="pause" aria-label="${t("controls.kPause")}"><span>${t("touchBtns.pause")}</span></button>
     `;
     uiContainer.appendChild(root);
 
@@ -396,6 +398,24 @@ export function createInputManager(engineCtx) {
         pause: sel(".t-pause"),
       },
     };
+
+    onLanguageChange(() => {
+      const labels = {
+        fire: { text: t("touchBtns.fire"), aria: t("controls.kFire") },
+        ads: { text: t("touchBtns.aim"), aria: t("controls.kAim") },
+        reload: { text: t("touchBtns.reload"), aria: t("controls.kReload") },
+        jump: { text: t("touchBtns.jump"), aria: t("controls.kJump") },
+        interact: { text: t("touchBtns.interact"), aria: t("touchBtns.interact") },
+        pause: { text: t("touchBtns.pause"), aria: t("controls.kPause") },
+      };
+      for (const act in labels) {
+        if (ui.btn[act]) {
+          const span = ui.btn[act].querySelector("span");
+          if (span) span.textContent = labels[act].text;
+          ui.btn[act].setAttribute("aria-label", labels[act].aria);
+        }
+      }
+    });
 
     for (const action in ui.btn) {
       const b = ui.btn[action];

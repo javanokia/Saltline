@@ -178,7 +178,12 @@ npm run build
    - `?show=ground`：独立检查湿滑地面与水洼倒影
    - `?show=fx`：独立检查粒子爆破与弹道特效
 
-3. **指定画质档位**：
+3. **版本国际化语言控制**：
+   - `?lang=zh`：强制以简体中文启动
+   - `?lang=en`：强制以英文启动
+   - 默认策略：若无 URL 参数，自动优先跟随玩家在系统设置中的偏好，其次跟随浏览器语言环境（`navigator.language`）。游戏中随时可在“设置 (Settings)”面板无缝一键实时切换。
+
+4. **指定画质档位**：
    ```
    http://localhost:3000/?q=ultra   # 可选：low / medium / high / ultra
    ```

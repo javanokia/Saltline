@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { t, onLanguageChange } from "./i18n.js";
 
 const { Vector3 } = THREE;
 
@@ -49,22 +50,33 @@ function createHUD(ctx) {
   const compassEl = createElement("div", "h-compass");
   const compassTapeEl = createElement("div", "h-tape");
 
-  // 生成刻度线与方向文字
-  let tapeHTML = "";
-  for (let deg = COMPASS_MIN_DEG; deg <= COMPASS_MAX_DEG; deg += 5) {
-    const leftPx = (deg - COMPASS_MIN_DEG) * COMPASS_PX_PER_DEGREE;
-    const normDeg = ((deg % 360) + 360) % 360;
-    const isCardinal = normDeg % 45 === 0;
-    const isMajor = normDeg % 15 === 0;
-
-    tapeHTML += `<i class="${isCardinal ? "mj" : isMajor ? "md" : "mn"}" style="left:${leftPx}px"></i>`;
-    if (isCardinal) {
-      tapeHTML += `<b class="${normDeg % 90 === 0 ? "card" : "ic"}" style="left:${leftPx}px">${CARDINAL_NAMES[normDeg]}</b>`;
-    } else if (isMajor) {
-      tapeHTML += `<b class="num" style="left:${leftPx}px">${String(normDeg).padStart(3, "0")}</b>`;
-    }
+  function getCardinalNames() {
+    const custom = t("hud.cardinals");
+    if (custom && typeof custom === "object") return custom;
+    return CARDINAL_NAMES;
   }
-  compassTapeEl.innerHTML = tapeHTML;
+
+  // 生成刻度线与方向文字
+  function renderTapeHTML() {
+    const cardinals = getCardinalNames();
+    let tapeHTML = "";
+    for (let deg = COMPASS_MIN_DEG; deg <= COMPASS_MAX_DEG; deg += 5) {
+      const leftPx = (deg - COMPASS_MIN_DEG) * COMPASS_PX_PER_DEGREE;
+      const normDeg = ((deg % 360) + 360) % 360;
+      const isCardinal = normDeg % 45 === 0;
+      const isMajor = normDeg % 15 === 0;
+
+      tapeHTML += `<i class="${isCardinal ? "mj" : isMajor ? "md" : "mn"}" style="left:${leftPx}px"></i>`;
+      if (isCardinal) {
+        tapeHTML += `<b class="${normDeg % 90 === 0 ? "card" : "ic"}" style="left:${leftPx}px">${cardinals[normDeg] || CARDINAL_NAMES[normDeg]}</b>`;
+      } else if (isMajor) {
+        tapeHTML += `<b class="num" style="left:${leftPx}px">${String(normDeg).padStart(3, "0")}</b>`;
+      }
+    }
+    return tapeHTML;
+  }
+
+  compassTapeEl.innerHTML = renderTapeHTML();
 
   const tapeWrapEl = createElement("div", "h-tape-wrap");
   tapeWrapEl.appendChild(compassTapeEl);
@@ -79,7 +91,7 @@ function createHUD(ctx) {
   const objEl = createElement(
     "div",
     "h-obj",
-    '<div class="h-k">Objective</div><div class="h-obj-t"></div><div class="h-relays"><span>Relays</span><i></i><i></i><i></i><b>0/3</b></div>',
+    `<div class="h-k">${t("hud.objective")}</div><div class="h-obj-t"></div><div class="h-relays"><span>${t("hud.relays")}</span><i></i><i></i><i></i><b>0/3</b></div>`,
   );
   const objTextEl = objEl.querySelector(".h-obj-t");
   const relaysContainer = objEl.querySelector(".h-relays");
@@ -145,7 +157,7 @@ function createHUD(ctx) {
   const healthEl = createElement(
     "div",
     "h-health",
-    '<div class="h-k">Vitals</div><div class="h-hp-row"><b class="h-hp-n">100</b><div class="h-hp-bar">' +
+    `<div class="h-k">${t("hud.vitals")}</div><div class="h-hp-row"><b class="h-hp-n">100</b><div class="h-hp-bar">` +
       "<i></i>".repeat(10) +
       "</div></div>",
   );
@@ -191,7 +203,7 @@ function createHUD(ctx) {
   const radioEl = createElement(
     "div",
     "comms",
-    '<span class="comms-who">Control</span><span class="comms-t"></span>',
+    `<span class="comms-who">${t("hud.control")}</span><span class="comms-t"></span>`,
   );
   radioEl.setAttribute("role", "status");
   radioEl.setAttribute("aria-live", "polite");
@@ -278,7 +290,7 @@ function createHUD(ctx) {
       !lastFeedItem.weak
     ) {
       lastFeedItem.weak = true;
-      lastFeedItem.el.innerHTML += "<em>Weak point</em>";
+      lastFeedItem.el.innerHTML += `<em>${t("hud.weakPoint")}</em>`;
     }
   });
 
@@ -287,7 +299,7 @@ function createHUD(ctx) {
     const typeName = String(
       (e && (e.type || (e.enemy && e.enemy.type))) || "machine",
     ).toUpperCase();
-    lastFeedItem = hudInterface.feed(`<b>${typeName}</b> destroyed`);
+    lastFeedItem = hudInterface.feed(`<b>${typeName}</b> ${t("hud.destroyed")}`);
     lastFeedFrame = ctx.time.frame;
   });
 
@@ -670,15 +682,15 @@ function createHUD(ctx) {
     const isLowAmmo = currentAmmo <= Math.ceil(magCapacity * 0.27);
     const cueMessage =
       weapon.state === "reloading"
-        ? "Reloading"
+        ? t("hud.reloading")
         : currentAmmo === 0
           ? reserveAmmo > 0
             ? ctx.input.touch
-              ? "Reload"
-              : "R — Reload"
-            : "Empty"
+              ? t("hud.reload")
+              : t("hud.rReload")
+            : t("hud.empty")
           : isLowAmmo
-            ? "Low ammo"
+            ? t("hud.lowAmmo")
             : "";
 
     if (cueMessage !== cache.cue) {
@@ -808,6 +820,23 @@ function createHUD(ctx) {
       }
     }
   }
+
+  onLanguageChange(() => {
+    compassTapeEl.innerHTML = renderTapeHTML();
+    cache.tapeX = 1e9;
+
+    const objK = objEl.querySelector(".h-k");
+    if (objK) objK.textContent = t("hud.objective");
+    const relaysSpan = relaysContainer.querySelector("span");
+    if (relaysSpan) relaysSpan.textContent = t("hud.relays");
+    const vitalsK = healthEl.querySelector(".h-k");
+    if (vitalsK) vitalsK.textContent = t("hud.vitals");
+    const radioWho = radioEl.querySelector(".comms-who");
+    if (radioWho) radioWho.textContent = t("hud.control");
+
+    cache.cue = null;
+    cache.promptText = null;
+  });
 
   onResize();
   return hudInterface;

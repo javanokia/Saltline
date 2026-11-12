@@ -3,6 +3,7 @@ import * as THREE from "three";
 const { Vector3 } = THREE;
 
 import { Pi, Pr, Zn, sl, kn, Fo } from "./constants.js";
+import { t, getLanguage, getLanguagePreference, setLanguage, onLanguageChange } from "./i18n.js";
 
 // ============================================================================
 // 1. 本地偏好设置系统 (User Settings & Local Storage Persistence)
@@ -11,6 +12,7 @@ import { Pi, Pr, Zn, sl, kn, Fo } from "./constants.js";
 const SETTINGS_STORAGE_KEY = "saltline.settings.v1";
 
 const DEFAULT_SETTINGS = {
+  lang: "auto",
   quality: "auto",
   sens: 1.0,
   invertY: false,
@@ -19,6 +21,7 @@ const DEFAULT_SETTINGS = {
 };
 
 const QUALITY_OPTIONS = ["low", "medium", "high", "ultra"];
+const LANG_OPTIONS = ["auto", "en", "zh"];
 
 /**
  * 从 localStorage 读取玩家设置 (含合法性边界校验)
@@ -28,6 +31,9 @@ function loadSettings() {
   try {
     const parsed = JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) || "null");
     if (parsed && typeof parsed === "object") {
+      if (parsed.lang && LANG_OPTIONS.includes(parsed.lang)) {
+        settings.lang = parsed.lang;
+      }
       if (parsed.quality === "auto" || QUALITY_OPTIONS.includes(parsed.quality)) {
         settings.quality = parsed.quality;
       }
@@ -55,34 +61,36 @@ function saveSettings(settings) {
   } catch (err) {}
 }
 
-// 键鼠操作说明 HTML 片段
-const KEYBOARD_CONTROLS_HTML = `
+function getKeyboardControlsHTML() {
+  return `
   <dl class="keys">
-    <div><dt>Move</dt><dd><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dd></div>
-    <div><dt>Look</dt><dd>Mouse</dd></div>
-    <div><dt>Fire</dt><dd>Left button</dd></div>
-    <div><dt>Aim</dt><dd>Right button</dd></div>
-    <div><dt>Reload</dt><dd><kbd>R</kbd></dd></div>
-    <div><dt>Cut relay</dt><dd>Hold <kbd>E</kbd></dd></div>
-    <div><dt>Jump</dt><dd><kbd>Space</kbd></dd></div>
-    <div><dt>Sprint</dt><dd><kbd>Shift</kbd></dd></div>
-    <div><dt>Crouch</dt><dd><kbd>C</kbd> or <kbd>Ctrl</kbd></dd></div>
-    <div><dt>Melee</dt><dd><kbd>F</kbd></dd></div>
-    <div><dt>Pause</dt><dd><kbd>Esc</kbd> or <kbd>P</kbd></dd></div>
+    <div><dt>${t("controls.kMove")}</dt><dd><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dd></div>
+    <div><dt>${t("controls.kLook")}</dt><dd>${t("controls.kLookDesc")}</dd></div>
+    <div><dt>${t("controls.kFire")}</dt><dd>${t("controls.kFireDesc")}</dd></div>
+    <div><dt>${t("controls.kAim")}</dt><dd>${t("controls.kAimDesc")}</dd></div>
+    <div><dt>${t("controls.kReload")}</dt><dd><kbd>R</kbd></dd></div>
+    <div><dt>${t("controls.kCutRelay")}</dt><dd>${t("controls.kCutRelayDesc")}</dd></div>
+    <div><dt>${t("controls.kJump")}</dt><dd><kbd>Space</kbd></dd></div>
+    <div><dt>${t("controls.kSprint")}</dt><dd><kbd>Shift</kbd></dd></div>
+    <div><dt>${t("controls.kCrouch")}</dt><dd>${t("controls.kCrouchDesc")}</dd></div>
+    <div><dt>${t("controls.kMelee")}</dt><dd><kbd>F</kbd></dd></div>
+    <div><dt>${t("controls.kPause")}</dt><dd>${t("controls.kPauseDesc")}</dd></div>
   </dl>`;
+}
 
-// 触屏操作说明 HTML 片段
-const TOUCH_CONTROLS_HTML = `
+function getTouchControlsHTML() {
+  return `
   <dl class="keys">
-    <div><dt>Move</dt><dd>Left thumb, anywhere</dd></div>
-    <div><dt>Look</dt><dd>Drag the right side</dd></div>
-    <div><dt>Fire</dt><dd>Hold FIRE, drag to track</dd></div>
-    <div><dt>Aim</dt><dd>AIM toggles</dd></div>
-    <div><dt>Reload</dt><dd>RLD</dd></div>
-    <div><dt>Jump</dt><dd>JUMP</dd></div>
-    <div><dt>Cut relay</dt><dd>Hold USE at a relay</dd></div>
-    <div><dt>Sprint</dt><dd>Push the stick fully forward</dd></div>
+    <div><dt>${t("controls.kMove")}</dt><dd>${t("controls.touchMove")}</dd></div>
+    <div><dt>${t("controls.kLook")}</dt><dd>${t("controls.touchLook")}</dd></div>
+    <div><dt>${t("controls.kFire")}</dt><dd>${t("controls.touchFire")}</dd></div>
+    <div><dt>${t("controls.kAim")}</dt><dd>${t("controls.touchAim")}</dd></div>
+    <div><dt>${t("controls.kReload")}</dt><dd>${t("controls.touchReload")}</dd></div>
+    <div><dt>${t("controls.kJump")}</dt><dd>${t("controls.touchJump")}</dd></div>
+    <div><dt>${t("controls.kCutRelay")}</dt><dd>${t("controls.touchCutRelay")}</dd></div>
+    <div><dt>${t("controls.kSprint")}</dt><dd>${t("controls.touchSprint")}</dd></div>
   </dl>`;
+}
 
 // ============================================================================
 // 2. 菜单与模态面板控制器 (Menu & Modal Screens Controller)
@@ -100,104 +108,131 @@ function createMenu(ctx, callbacks) {
   const menuContainer = document.createElement("div");
   menuContainer.className = "menu";
   menuContainer.dataset.screen = "none";
-  menuContainer.innerHTML = `
+
+  function renderMenuHTML() {
+    const subtitle = t("menu.subtitle");
+    const subHTML = subtitle ? ` <span class="m-subtitle">${subtitle}</span>` : "";
+
+    return `
     <div class="m-veil"></div>
     <div class="m-bars"><i></i><i></i></div>
 
-    <section class="m-screen m-title" data-s="title" aria-label="Saltline">
+    <section class="m-screen m-title" data-s="title" aria-label="${t("menu.title")}">
       <div class="m-title-main">
-        <div class="m-eyebrow"><span class="m-tag">B4</span><span>Port Authority Breach Unit</span><span class="m-dim">Saltline Terminal · 05:42</span></div>
-        <h1 class="m-word">SALTLINE</h1>
-        <p class="m-premise">The port’s security net has gone feral. Cut its three uplinks. Reach the boat.</p>
+        <div class="m-eyebrow"><span class="m-tag">${t("menu.eyebrowTag")}</span><span>${t("menu.eyebrowUnit")}</span><span class="m-dim">${t("menu.eyebrowLocation")}</span></div>
+        <h1 class="m-word">${t("menu.title")}${subHTML}</h1>
+        <p class="m-premise">${t("menu.premise")}</p>
         <div class="m-actions">
-          <button class="btn primary" data-act="deploy">Deploy</button>
-          <button class="btn" data-act="settings">Settings</button>
-          <button class="btn m-only-narrow" data-act="controls">Controls</button>
+          <button class="btn primary" data-act="deploy">${t("menu.deploy")}</button>
+          <button class="btn" data-act="settings">${t("menu.settings")}</button>
+          <button class="btn m-only-narrow" data-act="controls">${t("menu.controls")}</button>
         </div>
-        <p class="m-note">Every surface, machine and sound is generated in your browser. Nothing is downloaded.</p>
+        <p class="m-note">${t("menu.note")}</p>
       </div>
-      <aside class="m-legend" aria-label="Controls at a glance">
-        <div><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move</span><span><kbd>Mouse</kbd> Look</span><span><kbd>LMB</kbd> Fire</span><span><kbd>RMB</kbd> Aim</span><span><kbd>R</kbd> Reload</span></div>
-        <div><span><kbd>E</kbd> Cut relay</span><span><kbd>Space</kbd> Jump</span><span><kbd>Shift</kbd> Sprint</span><span><kbd>C</kbd> Crouch</span><span><kbd>Esc</kbd> Pause</span></div>
-        <div class="lg-touch"><em>Touch</em><span>Left thumb moves</span><span>Right thumb looks</span><span>Fire · Aim · Reload · Jump on screen</span></div>
+      <aside class="m-legend" aria-label="${t("menu.controlsGlance")}">
+        <div><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> ${t("controls.kMove")}</span><span><kbd>Mouse</kbd> ${t("controls.kLook")}</span><span><kbd>LMB</kbd> ${t("controls.kFire")}</span><span><kbd>RMB</kbd> ${t("controls.kAim")}</span><span><kbd>R</kbd> ${t("controls.kReload")}</span></div>
+        <div><span><kbd>E</kbd> ${t("controls.kCutRelay")}</span><span><kbd>Space</kbd> ${t("controls.kJump")}</span><span><kbd>Shift</kbd> ${t("controls.kSprint")}</span><span><kbd>C</kbd> ${t("controls.kCrouch")}</span><span><kbd>Esc</kbd> ${t("controls.kPause")}</span></div>
+        <div class="lg-touch"><em>${t("menu.touchLegend")}</em><span>${t("menu.touchLeft")}</span><span>${t("menu.touchRight")}</span><span>${t("menu.touchActions")}</span></div>
       </aside>
     </section>
 
-    <section class="m-screen m-card" data-s="paused" aria-label="Paused">
-      <div class="m-k">Operation on hold</div>
-      <h2 class="m-h">Paused</h2>
+    <section class="m-screen m-card" data-s="paused" aria-label="${t("menu.pausedTitle")}">
+      <div class="m-k">${t("menu.pausedK")}</div>
+      <h2 class="m-h">${t("menu.pausedTitle")}</h2>
       <p class="m-line" data-f="lookmode"></p>
       <div class="m-actions col">
-        <button class="btn primary" data-act="resume">Resume</button>
-        <button class="btn" data-act="settings">Settings</button>
-        <button class="btn" data-act="controls">Controls</button>
-        <button class="btn" data-act="restart">Restart mission</button>
+        <button class="btn primary" data-act="resume">${t("menu.resume")}</button>
+        <button class="btn" data-act="settings">${t("menu.settings")}</button>
+        <button class="btn" data-act="controls">${t("menu.controls")}</button>
+        <button class="btn" data-act="restart">${t("menu.restart")}</button>
       </div>
     </section>
 
-    <section class="m-screen m-card m-dead" data-s="dead" aria-label="Signal lost">
-      <div class="m-k">Breacher down</div>
-      <h2 class="m-h">Signal lost</h2>
-      <dl class="m-stats"><div><dt>Time survived</dt><dd data-f="dead-time">00:00</dd></div><div><dt>Relays cut</dt><dd data-f="dead-relays">0/3</dd></div></dl>
-      <div class="m-actions col"><button class="btn primary" data-act="retry">Retry</button></div>
+    <section class="m-screen m-card m-dead" data-s="dead" aria-label="${t("menu.deadTitle")}">
+      <div class="m-k">${t("menu.deadK")}</div>
+      <h2 class="m-h">${t("menu.deadTitle")}</h2>
+      <dl class="m-stats"><div><dt>${t("menu.timeSurvived")}</dt><dd data-f="dead-time">00:00</dd></div><div><dt>${t("menu.relaysCut")}</dt><dd data-f="dead-relays">0/3</dd></div></dl>
+      <div class="m-actions col"><button class="btn primary" data-act="retry">${t("menu.retry")}</button></div>
     </section>
 
-    <section class="m-screen m-card m-debrief" data-s="complete" aria-label="Debrief">
-      <div class="m-k">Berth 4 · Debrief</div>
-      <h2 class="m-h">Saltline is dark</h2>
-      <div class="m-rating"><span>Rating</span><b data-f="rating">Clean</b></div>
+    <section class="m-screen m-card m-debrief" data-s="complete" aria-label="${t("menu.debriefTitle")}">
+      <div class="m-k">${t("menu.debriefK")}</div>
+      <h2 class="m-h">${t("menu.debriefTitle")}</h2>
+      <div class="m-rating"><span>${t("menu.rating")}</span><b data-f="rating">Clean</b></div>
       <dl class="m-stats">
-        <div><dt>Time</dt><dd data-f="time">00:00</dd></div>
-        <div><dt>Accuracy</dt><dd data-f="acc">0%</dd></div>
-        <div><dt>Machines destroyed</dt><dd data-f="kills">0</dd></div>
-        <div><dt>Retries</dt><dd data-f="retries">0</dd></div>
+        <div><dt>${t("menu.time")}</dt><dd data-f="time">00:00</dd></div>
+        <div><dt>${t("menu.accuracy")}</dt><dd data-f="acc">0%</dd></div>
+        <div><dt>${t("menu.machinesDestroyed")}</dt><dd data-f="kills">0</dd></div>
+        <div><dt>${t("menu.retries")}</dt><dd data-f="retries">0</dd></div>
       </dl>
-      <div class="m-actions col"><button class="btn primary" data-act="redeploy">Redeploy</button></div>
+      <div class="m-actions col"><button class="btn primary" data-act="redeploy">${t("menu.redeploy")}</button></div>
     </section>
 
-    <div class="panel" role="dialog" aria-modal="true" aria-label="Settings and controls" tabindex="-1" hidden>
+    <div class="panel" role="dialog" aria-modal="true" aria-label="${t("settings.title")}" tabindex="-1" hidden>
       <header class="panel-h">
         <div class="tabs" role="tablist">
-          <button class="tab" role="tab" data-tab="settings" aria-selected="true">Settings</button>
-          <button class="tab" role="tab" data-tab="controls" aria-selected="false">Controls</button>
+          <button class="tab" role="tab" data-tab="settings" aria-selected="true">${t("settings.tabsSettings")}</button>
+          <button class="tab" role="tab" data-tab="controls" aria-selected="false">${t("settings.tabsControls")}</button>
         </div>
-        <button class="btn small" data-act="close-panel">Close</button>
+        <button class="btn small" data-act="close-panel">${t("settings.close")}</button>
       </header>
       <div class="panel-b" data-pane="settings">
-        <div class="row"><label id="l-q">Graphics quality</label>
+        <div class="row"><label id="l-lang">${t("settings.language")}</label>
+          <div class="seg" role="group" aria-labelledby="l-lang">
+            <button data-lang="auto" aria-pressed="false">${t("settings.langAuto")}</button>
+            <button data-lang="en" aria-pressed="false">English</button>
+            <button data-lang="zh" aria-pressed="false">中文</button>
+          </div>
+        </div>
+        <div class="row"><label id="l-q">${t("settings.graphicsQuality")}</label>
           <div class="seg" role="group" aria-labelledby="l-q">${QUALITY_OPTIONS.map((q) => `<button data-q="${q}" aria-pressed="false">${q}</button>`).join("")}</div></div>
-        <div class="row"><label for="s-sens">Mouse sensitivity</label><div class="slider"><input id="s-sens" type="range" min="0.2" max="3" step="0.05"><output data-o="sens"></output></div></div>
-        <div class="row"><label id="l-inv">Invert Y</label><button class="toggle" data-act="invert" aria-labelledby="l-inv" aria-pressed="false"><i></i><span>Off</span></button></div>
-        <div class="row"><label for="s-vol">Master volume</label><div class="slider"><input id="s-vol" type="range" min="0" max="100" step="1"><output data-o="vol"></output></div></div>
-        <div class="row"><label for="s-fov">Field of view</label><div class="slider"><input id="s-fov" type="range" min="60" max="95" step="1"><output data-o="fov"></output></div></div>
-        <div class="row" data-row="fs"><label id="l-fs">Display</label><button class="btn small" data-act="fullscreen" aria-labelledby="l-fs fs-t"><span id="fs-t">Enter fullscreen</span></button></div>
+        <div class="row"><label for="s-sens">${t("settings.mouseSensitivity")}</label><div class="slider"><input id="s-sens" type="range" min="0.2" max="3" step="0.05"><output data-o="sens"></output></div></div>
+        <div class="row"><label id="l-inv">${t("settings.invertY")}</label><button class="toggle" data-act="invert" aria-labelledby="l-inv" aria-pressed="false"><i></i><span>Off</span></button></div>
+        <div class="row"><label for="s-vol">${t("settings.masterVolume")}</label><div class="slider"><input id="s-vol" type="range" min="0" max="100" step="1"><output data-o="vol"></output></div></div>
+        <div class="row"><label for="s-fov">${t("settings.fieldOfView")}</label><div class="slider"><input id="s-fov" type="range" min="60" max="95" step="1"><output data-o="fov"></output></div></div>
+        <div class="row" data-row="fs"><label id="l-fs">${t("settings.display")}</label><button class="btn small" data-act="fullscreen" aria-labelledby="l-fs fs-t"><span id="fs-t">${t("settings.enterFullscreen")}</span></button></div>
         <p class="panel-note" data-f="qnote"></p>
       </div>
       <div class="panel-b" data-pane="controls" hidden>
-        <h3>Keyboard · Mouse</h3>${KEYBOARD_CONTROLS_HTML}
-        <p class="panel-note">If the browser will not capture the mouse, hold a mouse button and drag to look (left also fires, right also aims). Arrow keys or <kbd>I</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> turn, <kbd>Enter</kbd> fires.</p>
-        <h3>Touch</h3>${TOUCH_CONTROLS_HTML}
-        <h3>Gamepad</h3>
-        <p class="panel-note">Sticks move and look · RT fire · LT aim · A jump · B crouch · X reload · Y cut relay · L3 sprint · Start pause.</p>
+        <h3>${t("controls.keyboardMouse")}</h3>${getKeyboardControlsHTML()}
+        <p class="panel-note">${t("controls.mouseFallbackNote")}</p>
+        <h3>${t("controls.touch")}</h3>${getTouchControlsHTML()}
+        <h3>${t("controls.gamepad")}</h3>
+        <p class="panel-note">${t("controls.gamepadNote")}</p>
       </div>
     </div>
 
-    <div class="loc-card" aria-hidden="true"><i></i><b>Saltline Terminal · Berth 4 · 05:42</b><span>Port Authority Breach Unit — one breacher, no backup</span></div>
+    <div class="loc-card" aria-hidden="true"><i></i><b>${t("menu.locationCardTitle")}</b><span>${t("menu.locationCardSub")}</span></div>
   `;
+  }
+
+  menuContainer.innerHTML = renderMenuHTML();
   uiContainer.appendChild(menuContainer);
 
   const $ = (sel) => menuContainer.querySelector(sel);
   const $$ = (sel) => [...menuContainer.querySelectorAll(sel)];
-  const panelEl = $(".panel");
-  const locationCardEl = $(".loc-card");
+  let panelEl = $(".panel");
+  let locationCardEl = $(".loc-card");
   const fieldEl = (name) => menuContainer.querySelector(`[data-f="${name}"]`);
 
-  const sliderSens = $("#s-sens");
-  const sliderVol = $("#s-vol");
-  const sliderFov = $("#s-fov");
+  let sliderSens = $("#s-sens");
+  let sliderVol = $("#s-vol");
+  let sliderFov = $("#s-fov");
 
   let currentScreenName = "none";
   let lastFocusedElement = null;
+  let activeTabName = "settings";
+
+  const savedStats = {
+    lookmode: "",
+    deadTime: "00:00",
+    deadRelays: "0/3",
+    time: "00:00",
+    acc: "0%",
+    kills: "0",
+    retries: "0",
+    rating: "Clean",
+  };
 
   /**
    * 应用设置至游戏各个子系统
@@ -246,62 +281,126 @@ function createMenu(ctx, callbacks) {
   function syncSettingsUI() {
     const activeQuality =
       userSettings.quality === "auto" ? ctx.quality && ctx.quality.name : userSettings.quality;
-    for (const btn of $$(".seg button")) {
+    for (const btn of $$(".seg [data-q]")) {
       btn.setAttribute("aria-pressed", String(btn.dataset.q === activeQuality));
     }
-    sliderSens.value = userSettings.sens;
-    sliderVol.value = Math.round(userSettings.volume * 100);
-    sliderFov.value = userSettings.fov;
+    const currentLangPref = getLanguagePreference();
+    for (const btn of $$(".seg [data-lang]")) {
+      btn.setAttribute("aria-pressed", String(btn.dataset.lang === currentLangPref));
+    }
 
-    $('[data-o="sens"]').textContent = userSettings.sens.toFixed(2) + "×";
-    $('[data-o="vol"]').textContent = Math.round(userSettings.volume * 100) + "%";
-    $('[data-o="fov"]').textContent = Math.round(userSettings.fov) + "°";
+    if (sliderSens) {
+      sliderSens.value = userSettings.sens;
+      sliderVol.value = Math.round(userSettings.volume * 100);
+      sliderFov.value = userSettings.fov;
+    }
+
+    const oSens = $('[data-o="sens"]');
+    if (oSens) oSens.textContent = userSettings.sens.toFixed(2) + "×";
+    const oVol = $('[data-o="vol"]');
+    if (oVol) oVol.textContent = Math.round(userSettings.volume * 100) + "%";
+    const oFov = $('[data-o="fov"]');
+    if (oFov) oFov.textContent = Math.round(userSettings.fov) + "°";
 
     const invertBtn = $('[data-act="invert"]');
-    invertBtn.setAttribute("aria-pressed", String(userSettings.invertY));
-    invertBtn.querySelector("span").textContent = userSettings.invertY ? "On" : "Off";
+    if (invertBtn) {
+      invertBtn.setAttribute("aria-pressed", String(userSettings.invertY));
+      const sp = invertBtn.querySelector("span");
+      if (sp) sp.textContent = userSettings.invertY ? t("settings.on") : t("settings.off");
+    }
 
-    fieldEl("qnote").textContent =
-      userSettings.quality === "auto"
-        ? `Quality was picked for this device (${activeQuality || "default"}). Lower it if the frame rate struggles.`
-        : "Quality changes apply at once; shadows and reflections may take a moment to rebuild.";
+    const qnoteEl = fieldEl("qnote");
+    if (qnoteEl) {
+      qnoteEl.textContent =
+        userSettings.quality === "auto"
+          ? t("settings.qnoteAuto", { quality: activeQuality || "default" })
+          : t("settings.qnoteManual");
+    }
+
+    if (fsText) {
+      fsText.textContent = getFullscreenEl()
+        ? t("settings.exitFullscreen")
+        : t("settings.enterFullscreen");
+    }
   }
 
-  sliderSens.addEventListener("input", () => {
-    userSettings.sens = +sliderSens.value;
-    applySettings("sens");
-    syncSettingsUI();
-    saveSettings(userSettings);
-  });
+  function bindMenuDOM() {
+    panelEl = $(".panel");
+    locationCardEl = $(".loc-card");
+    sliderSens = $("#s-sens");
+    sliderVol = $("#s-vol");
+    sliderFov = $("#s-fov");
+    fsRow = $('[data-row="fs"]');
+    fsText = $("#fs-t");
 
-  sliderVol.addEventListener("input", () => {
-    userSettings.volume = +sliderVol.value / 100;
-    applySettings("volume");
-    syncSettingsUI();
-    saveSettings(userSettings);
-  });
+    if (
+      !appRoot ||
+      (!appRoot.requestFullscreen && !appRoot.webkitRequestFullscreen) ||
+      document.fullscreenEnabled === false
+    ) {
+      if (fsRow) fsRow.hidden = true;
+    }
 
-  sliderFov.addEventListener("input", () => {
-    userSettings.fov = +sliderFov.value;
-    applySettings("fov");
+    if (sliderSens) {
+      sliderSens.addEventListener("input", () => {
+        userSettings.sens = +sliderSens.value;
+        applySettings("sens");
+        syncSettingsUI();
+        saveSettings(userSettings);
+      });
+    }
+
+    if (sliderVol) {
+      sliderVol.addEventListener("input", () => {
+        userSettings.volume = +sliderVol.value / 100;
+        applySettings("volume");
+        syncSettingsUI();
+        saveSettings(userSettings);
+      });
+    }
+
+    if (sliderFov) {
+      sliderFov.addEventListener("input", () => {
+        userSettings.fov = +sliderFov.value;
+        applySettings("fov");
+        syncSettingsUI();
+        saveSettings(userSettings);
+      });
+    }
+  }
+
+  function restoreSavedStats() {
+    if (fieldEl("lookmode")) fieldEl("lookmode").textContent = savedStats.lookmode;
+    if (fieldEl("dead-time")) fieldEl("dead-time").textContent = savedStats.deadTime;
+    if (fieldEl("dead-relays")) fieldEl("dead-relays").textContent = savedStats.deadRelays;
+    if (fieldEl("time")) fieldEl("time").textContent = savedStats.time;
+    if (fieldEl("acc")) fieldEl("acc").textContent = savedStats.acc;
+    if (fieldEl("kills")) fieldEl("kills").textContent = savedStats.kills;
+    if (fieldEl("retries")) fieldEl("retries").textContent = savedStats.retries;
+    if (fieldEl("rating")) fieldEl("rating").textContent = savedStats.rating;
+  }
+
+  function rebuildMenuDOM() {
+    const wasPanelHidden = panelEl ? panelEl.hidden : true;
+    menuContainer.innerHTML = renderMenuHTML();
+    bindMenuDOM();
+    switchTab(activeTabName);
+    if (!wasPanelHidden && panelEl) {
+      panelEl.hidden = false;
+      menuContainer.classList.add("panel-open");
+    }
+    restoreSavedStats();
     syncSettingsUI();
-    saveSettings(userSettings);
-  });
+  }
 
   // 全屏模式控制
-  const fsRow = $('[data-row="fs"]');
-  const fsText = $("#fs-t");
+  let fsRow = $('[data-row="fs"]');
+  let fsText = $("#fs-t");
   const getFullscreenEl = () =>
     document.fullscreenElement || document.webkitFullscreenElement || null;
   const appRoot = document.getElementById("app") || document.documentElement;
 
-  if (
-    !appRoot ||
-    (!appRoot.requestFullscreen && !appRoot.webkitRequestFullscreen) ||
-    document.fullscreenEnabled === false
-  ) {
-    fsRow.hidden = true;
-  }
+  bindMenuDOM();
 
   function toggleFullscreen() {
     try {
@@ -312,15 +411,19 @@ function createMenu(ctx, callbacks) {
       const req = (appRoot.requestFullscreen || appRoot.webkitRequestFullscreen).call(appRoot);
       if (req && req.catch)
         req.catch(() => {
-          fsText.textContent = "Fullscreen is not available here";
+          if (fsText) fsText.textContent = t("settings.fullscreenUnavailable");
         });
     } catch (err) {
-      fsText.textContent = "Fullscreen is not available here";
+      if (fsText) fsText.textContent = t("settings.fullscreenUnavailable");
     }
   }
 
   const onFullscreenChange = () => {
-    fsText.textContent = getFullscreenEl() ? "Exit fullscreen" : "Enter fullscreen";
+    if (fsText) {
+      fsText.textContent = getFullscreenEl()
+        ? t("settings.exitFullscreen")
+        : t("settings.enterFullscreen");
+    }
   };
   document.addEventListener("fullscreenchange", onFullscreenChange);
   document.addEventListener("webkitfullscreenchange", onFullscreenChange);
@@ -358,6 +461,7 @@ function createMenu(ctx, callbacks) {
   }
 
   function switchTab(tabName) {
+    activeTabName = tabName;
     for (const tab of $$(".tab")) {
       tab.setAttribute("aria-selected", String(tab.dataset.tab === tabName));
     }
@@ -383,6 +487,15 @@ function createMenu(ctx, callbacks) {
     if (!btn || !menuContainer.contains(btn)) return;
 
     ctx.events.emit("ui:click", {});
+
+    if (btn.dataset.lang) {
+      const newLang = btn.dataset.lang;
+      userSettings.lang = newLang;
+      setLanguage(newLang);
+      saveSettings(userSettings);
+      rebuildMenuDOM();
+      return;
+    }
 
     if (btn.dataset.q) {
       userSettings.quality = btn.dataset.q;
@@ -444,6 +557,10 @@ function createMenu(ctx, callbacks) {
     }
   });
 
+  onLanguageChange(() => {
+    rebuildMenuDOM();
+  });
+
   const formatSeconds = (sec) => {
     sec = Math.max(0, Math.floor(sec));
     return String(Math.floor(sec / 60)).padStart(2, "0") + ":" + String(sec % 60).padStart(2, "0");
@@ -478,18 +595,26 @@ function createMenu(ctx, callbacks) {
       locationCardEl.classList.toggle("on", !!show);
     },
     setLookMode(text) {
-      fieldEl("lookmode").textContent = text || "";
+      savedStats.lookmode = text || "";
+      if (fieldEl("lookmode")) fieldEl("lookmode").textContent = savedStats.lookmode;
     },
     setDead({ time, relays, total }) {
-      fieldEl("dead-time").textContent = formatSeconds(time);
-      fieldEl("dead-relays").textContent = `${relays}/${total}`;
+      savedStats.deadTime = formatSeconds(time);
+      savedStats.deadRelays = `${relays}/${total}`;
+      if (fieldEl("dead-time")) fieldEl("dead-time").textContent = savedStats.deadTime;
+      if (fieldEl("dead-relays")) fieldEl("dead-relays").textContent = savedStats.deadRelays;
     },
     setDebrief({ time, accuracy, kills, retries, rating }) {
-      fieldEl("time").textContent = formatSeconds(time);
-      fieldEl("acc").textContent = accuracy == null ? "—" : Math.round(accuracy * 100) + "%";
-      fieldEl("kills").textContent = String(kills);
-      fieldEl("retries").textContent = String(retries);
-      fieldEl("rating").textContent = rating;
+      savedStats.time = formatSeconds(time);
+      savedStats.acc = accuracy == null ? "—" : Math.round(accuracy * 100) + "%";
+      savedStats.kills = String(kills);
+      savedStats.retries = String(retries);
+      savedStats.rating = rating;
+      if (fieldEl("time")) fieldEl("time").textContent = savedStats.time;
+      if (fieldEl("acc")) fieldEl("acc").textContent = savedStats.acc;
+      if (fieldEl("kills")) fieldEl("kills").textContent = savedStats.kills;
+      if (fieldEl("retries")) fieldEl("retries").textContent = savedStats.retries;
+      if (fieldEl("rating")) fieldEl("rating").textContent = savedStats.rating;
     },
     applySettings,
   };
@@ -524,7 +649,7 @@ const GAME_CONFIG = {
   titleFov: 50,
 };
 
-const DIRECTIONS = [
+const DEFAULT_DIRECTIONS = [
   "NORTH",
   "NORTH-EAST",
   "EAST",
@@ -535,17 +660,27 @@ const DIRECTIONS = [
   "NORTH-WEST",
 ];
 
+const DIRECTIONS = DEFAULT_DIRECTIONS;
+
 const RADIO_MESSAGES = {
-  intro:
-    "Breacher, this is Control. The Harbormaster holds the berth. Cut its three uplinks — yard, shed, quay.",
-  contact: "It has seen you. Gulls fly, Hounds walk. Put them down.",
-  cut: [
-    "One relay dark. It felt that — machines inbound.",
-    "Two dark. It is throwing everything it has left at you.",
-  ],
-  all: "All three dark. The boat is holding at the quay ladder, south end. Run.",
-  low: "You are hit hard. Get behind steel and breathe.",
-  done: "Breacher is aboard. Saltline is dark. Good work.",
+  get intro() {
+    return t("radio.intro");
+  },
+  get contact() {
+    return t("radio.contact");
+  },
+  get cut() {
+    return [t("radio.cut1"), t("radio.cut2")];
+  },
+  get all() {
+    return t("radio.all");
+  },
+  get low() {
+    return t("radio.low");
+  },
+  get done() {
+    return t("radio.done");
+  },
 };
 
 // ============================================================================
@@ -837,7 +972,7 @@ function createGameManager(ctx) {
       .map((r) => ({
         id: r.id,
         short: r.short,
-        label: r.o.label || "Relay " + r.short,
+        label: t("hud.relayMarker", { short: r.short }),
         pos: r.o.pos,
         kind: "relay",
       }));
@@ -846,7 +981,7 @@ function createGameManager(ctx) {
       markers.push({
         id: "extract",
         short: "EX",
-        label: "Boat",
+        label: t("hud.boatMarker"),
         pos: level.extraction.pos,
         kind: "extract",
       });
@@ -894,13 +1029,13 @@ function createGameManager(ctx) {
   }
 
   function getObjectiveText() {
-    if (runState.allCut) return "Get to the boat";
+    if (runState.allCut) return t("hud.objGetToBoat");
     const remaining = runState.relays.length - runState.cut;
     return runState.cut === 0
-      ? "Cut the three uplink relays"
+      ? t("hud.objCutThree")
       : remaining === 1
-        ? "Cut the last relay"
-        : `Cut the remaining ${remaining} relays`;
+        ? t("hud.objCutLast")
+        : t("hud.objCutRemaining", { n: remaining });
   }
 
   function syncMouseLookNotice(force) {
@@ -1112,11 +1247,14 @@ function createGameManager(ctx) {
 
     runState.waveHot = 30;
     const avgBearingDeg = ((Math.atan2(sumDeltaX, -sumDeltaZ) * 180) / Math.PI + 360) % 360;
-    const directionName = DIRECTIONS[Math.round(avgBearingDeg / 45) % 8];
+    const dirList = t("hud.directions");
+    const directions = Array.isArray(dirList) ? dirList : DIRECTIONS;
+    const directionName = directions[Math.round(avgBearingDeg / 45) % 8];
+    const warnMsg = t("hud.contactAlert", { dir: directionName });
     if (hud.warn) {
-      hud.warn("Contact — " + directionName, 3.4);
+      hud.warn(warnMsg, 3.4);
     } else if (hud.warning) {
-      hud.warning("Contact — " + directionName, 3.4);
+      hud.warning(warnMsg, 3.4);
     }
   }
 
@@ -1211,7 +1349,7 @@ function createGameManager(ctx) {
   });
 
   ctx.events.on("player:rescued", () => {
-    if (gameStateController.state === "playing") hud.message("Hauled out of the water", 2.5);
+    if (gameStateController.state === "playing") hud.message(t("hud.hauledOutOfWater"), 2.5);
   });
 
   // 寻找玩家正前方可交互的未切断中继站
@@ -1271,7 +1409,8 @@ function createGameManager(ctx) {
     }
 
     if (targetRelay && !targetRelay.cut) {
-      if (hud.setPrompt) hud.setPrompt("Cut relay " + targetRelay.short, Fo(targetRelay.t));
+      if (hud.setPrompt)
+        hud.setPrompt(t("hud.cutRelayLabel", { short: targetRelay.short }), Fo(targetRelay.t));
     } else {
       if (hud.setPrompt) hud.setPrompt(null);
     }
@@ -1287,7 +1426,7 @@ function createGameManager(ctx) {
         completeMission();
       } else if (isInsideEvacZone && !runState.allCut && runState.extractHint <= 0) {
         runState.extractHint = 8;
-        hud.message("Relays still live — the boat will not wait under fire", 3.5);
+        hud.message(t("hud.relaysLiveHint"), 3.5);
       }
       runState.extractHint = Math.max(0, runState.extractHint - dt);
     }
@@ -1353,7 +1492,12 @@ function createGameManager(ctx) {
     const accScore = accuracy >= 0.5 ? 2 : accuracy >= 0.3 ? 1 : 0;
     const retryScore = runState.retries === 0 ? 1 : 0;
     const totalScore = timeScore + accScore + retryScore;
-    const ratingTitle = ["Messy", "Loud", "Steady", "Clean", "Sharp", "Surgical"][totalScore];
+    const ratingList = t("ratings");
+    const ratingTitle = (
+      Array.isArray(ratingList)
+        ? ratingList
+        : ["Messy", "Loud", "Steady", "Clean", "Sharp", "Surgical"]
+    )[totalScore];
 
     menu.setDebrief({
       time: runState.time,
@@ -1499,6 +1643,14 @@ function createGameManager(ctx) {
   if (!ctx.params.shot && !ctx.params.autostart) {
     menu.show("title");
   }
+
+  onLanguageChange(() => {
+    if (gameStateController.state === "playing" || gameStateController.state === "paused") {
+      hud.setObjective(getObjectiveText());
+      syncHudMarkers();
+      syncMouseLookNotice(true);
+    }
+  });
 
   return gameStateController;
 }

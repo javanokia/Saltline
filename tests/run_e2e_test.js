@@ -298,6 +298,103 @@ async function runTest() {
 
       await page.close();
     }
+
+    // --------------------------------------------------------------------------
+    // 【测试用例 5】: 版本国际化 (i18n) 双语系统及实时切换验证
+    // --------------------------------------------------------------------------
+    {
+      console.log("\n----------------------------------------------------------------");
+      console.log("【测试用例 5】: 版本国际化 (i18n) 简体中文与英文及动态切换验证");
+      console.log("----------------------------------------------------------------");
+
+      const page = await browser.newPage();
+      await page.setViewport({ width: 1280, height: 720 });
+
+      // 1. 测试 URL ?lang=zh 模式
+      const zhUrl = `${BASE_URL}/dist/index.html?lang=zh&noaudio=1`;
+      console.log(`正在访问: ${zhUrl}`);
+      await page.goto(zhUrl, { waitUntil: "load", timeout: 30000 });
+      await page.waitForFunction(() => window.__ready === true, { timeout: 15000 });
+      await sleep(500);
+
+      const zhInfo = await page.evaluate(() => {
+        const deployBtn = document.querySelector('.m-title button[data-act="deploy"]');
+        const settingsBtn = document.querySelector('.m-title button[data-act="settings"]');
+        const subtitle = document.querySelector(".m-word .m-subtitle");
+        return {
+          lang: document.documentElement.lang,
+          deployText: deployBtn ? deployBtn.textContent.trim() : "",
+          settingsText: settingsBtn ? settingsBtn.textContent.trim() : "",
+          subtitleText: subtitle ? subtitle.textContent.trim() : "",
+        };
+      });
+
+      console.log(
+        `- 中文模式检测: lang=${zhInfo.lang}, 开始按钮='${zhInfo.deployText}', 副标题='${zhInfo.subtitleText}'`,
+      );
+
+      const screenshotZh = path.join(ARTIFACTS_DIR, "i18n_title_zh.png");
+      await page.screenshot({ path: screenshotZh });
+      console.log(`📸 中文主菜单截图: ${screenshotZh}`);
+
+      const zhSuccess =
+        zhInfo.lang === "zh" && zhInfo.deployText === "开始行动" && zhInfo.subtitleText === "盐线";
+
+      if (zhSuccess) {
+        console.log("✅ 中文界面初始化与文本渲染验证通过");
+      } else {
+        console.error("❌ 中文界面初始化文本与预期不符:", zhInfo);
+        hasFailures = true;
+      }
+
+      // 2. 模拟打开设置面板并动态切换为英文 (en)
+      await page.click('.m-title button[data-act="settings"]');
+      await sleep(300);
+
+      // 点击 English 按钮
+      await page.click('.panel-b[data-pane="settings"] button[data-lang="en"]');
+      await sleep(400);
+
+      // 关闭设置面板
+      await page.click('.panel-h button[data-act="close-panel"]');
+      await sleep(300);
+
+      const enInfo = await page.evaluate(() => {
+        const deployBtn = document.querySelector('.m-title button[data-act="deploy"]');
+        const settingsBtn = document.querySelector('.m-title button[data-act="settings"]');
+        const subtitle = document.querySelector(".m-word .m-subtitle");
+        return {
+          lang: document.documentElement.lang,
+          deployText: deployBtn ? deployBtn.textContent.trim() : "",
+          settingsText: settingsBtn ? settingsBtn.textContent.trim() : "",
+          hasSubtitle: !!subtitle,
+        };
+      });
+
+      console.log(`- 动态切至英文检测: lang=${enInfo.lang}, 开始按钮='${enInfo.deployText}'`);
+
+      const screenshotEn = path.join(ARTIFACTS_DIR, "i18n_title_en.png");
+      await page.screenshot({ path: screenshotEn });
+      console.log(`📸 英文主菜单截图: ${screenshotEn}`);
+
+      const enSuccess =
+        enInfo.lang === "en" &&
+        enInfo.deployText === "Deploy" &&
+        enInfo.settingsText === "Settings";
+
+      if (enSuccess) {
+        console.log("✅ 设置面板动态无缝切换为英文验证通过");
+      } else {
+        console.error("❌ 设置面板动态切换为英文与预期不符:", enInfo);
+        hasFailures = true;
+      }
+
+      if (zhSuccess && enSuccess) {
+        console.log("🎉 【测试用例 5 通过】: 国际化双语系统在单文件构建中表现完美！");
+      }
+
+      await page.close();
+    }
   } finally {
     if (browser) await browser.close();
     await testServer.close();

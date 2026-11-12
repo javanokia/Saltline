@@ -624,7 +624,7 @@ var fC = (i, e, t, n, s) => [
     [i, e + s],
   ],
   mi = {
-    name: "几猫九式突击步枪",
+    name: "PAC-9 Longshore",
     muzzle: [0, 0, -0.531],
     eject: [0.023, 0.004, -0.028],
     sightY: 0.069,
@@ -2372,30 +2372,32 @@ function TC() {
         (e.textAlign = /** @type {CanvasTextAlign} */ (d)),
         e.fillText(h, d === "left" ? v + 2 : v + x / 2, g + y / 2 + 1, x - 4));
     },
-    n = '"PingFang SC", "PingFang SC", Arial, sans-serif',
-    s = '"PingFang SC", "PingFang SC", monospace',
-    o = '"PingFang SC", "PingFang SC", Impact, sans-serif',
+    n = '"Barlow Condensed", "Arial Narrow", Arial, sans-serif',
+    s = '"IBM Plex Mono", "Courier New", monospace',
+    o = '"Big Shoulders Display", "Barlow Condensed", Impact, sans-serif',
     r = "rgba(196,198,194,0.92)";
   (t("model", "PAC-9", `700 78px ${o}`, r),
-    t("maker", "几猫兵工厂 · 港区装备", `600 30px ${n}`, r),
+    t("maker", "LONGSHORE ARMS WORKS  ·  SALTLINE", `600 30px ${n}`, r),
     t("cal", "CAL 5.8\xD740   SN PA-004217", `500 27px ${s}`, r),
-    t("prop", "港务局装备 · 四号泊位武器库", `600 28px ${n}`, r),
+    t("prop", "PROPERTY OF PORT AUTHORITY — BERTH 4 ARMOURY", `600 28px ${n}`, r),
     t("safe", "S", `700 30px ${n}`, r, "center"),
     t("semi", "1", `700 30px ${n}`, r, "center"),
     t("auto", "A", `700 30px ${n}`, "rgba(205,60,40,0.95)", "center"),
     t("rack", "B4-07", `800 104px ${o}`, "rgba(214,206,170,0.9)", "center"));
   for (let u of [2, 4, 6, 8, 10, 12])
     t("r" + u, "T" + u, `600 30px ${s}`, "rgba(190,192,188,0.85)", "center");
-  (t("optic", "HX-2 反射瞄具", `700 44px ${n}`, r, "center"),
+  (t("optic", "HX-2 REFLEX", `700 44px ${n}`, r, "center"),
     t("light", "900 LM  IPX8", `600 40px ${n}`, r, "center"));
   {
     let [u, h] = hm.warn;
     ((e.fillStyle = r),
       (e.textAlign = "left"),
       (e.font = `600 24px ${n}`),
-      ["警告：存放前必须清空弹膛", "仅限授权突击队员使用", "港务安全规程 44/7"].forEach((f, p) =>
-        e.fillText(f, u + 2, h + 20 + p * 34),
-      ));
+      [
+        "WARNING — CLEAR CHAMBER BEFORE",
+        "STOWAGE. AUTHORISED BREACH",
+        "PERSONNEL ONLY. PA-REG 44/7",
+      ].forEach((f, p) => e.fillText(f, u + 2, h + 20 + p * 34)));
   }
   {
     let [u, h, f, p] = hm.dots;

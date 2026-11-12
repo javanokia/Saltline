@@ -58,30 +58,30 @@ function saveSettings(settings) {
 // 键鼠操作说明 HTML 片段
 const KEYBOARD_CONTROLS_HTML = `
   <dl class="keys">
-    <div><dt>移动</dt><dd><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dd></div>
-    <div><dt>视角</dt><dd>鼠标</dd></div>
-    <div><dt>开火</dt><dd>鼠标左键</dd></div>
-    <div><dt>瞄准</dt><dd>鼠标右键</dd></div>
-    <div><dt>换弹</dt><dd><kbd>R</kbd></dd></div>
-    <div><dt>切断中继</dt><dd>按住 <kbd>E</kbd></dd></div>
-    <div><dt>跳跃</dt><dd><kbd>Space</kbd></dd></div>
-    <div><dt>冲刺</dt><dd><kbd>Shift</kbd></dd></div>
-    <div><dt>蹲伏</dt><dd><kbd>C</kbd> 或 <kbd>Ctrl</kbd></dd></div>
-    <div><dt>近战</dt><dd><kbd>F</kbd></dd></div>
-    <div><dt>暂停</dt><dd><kbd>Esc</kbd> 或 <kbd>P</kbd></dd></div>
+    <div><dt>Move</dt><dd><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dd></div>
+    <div><dt>Look</dt><dd>Mouse</dd></div>
+    <div><dt>Fire</dt><dd>Left button</dd></div>
+    <div><dt>Aim</dt><dd>Right button</dd></div>
+    <div><dt>Reload</dt><dd><kbd>R</kbd></dd></div>
+    <div><dt>Cut relay</dt><dd>Hold <kbd>E</kbd></dd></div>
+    <div><dt>Jump</dt><dd><kbd>Space</kbd></dd></div>
+    <div><dt>Sprint</dt><dd><kbd>Shift</kbd></dd></div>
+    <div><dt>Crouch</dt><dd><kbd>C</kbd> or <kbd>Ctrl</kbd></dd></div>
+    <div><dt>Melee</dt><dd><kbd>F</kbd></dd></div>
+    <div><dt>Pause</dt><dd><kbd>Esc</kbd> or <kbd>P</kbd></dd></div>
   </dl>`;
 
 // 触屏操作说明 HTML 片段
 const TOUCH_CONTROLS_HTML = `
   <dl class="keys">
-    <div><dt>移动</dt><dd>左手拇指在左侧任意位置滑动</dd></div>
-    <div><dt>视角</dt><dd>在屏幕右侧拖动</dd></div>
-    <div><dt>开火</dt><dd>按住“开火”，拖动跟踪目标</dd></div>
-    <div><dt>瞄准</dt><dd>点击“瞄准”切换瞄准状态</dd></div>
-    <div><dt>换弹</dt><dd>换弹</dd></div>
-    <div><dt>跳跃</dt><dd>跳跃</dd></div>
-    <div><dt>切断中继</dt><dd>靠近中继并按住“交互”</dd></div>
-    <div><dt>冲刺</dt><dd>将摇杆推到最前方</dd></div>
+    <div><dt>Move</dt><dd>Left thumb, anywhere</dd></div>
+    <div><dt>Look</dt><dd>Drag the right side</dd></div>
+    <div><dt>Fire</dt><dd>Hold FIRE, drag to track</dd></div>
+    <div><dt>Aim</dt><dd>AIM toggles</dd></div>
+    <div><dt>Reload</dt><dd>RLD</dd></div>
+    <div><dt>Jump</dt><dd>JUMP</dd></div>
+    <div><dt>Cut relay</dt><dd>Hold USE at a relay</dd></div>
+    <div><dt>Sprint</dt><dd>Push the stick fully forward</dd></div>
   </dl>`;
 
 // ============================================================================
@@ -104,94 +104,85 @@ function createMenu(ctx, callbacks) {
     <div class="m-veil"></div>
     <div class="m-bars"><i></i><i></i></div>
 
-    <section class="m-screen m-title" data-s="title" aria-label="几猫">
+    <section class="m-screen m-title" data-s="title" aria-label="Saltline">
       <div class="m-title-main">
-        <div class="m-eyebrow"><span class="m-tag">B4</span><span>几猫突击小队</span><span class="m-dim">几猫港区 · 05:42</span></div>
-        <h1 class="m-word">几猫<span class="m-subtitle">3A大作</span></h1>
-        <p class="m-premise">港区防御系统失控。切断三处中继，突破封锁，登船撤离。</p>
+        <div class="m-eyebrow"><span class="m-tag">B4</span><span>Port Authority Breach Unit</span><span class="m-dim">Saltline Terminal · 05:42</span></div>
+        <h1 class="m-word">SALTLINE</h1>
+        <p class="m-premise">The port’s security net has gone feral. Cut its three uplinks. Reach the boat.</p>
         <div class="m-actions">
-          <button class="btn primary" data-act="deploy">开始行动</button>
-          <button class="btn" data-act="settings">设置</button>
-          <button class="btn" data-act="about">项目介绍</button>
-          <button class="btn m-only-narrow" data-act="controls">操作说明</button>
+          <button class="btn primary" data-act="deploy">Deploy</button>
+          <button class="btn" data-act="settings">Settings</button>
+          <button class="btn m-only-narrow" data-act="controls">Controls</button>
         </div>
-        <p class="m-note">使用 Fable5.2 自主研发 · 国产第一人称射击游戏 · 开发体验版</p>
+        <p class="m-note">Every surface, machine and sound is generated in your browser. Nothing is downloaded.</p>
       </div>
-      <aside class="m-legend" aria-label="操作速览">
-        <div><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移动</span><span><kbd>鼠标</kbd> 视角</span><span><kbd>左键</kbd> 开火</span><span><kbd>右键</kbd> 瞄准</span><span><kbd>R</kbd> 换弹</span></div>
-        <div><span><kbd>E</kbd> 切断中继</span><span><kbd>Space</kbd> 跳跃</span><span><kbd>Shift</kbd> 冲刺</span><span><kbd>C</kbd> 蹲伏</span><span><kbd>Esc</kbd> 暂停</span></div>
-        <div class="lg-touch"><em>触屏操作</em><span>左手拇指移动</span><span>右手拇指转动视角</span><span>屏幕按钮：开火 · 瞄准 · 换弹 · 跳跃</span></div>
+      <aside class="m-legend" aria-label="Controls at a glance">
+        <div><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move</span><span><kbd>Mouse</kbd> Look</span><span><kbd>LMB</kbd> Fire</span><span><kbd>RMB</kbd> Aim</span><span><kbd>R</kbd> Reload</span></div>
+        <div><span><kbd>E</kbd> Cut relay</span><span><kbd>Space</kbd> Jump</span><span><kbd>Shift</kbd> Sprint</span><span><kbd>C</kbd> Crouch</span><span><kbd>Esc</kbd> Pause</span></div>
+        <div class="lg-touch"><em>Touch</em><span>Left thumb moves</span><span>Right thumb looks</span><span>Fire · Aim · Reload · Jump on screen</span></div>
       </aside>
     </section>
 
-    <section class="m-screen m-card" data-s="paused" aria-label="已暂停">
-      <div class="m-k">行动暂时中止</div>
-      <h2 class="m-h">已暂停</h2>
+    <section class="m-screen m-card" data-s="paused" aria-label="Paused">
+      <div class="m-k">Operation on hold</div>
+      <h2 class="m-h">Paused</h2>
       <p class="m-line" data-f="lookmode"></p>
       <div class="m-actions col">
-        <button class="btn primary" data-act="resume">继续游戏</button>
-        <button class="btn" data-act="settings">设置</button>
-        <button class="btn" data-act="controls">操作说明</button>
-        <button class="btn" data-act="restart">重新开始任务</button>
+        <button class="btn primary" data-act="resume">Resume</button>
+        <button class="btn" data-act="settings">Settings</button>
+        <button class="btn" data-act="controls">Controls</button>
+        <button class="btn" data-act="restart">Restart mission</button>
       </div>
     </section>
 
-    <section class="m-screen m-card m-dead" data-s="dead" aria-label="信号中断">
-      <div class="m-k">突击队员倒下</div>
-      <h2 class="m-h">信号中断</h2>
-      <dl class="m-stats"><div><dt>生存时间</dt><dd data-f="dead-time">00:00</dd></div><div><dt>已切断中继</dt><dd data-f="dead-relays">0/3</dd></div></dl>
-      <div class="m-actions col"><button class="btn primary" data-act="retry">重试</button></div>
+    <section class="m-screen m-card m-dead" data-s="dead" aria-label="Signal lost">
+      <div class="m-k">Breacher down</div>
+      <h2 class="m-h">Signal lost</h2>
+      <dl class="m-stats"><div><dt>Time survived</dt><dd data-f="dead-time">00:00</dd></div><div><dt>Relays cut</dt><dd data-f="dead-relays">0/3</dd></div></dl>
+      <div class="m-actions col"><button class="btn primary" data-act="retry">Retry</button></div>
     </section>
 
-    <section class="m-screen m-card m-debrief" data-s="complete" aria-label="行动简报">
-      <div class="m-k">四号泊位 · 行动简报</div>
-      <h2 class="m-h">几猫港区已解除封锁</h2>
-      <div class="m-rating"><span>行动评级</span><b data-f="rating">干净利落</b></div>
+    <section class="m-screen m-card m-debrief" data-s="complete" aria-label="Debrief">
+      <div class="m-k">Berth 4 · Debrief</div>
+      <h2 class="m-h">Saltline is dark</h2>
+      <div class="m-rating"><span>Rating</span><b data-f="rating">Clean</b></div>
       <dl class="m-stats">
-        <div><dt>用时</dt><dd data-f="time">00:00</dd></div>
-        <div><dt>命中率</dt><dd data-f="acc">0%</dd></div>
-        <div><dt>摧毁机械</dt><dd data-f="kills">0</dd></div>
-        <div><dt>重试次数</dt><dd data-f="retries">0</dd></div>
+        <div><dt>Time</dt><dd data-f="time">00:00</dd></div>
+        <div><dt>Accuracy</dt><dd data-f="acc">0%</dd></div>
+        <div><dt>Machines destroyed</dt><dd data-f="kills">0</dd></div>
+        <div><dt>Retries</dt><dd data-f="retries">0</dd></div>
       </dl>
-      <div class="m-actions col"><button class="btn primary" data-act="redeploy">再次出击</button></div>
+      <div class="m-actions col"><button class="btn primary" data-act="redeploy">Redeploy</button></div>
     </section>
 
-    <div class="panel" role="dialog" aria-modal="true" aria-label="设置与操作" tabindex="-1" hidden>
+    <div class="panel" role="dialog" aria-modal="true" aria-label="Settings and controls" tabindex="-1" hidden>
       <header class="panel-h">
         <div class="tabs" role="tablist">
-          <button class="tab" role="tab" data-tab="settings" aria-selected="true">设置</button>
-          <button class="tab" role="tab" data-tab="controls" aria-selected="false">操作说明</button>
-          <button class="tab" role="tab" data-tab="about" aria-selected="false">项目介绍</button>
+          <button class="tab" role="tab" data-tab="settings" aria-selected="true">Settings</button>
+          <button class="tab" role="tab" data-tab="controls" aria-selected="false">Controls</button>
         </div>
-        <button class="btn small" data-act="close-panel">关闭</button>
+        <button class="btn small" data-act="close-panel">Close</button>
       </header>
-      <div class="panel-b about-copy" data-pane="about" hidden>
-        <h3>几猫3A大作</h3>
-        <p>各位老师、同学好！宣传一下我们最近使用 Fable5.2 自主研发的一款国产 3A FPS 大作——<strong>《几猫》</strong>！🎮</p>
-        <p>我们致力于打造具有中国特色的高品质第一人称射击游戏，融合沉浸式战斗体验、创新玩法与次世代视觉表现，探索国产 FPS 游戏的更多可能性。</p>
-        <p>目前项目仍在持续开发与优化中，距离国际顶尖 3A 水准还有一定差距。</p>
-        <p>非常欢迎各位老师、同学关注、体验并提出宝贵建议，期待与游戏开发、图形学及 AI 方向的朋友深入交流！🐱🔥</p>
-      </div>
       <div class="panel-b" data-pane="settings">
-        <div class="row"><label id="l-q">画面质量</label>
-          <div class="seg" role="group" aria-labelledby="l-q">${QUALITY_OPTIONS.map((q) => `<button data-q="${q}" aria-pressed="false">${{ low: "低", medium: "中", high: "高", ultra: "极高" }[q]}</button>`).join("")}</div></div>
-        <div class="row"><label for="s-sens">鼠标灵敏度</label><div class="slider"><input id="s-sens" type="range" min="0.2" max="3" step="0.05"><output data-o="sens"></output></div></div>
-        <div class="row"><label id="l-inv">反转垂直视角</label><button class="toggle" data-act="invert" aria-labelledby="l-inv" aria-pressed="false"><i></i><span>关闭</span></button></div>
-        <div class="row"><label for="s-vol">主音量</label><div class="slider"><input id="s-vol" type="range" min="0" max="100" step="1"><output data-o="vol"></output></div></div>
-        <div class="row"><label for="s-fov">视野范围</label><div class="slider"><input id="s-fov" type="range" min="60" max="95" step="1"><output data-o="fov"></output></div></div>
-        <div class="row" data-row="fs"><label id="l-fs">显示模式</label><button class="btn small" data-act="fullscreen" aria-labelledby="l-fs fs-t"><span id="fs-t">进入全屏</span></button></div>
+        <div class="row"><label id="l-q">Graphics quality</label>
+          <div class="seg" role="group" aria-labelledby="l-q">${QUALITY_OPTIONS.map((q) => `<button data-q="${q}" aria-pressed="false">${q}</button>`).join("")}</div></div>
+        <div class="row"><label for="s-sens">Mouse sensitivity</label><div class="slider"><input id="s-sens" type="range" min="0.2" max="3" step="0.05"><output data-o="sens"></output></div></div>
+        <div class="row"><label id="l-inv">Invert Y</label><button class="toggle" data-act="invert" aria-labelledby="l-inv" aria-pressed="false"><i></i><span>Off</span></button></div>
+        <div class="row"><label for="s-vol">Master volume</label><div class="slider"><input id="s-vol" type="range" min="0" max="100" step="1"><output data-o="vol"></output></div></div>
+        <div class="row"><label for="s-fov">Field of view</label><div class="slider"><input id="s-fov" type="range" min="60" max="95" step="1"><output data-o="fov"></output></div></div>
+        <div class="row" data-row="fs"><label id="l-fs">Display</label><button class="btn small" data-act="fullscreen" aria-labelledby="l-fs fs-t"><span id="fs-t">Enter fullscreen</span></button></div>
         <p class="panel-note" data-f="qnote"></p>
       </div>
       <div class="panel-b" data-pane="controls" hidden>
-        <h3>键盘 · 鼠标</h3>${KEYBOARD_CONTROLS_HTML}
-        <p class="panel-note">若浏览器无法捕获鼠标，按住鼠标按钮并拖动以调整视角（左键同时开火，右键同时瞄准）。方向键或 <kbd>I</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> 转向，<kbd>Enter</kbd> 开火。</p>
-        <h3>触屏操作</h3>${TOUCH_CONTROLS_HTML}
-        <h3>手柄</h3>
-        <p class="panel-note">摇杆移动与转动视角 · RT 开火 · LT 瞄准 · A 跳跃 · B 蹲伏 · X 换弹 · Y 切断中继 · L3 冲刺 · Start 暂停。</p>
+        <h3>Keyboard · Mouse</h3>${KEYBOARD_CONTROLS_HTML}
+        <p class="panel-note">If the browser will not capture the mouse, hold a mouse button and drag to look (left also fires, right also aims). Arrow keys or <kbd>I</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> turn, <kbd>Enter</kbd> fires.</p>
+        <h3>Touch</h3>${TOUCH_CONTROLS_HTML}
+        <h3>Gamepad</h3>
+        <p class="panel-note">Sticks move and look · RT fire · LT aim · A jump · B crouch · X reload · Y cut relay · L3 sprint · Start pause.</p>
       </div>
     </div>
 
-    <div class="loc-card" aria-hidden="true"><i></i><b>几猫港区 · 四号泊位 · 05:42</b><span>几猫突击小队 · 单兵行动，无人支援</span></div>
+    <div class="loc-card" aria-hidden="true"><i></i><b>Saltline Terminal · Berth 4 · 05:42</b><span>Port Authority Breach Unit — one breacher, no backup</span></div>
   `;
   uiContainer.appendChild(menuContainer);
 
@@ -268,12 +259,12 @@ function createMenu(ctx, callbacks) {
 
     const invertBtn = $('[data-act="invert"]');
     invertBtn.setAttribute("aria-pressed", String(userSettings.invertY));
-    invertBtn.querySelector("span").textContent = userSettings.invertY ? "开启" : "关闭";
+    invertBtn.querySelector("span").textContent = userSettings.invertY ? "On" : "Off";
 
     fieldEl("qnote").textContent =
       userSettings.quality === "auto"
-        ? `已根据设备自动选择画质（${{ low: "低", medium: "中", high: "高", ultra: "极高" }[activeQuality] || "默认"}），运行不流畅时可降低画质。`
-        : "画质设置立即生效；阴影和反射需要片刻重新生成。";
+        ? `Quality was picked for this device (${activeQuality || "default"}). Lower it if the frame rate struggles.`
+        : "Quality changes apply at once; shadows and reflections may take a moment to rebuild.";
   }
 
   sliderSens.addEventListener("input", () => {
@@ -321,15 +312,15 @@ function createMenu(ctx, callbacks) {
       const req = (appRoot.requestFullscreen || appRoot.webkitRequestFullscreen).call(appRoot);
       if (req && req.catch)
         req.catch(() => {
-          fsText.textContent = "当前环境不支持全屏";
+          fsText.textContent = "Fullscreen is not available here";
         });
     } catch (err) {
-      fsText.textContent = "当前环境不支持全屏";
+      fsText.textContent = "Fullscreen is not available here";
     }
   }
 
   const onFullscreenChange = () => {
-    fsText.textContent = getFullscreenEl() ? "退出全屏" : "进入全屏";
+    fsText.textContent = getFullscreenEl() ? "Exit fullscreen" : "Enter fullscreen";
   };
   document.addEventListener("fullscreenchange", onFullscreenChange);
   document.addEventListener("webkitfullscreenchange", onFullscreenChange);
@@ -533,18 +524,28 @@ const GAME_CONFIG = {
   titleFov: 50,
 };
 
-const DIRECTIONS = ["北方", "东北方", "东方", "东南方", "南方", "西南方", "西方", "西北方"];
+const DIRECTIONS = [
+  "NORTH",
+  "NORTH-EAST",
+  "EAST",
+  "SOUTH-EAST",
+  "SOUTH",
+  "SOUTH-WEST",
+  "WEST",
+  "NORTH-WEST",
+];
 
 const RADIO_MESSAGES = {
-  intro: "几猫队员，这里是指挥中心。港区主控已封锁泊位。切断堆场、仓库、码头的三处中继。",
-  contact: "你已被发现！空中有机械飞鸥，地面有机械猎犬。消灭它们。",
+  intro:
+    "Breacher, this is Control. The Harbormaster holds the berth. Cut its three uplinks — yard, shed, quay.",
+  contact: "It has seen you. Gulls fly, Hounds walk. Put them down.",
   cut: [
-    "第一处中继已断开。敌方已察觉，机械守卫正在赶来。",
-    "第二处中继已断开。敌方正全力围攻，小心应对。",
+    "One relay dark. It felt that — machines inbound.",
+    "Two dark. It is throwing everything it has left at you.",
   ],
-  all: "三处中继全部断开！撤离艇在码头南端的舷梯旁，快撤！",
-  low: "伤势严重！找掩体躲避，稍作恢复。",
-  done: "几猫队员已登船，港区封锁解除。干得漂亮！",
+  all: "All three dark. The boat is holding at the quay ladder, south end. Run.",
+  low: "You are hit hard. Get behind steel and breathe.",
+  done: "Breacher is aboard. Saltline is dark. Good work.",
 };
 
 // ============================================================================
@@ -836,7 +837,7 @@ function createGameManager(ctx) {
       .map((r) => ({
         id: r.id,
         short: r.short,
-        label: r.o.label || "中继 " + r.short,
+        label: r.o.label || "Relay " + r.short,
         pos: r.o.pos,
         kind: "relay",
       }));
@@ -844,8 +845,8 @@ function createGameManager(ctx) {
     if (runState.allCut && level.extraction) {
       markers.push({
         id: "extract",
-        short: "撤离",
-        label: "撤离艇",
+        short: "EX",
+        label: "Boat",
         pos: level.extraction.pos,
         kind: "extract",
       });
@@ -893,13 +894,13 @@ function createGameManager(ctx) {
   }
 
   function getObjectiveText() {
-    if (runState.allCut) return "前往撤离艇";
+    if (runState.allCut) return "Get to the boat";
     const remaining = runState.relays.length - runState.cut;
     return runState.cut === 0
-      ? "切断三处上行中继"
+      ? "Cut the three uplink relays"
       : remaining === 1
-        ? "切断最后一处中继"
-        : `切断剩余 ${remaining} 处中继`;
+        ? "Cut the last relay"
+        : `Cut the remaining ${remaining} relays`;
   }
 
   function syncMouseLookNotice(force) {
@@ -961,7 +962,7 @@ function createGameManager(ctx) {
           ? input.describeMode()
           : input.touch
             ? ""
-            : "继续游戏后将重新捕获鼠标。",
+            : "Resume recaptures the mouse.",
       );
       hud.show(false);
       menu.show("paused");
@@ -1112,8 +1113,10 @@ function createGameManager(ctx) {
     runState.waveHot = 30;
     const avgBearingDeg = ((Math.atan2(sumDeltaX, -sumDeltaZ) * 180) / Math.PI + 360) % 360;
     const directionName = DIRECTIONS[Math.round(avgBearingDeg / 45) % 8];
-    if (hud.warning) {
-      hud.warning("发现敌情 · " + directionName, 3.4);
+    if (hud.warn) {
+      hud.warn("Contact — " + directionName, 3.4);
+    } else if (hud.warning) {
+      hud.warning("Contact — " + directionName, 3.4);
     }
   }
 
@@ -1208,7 +1211,7 @@ function createGameManager(ctx) {
   });
 
   ctx.events.on("player:rescued", () => {
-    if (gameStateController.state === "playing") hud.message("已从水中获救", 2.5);
+    if (gameStateController.state === "playing") hud.message("Hauled out of the water", 2.5);
   });
 
   // 寻找玩家正前方可交互的未切断中继站
@@ -1268,7 +1271,7 @@ function createGameManager(ctx) {
     }
 
     if (targetRelay && !targetRelay.cut) {
-      if (hud.setPrompt) hud.setPrompt("切断中继 " + targetRelay.short, Fo(targetRelay.t));
+      if (hud.setPrompt) hud.setPrompt("Cut relay " + targetRelay.short, Fo(targetRelay.t));
     } else {
       if (hud.setPrompt) hud.setPrompt(null);
     }
@@ -1284,7 +1287,7 @@ function createGameManager(ctx) {
         completeMission();
       } else if (isInsideEvacZone && !runState.allCut && runState.extractHint <= 0) {
         runState.extractHint = 8;
-        hud.message("中继尚未断开，撤离艇无法在火力下接应", 3.5);
+        hud.message("Relays still live — the boat will not wait under fire", 3.5);
       }
       runState.extractHint = Math.max(0, runState.extractHint - dt);
     }
@@ -1350,9 +1353,7 @@ function createGameManager(ctx) {
     const accScore = accuracy >= 0.5 ? 2 : accuracy >= 0.3 ? 1 : 0;
     const retryScore = runState.retries === 0 ? 1 : 0;
     const totalScore = timeScore + accScore + retryScore;
-    const ratingTitle = ["险象环生", "火力全开", "稳扎稳打", "干净利落", "精准果断", "完美突击"][
-      totalScore
-    ];
+    const ratingTitle = ["Messy", "Loud", "Steady", "Clean", "Sharp", "Surgical"][totalScore];
 
     menu.setDebrief({
       time: runState.time,

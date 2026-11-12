@@ -1016,8 +1016,8 @@ function createDecalFactory(canvasContext, anisotropy = 4) {
                   b.closePath(),
                   b.fill());
               },
-              "几猫北航",
-              "北极 · 大西洋 · 支线运输",
+              "NORDKAP LINE",
+              "ARCTIC  ·  ATLANTIC  ·  FEEDER",
             ),
               applyDistress(v, g, x, 0.35, y));
           },
@@ -1048,8 +1048,8 @@ function createDecalFactory(canvasContext, anisotropy = 4) {
                     b.fill());
                 }
               },
-              "几猫远洋",
-              "集装箱运输",
+              "TERN OCEANIC",
+              "CONTAINER SERVICES",
               PALETTE.orange,
             ),
               applyDistress(v, g, x, 0.35, y));
@@ -1084,8 +1084,8 @@ function createDecalFactory(canvasContext, anisotropy = 4) {
                 (b.fillRect(-m * 1.05, m * 0.42, m * 2.1, m * 0.13),
                   b.fillRect(-m * 0.8, m * 0.68, m * 1.6, m * 0.1));
               },
-              "几猫太平洋",
-              "远洋 · 冷链 · 散货",
+              "AUREL PACIFIC",
+              "DEEP SEA  ·  REEFER  ·  BULK",
             ),
               applyDistress(v, g, x, 0.35, y));
           },
@@ -1110,8 +1110,8 @@ function createDecalFactory(canvasContext, anisotropy = 4) {
                   b.fillRect(-m * 0.32, -m, m * 0.64, m * 0.5),
                   b.fillRect(-m * 0.32, m * 0.5, m * 0.64, m * 0.5));
               },
-              "几猫联运",
-              "多式联运",
+              "HOLMGARD",
+              "INTERMODAL  FREIGHT",
               PALETTE.yellow,
             ),
               applyDistress(v, g, x, 0.35, y));
@@ -1130,7 +1130,7 @@ function createDecalFactory(canvasContext, anisotropy = 4) {
               (v.globalCompositeOperation = "destination-out"));
             for (let b of [g * 0.25, g * 0.75]) v.fillRect(b - 6, 0, 12, x);
             ((v.globalCompositeOperation = "source-over"),
-              drawText(v, "四号泊位", g / 2, x * 0.76, x * 0.66, rgba(PALETTE.yellow), {
+              drawText(v, "BERTH 4", g / 2, x * 0.76, x * 0.66, rgba(PALETTE.yellow), {
                 align: "center",
                 weight: 900,
                 maxW: g - 80,
@@ -1548,7 +1548,7 @@ function createDecalFactory(canvasContext, anisotropy = 4) {
                 v.arc(_ - 1.2, M - 1.2, 2, 0, 7),
                 v.fill());
             let m = "rgba(28,30,32,0.92)";
-            (drawText(v, "安全检验铭牌", g / 2, 46, 19, m, {
+            (drawText(v, "SAFETY APPROVAL PLATE", g / 2, 46, 19, m, {
               font: "sans",
               weight: 600,
               align: "center",
@@ -1556,13 +1556,13 @@ function createDecalFactory(canvasContext, anisotropy = 4) {
               maxW: g - 60,
             }),
               [
-                "检验编号 SL/PA-4207/19",
-                "制造日期 2019年03月",
-                "设备编号 SLTU 402719 6",
-                "最大总重 30 480 千克",
-                "堆码载荷 192 000 千克",
-                "横向试验 150 千牛",
-                "下次检验 2027年09月",
+                "APPROVAL REF   SL/PA-4207/19",
+                "DATE MANUFACTURED   03/2019",
+                "IDENT NO   SLTU 402719 6",
+                "MAX GROSS   30 480 KG",
+                "STACKING LOAD   192 000 KG",
+                "RACKING TEST   150 KN",
+                "NEXT EXAM   09/2027",
               ].forEach((_, M) => {
                 (drawText(v, _, 30, 70 + M * 16.5, 11, m, {
                   font: "mono",
@@ -2463,10 +2463,10 @@ function buildMaterialsShowcase(engineContext) {
     }),
       (_ = -x / 2 + 0.25),
       (M = y - 0.75 - 3 * 0.78 - 0.05),
-      w(e.label("几猫港区  B4-0271", { color: "white" }), 0.3),
-      w(e.label("最大总重 30480 千克", { color: "yellow", distress: 0.6 }), 0.22),
-      w(e.label("危险", { color: "red", distress: 0.2 }), 0.3),
-      w(e.label("请勿靠近", { color: "black", font: "sans" }), 0.25),
+      w(e.label("SALTLINE TERMINAL  B4-0271", { color: "white" }), 0.3),
+      w(e.label("MAX GROSS 30480 KG", { color: "yellow", distress: 0.6 }), 0.22),
+      w(e.label("DANGER", { color: "red", distress: 0.2 }), 0.3),
+      w(e.label("KEEP CLEAR", { color: "black", font: "sans" }), 0.25),
       w(e.number(4), 0.3),
       w(e.number(7), 0.3),
       n && !o.length && ((p = [x / 2, 1.7, 7.2]), (d = [x / 2, 1.6, -1])));

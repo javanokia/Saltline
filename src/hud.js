@@ -7,14 +7,14 @@ const COMPASS_PX_PER_DEGREE = 4;
 const COMPASS_MIN_DEG = -90;
 const COMPASS_MAX_DEG = 450;
 const CARDINAL_NAMES = {
-  0: "北",
-  45: "东北",
-  90: "东",
-  135: "东南",
-  180: "南",
-  225: "西南",
-  270: "西",
-  315: "西北",
+  0: "N",
+  45: "NE",
+  90: "E",
+  135: "SE",
+  180: "S",
+  225: "SW",
+  270: "W",
+  315: "NW",
 };
 
 // 交互进度环圆周长 (2 * PI * r, r=19)
@@ -79,7 +79,7 @@ function createHUD(ctx) {
   const objEl = createElement(
     "div",
     "h-obj",
-    '<div class="h-k">任务目标</div><div class="h-obj-t"></div><div class="h-relays"><span>中继</span><i></i><i></i><i></i><b>0/3</b></div>',
+    '<div class="h-k">Objective</div><div class="h-obj-t"></div><div class="h-relays"><span>Relays</span><i></i><i></i><i></i><b>0/3</b></div>',
   );
   const objTextEl = objEl.querySelector(".h-obj-t");
   const relaysContainer = objEl.querySelector(".h-relays");
@@ -145,7 +145,7 @@ function createHUD(ctx) {
   const healthEl = createElement(
     "div",
     "h-health",
-    '<div class="h-k">生命状态</div><div class="h-hp-row"><b class="h-hp-n">100</b><div class="h-hp-bar">' +
+    '<div class="h-k">Vitals</div><div class="h-hp-row"><b class="h-hp-n">100</b><div class="h-hp-bar">' +
       "<i></i>".repeat(10) +
       "</div></div>",
   );
@@ -191,7 +191,7 @@ function createHUD(ctx) {
   const radioEl = createElement(
     "div",
     "comms",
-    '<span class="comms-who">指挥中心</span><span class="comms-t"></span>',
+    '<span class="comms-who">Control</span><span class="comms-t"></span>',
   );
   radioEl.setAttribute("role", "status");
   radioEl.setAttribute("aria-live", "polite");
@@ -278,16 +278,16 @@ function createHUD(ctx) {
       !lastFeedItem.weak
     ) {
       lastFeedItem.weak = true;
-      lastFeedItem.el.innerHTML += "<em>弱点命中</em>";
+      lastFeedItem.el.innerHTML += "<em>Weak point</em>";
     }
   });
 
   // 事件监听：击杀通报
   ctx.events.on("enemy:killed", (e) => {
-    const typeName =
-      { gull: "机械飞鸥", hound: "机械猎犬" }[e && (e.type || (e.enemy && e.enemy.type))] ||
-      "机械守卫";
-    lastFeedItem = hudInterface.feed(`<b>${typeName}</b> 已摧毁`);
+    const typeName = String(
+      (e && (e.type || (e.enemy && e.enemy.type))) || "machine",
+    ).toUpperCase();
+    lastFeedItem = hudInterface.feed(`<b>${typeName}</b> destroyed`);
     lastFeedFrame = ctx.time.frame;
   });
 
@@ -366,22 +366,22 @@ function createHUD(ctx) {
       activeMarkers = (markerList || []).map((item) => {
         const compassMarker = createElement(
           "div",
-          "h-cmark",
-          `<span class="tag ${item.kind || ""}">${item.label}</span><span class="dist"></span>`,
+          "h-cm " + (item.kind || "relay"),
+          `<i></i><b>${item.short || ""}</b><span></span>`,
         );
         const worldMarker = createElement(
           "div",
-          "h-mark" + (item.kind ? " " + item.kind : ""),
-          `<div class="pin"><i class="glyph"></i><b class="lbl">${item.label}</b></div><span class="dist"></span>`,
+          "h-wm " + (item.kind || "relay"),
+          `<i></i><b>${item.short || ""}</b><span></span>`,
         );
         compassMarksEl.appendChild(compassMarker);
         worldMarkersContainer.appendChild(worldMarker);
         return {
           ...item,
           cEl: compassMarker,
-          cDist: compassMarker.querySelector(".dist"),
+          cDist: compassMarker.querySelector("span"),
           wEl: worldMarker,
-          wDist: worldMarker.querySelector(".dist"),
+          wDist: worldMarker.querySelector("span"),
           lastC: 1e9,
           lastW: "",
           lastD: -1,
@@ -389,36 +389,49 @@ function createHUD(ctx) {
       });
     },
 
-    setPrompt(key, label, progress = 0) {
-      const active = key != null;
+    setPrompt(label, progress = 0) {
+      const active = !!label;
       if (active !== cache.promptOn) {
         cache.promptOn = active;
         promptEl.classList.toggle("on", active);
+        if (ctx.input && ctx.input.setPrompt) ctx.input.setPrompt(active);
       }
       if (!active) return;
 
-      if (label !== cache.promptText) {
-        cache.promptText = label;
-        promptLabelSpan.textContent = label || "";
-      }
+      const key = ctx.input?.touch ? "USE" : ctx.input?.gamepad && !ctx.input.locked ? "Y" : "E";
       if (key !== cache.promptKey) {
         cache.promptKey = key;
-        promptKeySpan.textContent = key || "E";
+        promptKeySpan.textContent = key;
+        promptKeySpan.classList.toggle("wide", key.length > 1);
       }
 
-      const clampedProg = Math.max(0, Math.min(1, progress));
-      if (Math.abs(clampedProg - cache.promptT) > 0.005) {
+      const fullText = `Hold ${key} — ${label}`;
+      if (fullText !== cache.promptText) {
+        cache.promptText = fullText;
+        promptLabelSpan.textContent = fullText;
+      }
+
+      const clampedProg = Math.round((progress || 0) * 200) / 200;
+      if (clampedProg !== cache.promptT) {
         cache.promptT = clampedProg;
-        promptFgCircle.style.strokeDashoffset = String(
+        promptFgCircle.setAttribute(
+          "stroke-dashoffset",
           (PROMPT_RING_CIRCUMFERENCE * (1 - clampedProg)).toFixed(2),
         );
+        promptEl.classList.toggle("busy", clampedProg > 0);
       }
     },
 
-    warning(text, duration = 3) {
+    warn(text, duration = 3) {
       warnBannerEl.textContent = text || "";
-      warnBannerEl.classList.toggle("on", !!text);
       warnDurationLeft = duration;
+      warnBannerEl.classList.remove("on");
+      void warnBannerEl.offsetWidth;
+      warnBannerEl.classList.add("on");
+    },
+
+    warning(text, duration = 3) {
+      this.warn(text, duration);
     },
 
     message(text, duration = 4) {
@@ -434,10 +447,12 @@ function createHUD(ctx) {
     },
 
     feed(html) {
-      const itemEl = createElement("div", "h-feed-item", html);
+      const itemEl = createElement("div", "h-fl", html);
       feedContainer.appendChild(itemEl);
-      const record = { el: itemEl, life: 4, out: false, weak: false };
-      activeFeedItems.push(record);
+      const record = { el: itemEl, life: 4.2, weak: false };
+      for (activeFeedItems.push(record); activeFeedItems.length > 4;) {
+        activeFeedItems.shift().el.remove();
+      }
       return record;
     },
 
@@ -524,7 +539,7 @@ function createHUD(ctx) {
 
         if (distMeters !== marker.lastD) {
           marker.lastD = distMeters;
-          const distStr = distMeters + "米";
+          const distStr = distMeters + "m";
           marker.cDist.textContent = distStr;
           marker.wDist.textContent = distStr;
         }
@@ -655,15 +670,15 @@ function createHUD(ctx) {
     const isLowAmmo = currentAmmo <= Math.ceil(magCapacity * 0.27);
     const cueMessage =
       weapon.state === "reloading"
-        ? "换弹中"
+        ? "Reloading"
         : currentAmmo === 0
           ? reserveAmmo > 0
             ? ctx.input.touch
-              ? "换弹"
-              : "R · 换弹"
-            : "弹药耗尽"
+              ? "Reload"
+              : "R — Reload"
+            : "Empty"
           : isLowAmmo
-            ? "弹药不足"
+            ? "Low ammo"
             : "";
 
     if (cueMessage !== cache.cue) {

@@ -1654,7 +1654,7 @@ function generateContainerGeometry(engineCtx, type, seed, doorOpenRatio, wearFac
       );
       const fontOpt = { color: "white", font: "sans", distress: 0.2 };
       addDoorDecal(
-        getCachedLabelTexture(engineCtx, "最大总重 " + spec.gross + " 千克", fontOpt),
+        getCachedLabelTexture(engineCtx, "MAX GROSS " + spec.gross + " KG", fontOpt),
         0.052,
         getRibY(doorP - 3) + 0.062,
         doorWidth / 2 - 0.01,
@@ -1663,7 +1663,7 @@ function generateContainerGeometry(engineCtx, type, seed, doorOpenRatio, wearFac
       addDoorDecal(
         getCachedLabelTexture(
           engineCtx,
-          "皮重 " + spec.tare + " 千克  净重 " + spec.net + " 千克",
+          "TARE " + spec.tare + " KG   NET " + spec.net + " KG",
           fontOpt,
         ),
         0.045,
@@ -1672,7 +1672,7 @@ function generateContainerGeometry(engineCtx, type, seed, doorOpenRatio, wearFac
         0.44,
       );
       addDoorDecal(
-        getCachedLabelTexture(engineCtx, "容积 " + spec.cu + " 立方米", fontOpt),
+        getCachedLabelTexture(engineCtx, "CU.CAP. " + spec.cu + " CU.M", fontOpt),
         0.045,
         getRibY(doorP - 3) - 0.062,
         doorWidth / 2 - 0.01,
@@ -2819,7 +2819,7 @@ function buildWoodCrateGeometry(
   w,
   h,
   d,
-  { detail = true, label = "易碎物品", code = "B4-117", skids = true } = {},
+  { detail = true, label = "FRAGILE", code = "B4-117", skids = true } = {},
 ) {
   const prng = builder.rng;
   const skidH = skids ? 0.07 : 0;
@@ -2870,7 +2870,7 @@ function buildWoodCrateGeometry(
  */
 function buildCrateWood(engineCtx, options = {}) {
   const b = new PropCompoundBuilder(engineCtx, "crate_wood", options.seed || 0);
-  const labels = ["易碎物品", "此面向上", "保持干燥", "机械零件"];
+  const labels = ["FRAGILE", "THIS SIDE UP", "KEEP DRY", "MACHINE PARTS"];
   buildWoodCrateGeometry(b, 1.1, 1.0, 0.9, {
     label: options.label === undefined ? labels[b.seed % labels.length] : options.label,
     code: options.code || "B4-" + [117, 204, 318][b.seed % 3],
@@ -2885,13 +2885,13 @@ function buildCrateStack(engineCtx, options = {}) {
   const b = new PropCompoundBuilder(engineCtx, "crate_stack", options.seed || 0);
   const prng = b.rng;
   // 底层大货箱
-  buildWoodCrateGeometry(b, 1.2, 0.95, 1.0, { label: "重物", code: "几猫04" + (b.seed % 2) });
+  buildWoodCrateGeometry(b, 1.2, 0.95, 1.0, { label: "HEAVY", code: "SLT 04" + (b.seed % 2) });
   // 上层错落中货箱
   b.push({
     p: [prng.range(-0.1, 0.02), 0.95, prng.range(-0.05, 0.05)],
     r: [0, (prng() < 0.5 ? -1 : 1) * prng.range(0.1, 0.16), 0],
   });
-  buildWoodCrateGeometry(b, 0.86, 0.82, 0.72, { label: "此面向上", code: "B4-88" });
+  buildWoodCrateGeometry(b, 0.86, 0.82, 0.72, { label: "FRAGILE", code: "B4-204" });
   b.pop();
   return b.finish({ size: [1.2, 1.9, 1.0] });
 }

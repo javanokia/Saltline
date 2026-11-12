@@ -1187,21 +1187,21 @@ export async function createLevel(engineCtx) {
   const objectives = [
     {
       id: "relay_a",
-      label: "甲号中继 · 堆场",
+      label: "Relay A — Yard",
       zone: "yard",
       pos: v3(1.5, 0, 7.5),
       object: relayNodeA,
     },
     {
       id: "relay_b",
-      label: "乙号中继 · 仓库",
+      label: "Relay B — Shed",
       zone: "shed",
       pos: v3(shedData.relayPos.x, WAREHOUSE_SPECS.FLOOR, shedData.relayPos.z),
       object: relayNodeB,
     },
     {
       id: "relay_c",
-      label: "丙号中继 · 码头",
+      label: "Relay C — Quay",
       zone: "quay",
       pos: v3(quayData.relayPos.x, 0, quayData.relayPos.z),
       object: relayNodeC,

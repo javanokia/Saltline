@@ -828,7 +828,7 @@ function z1(i, e, t = {}) {
       ],
       { post: 1, tint: En },
     ));
-  let me = i.mats.label("几猫04号", {
+  let me = i.mats.label("SALTLINE 04", {
       color: "white",
       font: "stencil",
       distress: 0.35,
@@ -1157,7 +1157,7 @@ function vb(i, e) {
     for (let Y of [-0.8, 0.8])
       f(r, jt(V(me + Y, ee - 2.4, 0.3), V(me + Y * 1.1, ee - 1.1, 0.34), 0.5, 0.12, 0.02));
   }
-  let A = i.mats.label("几猫撤离艇", {
+  let A = i.mats.label("KITTIWAKE", {
     color: "white",
     font: "sans",
     distress: 0.3,
@@ -1442,7 +1442,7 @@ function vb(i, e) {
     radar: ne,
     colliders: re,
     tris: t.tris,
-    name: "几猫撤离艇",
+    name: "KITTIWAKE",
   };
 }
 function xb(i, e) {
@@ -2339,8 +2339,8 @@ function Eb(i, { only: e = null, showcase: t = !1 } = {}) {
       spreader: l ? l.spreader : null,
       boatBase: r,
       extractionPoint: new W(30, 0, 20),
-      shipName: "几猫撤离艇",
-      craneId: "几猫04号",
+      shipName: "KITTIWAKE",
+      craneId: "SALTLINE 04",
       stats: { tris: Math.round(v), drawCalls: g },
     }
   );

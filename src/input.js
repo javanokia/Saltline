@@ -135,11 +135,13 @@ export function createInputManager(engineCtx) {
     },
 
     describeMode() {
-      if (inputState.mode === "touch") return "触屏操作已启用";
-      if (inputState.mode === "drag") {
-        return "鼠标捕获不可用：移动鼠标调整视角，停在屏幕边缘持续转向；点击开火；方向键或 IJKL 也可转向";
-      }
-      return inputState.locked ? "鼠标已捕获，按 Esc 释放" : "点击游戏画面以捕获鼠标";
+      return inputState.mode === "touch"
+        ? "Touch controls active"
+        : inputState.mode === "drag"
+          ? "Mouse capture unavailable — move the mouse to look, rest it at a screen edge to keep turning · click fires · arrows or IJKL also turn"
+          : inputState.locked
+            ? "Mouse captured — Esc releases it"
+            : "Click the view to capture the mouse";
     },
   };
 
@@ -371,12 +373,12 @@ export function createInputManager(engineCtx) {
     root.className = "touch";
     root.innerHTML = `
       <div class="t-stick"><i class="t-ring"></i><i class="t-nub"></i></div>
-      <button class="t-btn t-fire" data-a="fire" aria-label="开火"><span>开火</span></button>
-      <button class="t-btn t-ads" data-a="ads" aria-label="瞄准"><span>瞄准</span></button>
-      <button class="t-btn t-reload" data-a="reload" aria-label="换弹"><span>换弹</span></button>
-      <button class="t-btn t-jump" data-a="jump" aria-label="跳跃"><span>跳跃</span></button>
-      <button class="t-btn t-interact" data-a="interact" aria-label="交互"><span>交互</span></button>
-      <button class="t-btn t-pause" data-a="pause" aria-label="暂停"><span>暂停</span></button>
+      <button class="t-btn t-fire" data-a="fire" aria-label="Fire"><span>FIRE</span></button>
+      <button class="t-btn t-ads" data-a="ads" aria-label="Aim"><span>AIM</span></button>
+      <button class="t-btn t-reload" data-a="reload" aria-label="Reload"><span>RLD</span></button>
+      <button class="t-btn t-jump" data-a="jump" aria-label="Jump"><span>JUMP</span></button>
+      <button class="t-btn t-interact" data-a="interact" aria-label="Interact"><span>USE</span></button>
+      <button class="t-btn t-pause" data-a="pause" aria-label="Pause"><span>PAUSE</span></button>
     `;
     uiContainer.appendChild(root);
 

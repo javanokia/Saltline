@@ -19,12 +19,12 @@ import * as THREE from "three";
  * 常用地图关键点传送坐标
  */
 const TELEPORT_POINTS = [
-  { name: "码头出生点 (Spawn)", pos: [-32, 1.8, 12], yaw: 0 },
-  { name: "集装箱迷宫区 (Containers)", pos: [-10, 1.8, 2], yaw: Math.PI / 2 },
-  { name: "岸桥起重机顶端 (Crane Summit)", pos: [-12, 28, 18], yaw: -Math.PI / 4 },
-  { name: "泊位海滨前沿 (Quay Waterfront)", pos: [8, 1.8, -12], yaw: Math.PI },
-  { name: "四号室内仓库 (Warehouse)", pos: [-24, 1.8, -20], yaw: -Math.PI / 2 },
-  { name: "撤离巡逻艇 (Patrol Boat)", pos: [22, 1.8, 16], yaw: Math.PI / 3 },
+  { name: "Berth 4 Spawn", pos: [-32, 1.8, 12], yaw: 0 },
+  { name: "Container Yard", pos: [-10, 1.8, 2], yaw: Math.PI / 2 },
+  { name: "Crane Summit", pos: [-12, 28, 18], yaw: -Math.PI / 4 },
+  { name: "Quay Waterfront", pos: [8, 1.8, -12], yaw: Math.PI },
+  { name: "Warehouse 4", pos: [-24, 1.8, -20], yaw: -Math.PI / 2 },
+  { name: "Patrol Boat (Extract)", pos: [22, 1.8, 16], yaw: Math.PI / 3 },
 ];
 
 /**
@@ -319,7 +319,7 @@ export function createDebugSuite(ctx) {
   // 3. UI 元素创建
   const toggleBtn = document.createElement("button");
   toggleBtn.className = "jm-debug-toggle-btn";
-  toggleBtn.textContent = "⚡ 调试套件 (~ / F1)";
+  toggleBtn.textContent = "⚡ DevSuite (~ / F1)";
   toggleBtn.onclick = () => togglePanel();
   document.body.appendChild(toggleBtn);
 
@@ -328,40 +328,40 @@ export function createDebugSuite(ctx) {
   panel.style.display = "none";
   panel.innerHTML = `
     <div class="jm-debug-header">
-      <span>几猫 3A 引擎可视化调试套件</span>
-      <span class="jm-debug-close" title="关闭面板">✕</span>
+      <span>SALTLINE DevSuite</span>
+      <span class="jm-debug-close" title="Close Panel">✕</span>
     </div>
     <div class="jm-debug-tabs">
-      <div class="jm-debug-tab active" data-tab="cheats">快捷作弊</div>
-      <div class="jm-debug-tab" data-tab="noclip">自由漫游</div>
-      <div class="jm-debug-tab" data-tab="physics">碰撞检测</div>
-      <div class="jm-debug-tab" data-tab="lighting">光照天候</div>
-      <div class="jm-debug-tab" data-tab="teleport">传送跳点</div>
-      <div class="jm-debug-tab" data-tab="showcase">沙盒直达</div>
-      <div class="jm-debug-tab" data-tab="stats">性能遥测</div>
+      <div class="jm-debug-tab active" data-tab="cheats">Cheats</div>
+      <div class="jm-debug-tab" data-tab="noclip">NoClip</div>
+      <div class="jm-debug-tab" data-tab="physics">Physics</div>
+      <div class="jm-debug-tab" data-tab="lighting">Lighting</div>
+      <div class="jm-debug-tab" data-tab="teleport">Teleport</div>
+      <div class="jm-debug-tab" data-tab="showcase">Showcases</div>
+      <div class="jm-debug-tab" data-tab="stats">Telemetry</div>
     </div>
     <div class="jm-debug-content">
       <!-- 1. 快捷作弊 -->
       <div class="jm-debug-section active" id="sec-cheats">
         <div class="jm-debug-row">
-          <span class="jm-debug-label">无敌模式 (God Mode)</span>
+          <span class="jm-debug-label">God Mode</span>
           <button class="jm-debug-btn" id="btn-god">OFF</button>
         </div>
         <div class="jm-debug-row">
-          <span class="jm-debug-label">无限弹药 (Infinite Ammo)</span>
+          <span class="jm-debug-label">Infinite Ammo</span>
           <button class="jm-debug-btn" id="btn-ammo">OFF</button>
         </div>
         <div class="jm-debug-row">
-          <span class="jm-debug-label">一键恢复满血满甲</span>
-          <button class="jm-debug-btn" id="btn-heal">立即满血</button>
+          <span class="jm-debug-label">Restore Vitals</span>
+          <button class="jm-debug-btn" id="btn-heal">Full Health</button>
         </div>
         <div class="jm-debug-row">
-          <span class="jm-debug-label">消灭当前所有敌人</span>
-          <button class="jm-debug-btn danger" id="btn-killall">清空敌群</button>
+          <span class="jm-debug-label">Clear All Enemies</span>
+          <button class="jm-debug-btn danger" id="btn-killall">Kill All</button>
         </div>
         <div class="jm-debug-slider-row" style="margin-top: 14px;">
           <div class="jm-debug-slider-header">
-            <span>时间倍率 (Bullet Time)</span>
+            <span>Bullet Time (Time Scale)</span>
             <span id="val-timescale">1.0x</span>
           </div>
           <div style="display: flex; gap: 4px;">
@@ -378,15 +378,15 @@ export function createDebugSuite(ctx) {
       <!-- 2. 自由漫游 -->
       <div class="jm-debug-section" id="sec-noclip">
         <div class="jm-debug-row">
-          <span class="jm-debug-label">开启穿墙飞行视角</span>
+          <span class="jm-debug-label">Free Flight Camera</span>
           <button class="jm-debug-btn" id="btn-noclip">OFF</button>
         </div>
         <p style="color: #8d9aa3; font-size: 11px; line-height: 1.5; margin: 8px 0;">
-          操作说明：WASD 平移，Space 垂直上升，Shift 垂直下降或俯冲加速。
+          WASD moves, Space ascends, Shift descends.
         </p>
         <div class="jm-debug-slider-row">
           <div class="jm-debug-slider-header">
-            <span>飞行基础航速</span>
+            <span>Flight Speed</span>
             <span id="val-flyspeed">15 m/s</span>
           </div>
           <input type="range" class="jm-debug-slider" id="slider-flyspeed" min="5" max="60" value="15" />
@@ -396,11 +396,11 @@ export function createDebugSuite(ctx) {
       <!-- 3. 碰撞线框 -->
       <div class="jm-debug-section" id="sec-physics">
         <div class="jm-debug-row">
-          <span class="jm-debug-label">显示物理包围盒线框</span>
+          <span class="jm-debug-label">Show Collider Wireframes</span>
           <button class="jm-debug-btn" id="btn-colliders">OFF</button>
         </div>
         <p style="color: #8d9aa3; font-size: 11px; line-height: 1.5;">
-          绿色表示陆地/建筑物碰撞体，橙色表示金属工业道具，青色表示水体与码头边界。
+          Green: ground/buildings; Orange: metal props; Cyan: water/quay boundaries.
         </p>
       </div>
 
@@ -408,14 +408,14 @@ export function createDebugSuite(ctx) {
       <div class="jm-debug-section" id="sec-lighting">
         <div class="jm-debug-slider-row">
           <div class="jm-debug-slider-header">
-            <span>太阳光照强度</span>
+            <span>Sun Intensity</span>
             <span id="val-sun-intensity">3.5</span>
           </div>
           <input type="range" class="jm-debug-slider" id="slider-sun-intensity" min="0" max="10" step="0.2" value="3.5" />
         </div>
         <div class="jm-debug-slider-row">
           <div class="jm-debug-slider-header">
-            <span>后处理曝光补偿 (Exposure)</span>
+            <span>Exposure</span>
             <span id="val-exposure">1.0</span>
           </div>
           <input type="range" class="jm-debug-slider" id="slider-exposure" min="0.2" max="3.0" step="0.1" value="1.0" />
@@ -430,14 +430,14 @@ export function createDebugSuite(ctx) {
       <!-- 6. 沙盒陈列室 -->
       <div class="jm-debug-section" id="sec-showcase">
         <div class="jm-debug-grid">
-          <button class="jm-debug-btn" data-url="/?bench=1">跑分基准模式</button>
-          <button class="jm-debug-btn" data-url="/?show=weapon">武器陈列室</button>
-          <button class="jm-debug-btn" data-url="/?show=enemies">敌方陈列室</button>
-          <button class="jm-debug-btn" data-url="/?show=fx">粒子特效陈列室</button>
-          <button class="jm-debug-btn" data-url="/?show=props">工业道具陈列室</button>
-          <button class="jm-debug-btn" data-url="/?show=materials">物理材质陈列室</button>
-          <button class="jm-debug-btn" data-url="/?show=ground">地面水体陈列室</button>
-          <button class="jm-debug-btn" data-url="/">重置为主游戏</button>
+          <button class="jm-debug-btn" data-url="/?bench=1">Benchmark</button>
+          <button class="jm-debug-btn" data-url="/?show=weapon">Weapons</button>
+          <button class="jm-debug-btn" data-url="/?show=enemies">Enemies</button>
+          <button class="jm-debug-btn" data-url="/?show=fx">FX Systems</button>
+          <button class="jm-debug-btn" data-url="/?show=props">Props</button>
+          <button class="jm-debug-btn" data-url="/?show=materials">Materials</button>
+          <button class="jm-debug-btn" data-url="/?show=ground">Ground & Water</button>
+          <button class="jm-debug-btn" data-url="/">Main Game</button>
         </div>
       </div>
 

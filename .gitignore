@@ -29,3 +29,7 @@ scripts/extracted_*.js
 *.tmp
 temp_*
 
+# Test Artifacts
+tests/artifacts/
+
+

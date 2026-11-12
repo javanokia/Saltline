@@ -30,7 +30,6 @@ export default [
     },
     rules: {
       // 逆向还原代码保留的动态写法
-      "no-undef": "off",
       "no-unused-vars": "off",
       "no-empty": "off",
       "no-cond-assign": "off",
@@ -51,6 +50,7 @@ export default [
       "prefer-const": "off",
       eqeqeq: "off",
       // 真实风险规则保持开启
+      "no-undef": "error",
       "no-debugger": "error",
       "no-dupe-keys": "error",
       "no-duplicate-case": "error",

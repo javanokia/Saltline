@@ -1347,44 +1347,18 @@ function createHound(hiveCtx, rigDef, materials, index) {
   }
 
   /**
-   * 猎犬战斗与行为决策主循环 (Hound Think & State Machine)
+   * 猎犬行动分支处理：巡逻、调查、追逐与近战飞扑决策
+   * @param {number} dt
+   * @param {any} player
+   * @param {number} distToPlayer
+   * @returns {{ aimTarget: any, headLookTarget: any, crouchTarget: number, isLunging: boolean }}
    */
-  function updateAliveHound(dt) {
-    const player = engineCtx.player;
-    const simTime = hiveCtx.t;
-
-    hound.fwd.set(Math.sin(hound.yaw), 0, Math.cos(hound.yaw));
-    hound.sensor.copy(hound.headPos);
-
-    hiveCtx.think(hound, dt, 0.55);
-
-    if (hound.mode !== hound.modeSeen) {
-      hound.modeSeen = hound.mode;
-      hound.hasGoal = false;
-      hound.path = null;
-      hound.waitT = 0;
-      if (hound.mode === "engage") {
-        seekCoverOrFlank();
-      } else if (hound.es === "tele" || hound.es === "burst") {
-        hiveCtx.releaseToken(hound);
-        hound.es = "move";
-      }
-    }
-
-    hound.wantYaw = hound.yaw;
-    hound.maxSpeed = 0;
-    hound.cool -= dt;
-    hound.lungeCd -= dt;
-
+  function updateHoundBehavior(dt, player, distToPlayer) {
     let aimTarget = null;
     let headLookTarget = null;
     let crouchTarget = 0;
     let isLunging = false;
-    const distToPlayer = player
-      ? Math.hypot(player.pos.x - hound.pos.x, player.pos.z - hound.pos.z)
-      : 1e9;
 
-    // 1. 状态分支 (State Transitions)
     if (hound.mode === "patrol") {
       if (hound.hasGoal) {
         if (followPath(dt, HOUND_CONFIG.patrolSpeed)) {
@@ -1573,7 +1547,18 @@ function createHound(hiveCtx, rigDef, materials, index) {
       }
     }
 
-    // 2. 转向速率阻尼积分 (Steering Dynamics)
+    return { aimTarget, headLookTarget, crouchTarget, isLunging };
+  }
+
+  /**
+   * 猎犬转向阻尼、线速度积分、物理避挤排斥与导航网格地面贴合计算
+   * @param {number} dt
+   * @param {any} player
+   * @param {number} distToPlayer
+   * @param {boolean} isLunging
+   */
+  function updateHoundMotionAndPhysics(dt, player, distToPlayer, isLunging) {
+    // 转向速率阻尼积分 (Steering Dynamics)
     const yawError = diffAngle(hound.wantYaw, hound.yaw);
     const targetYawRate =
       clampValue(yawError * 6.0, -HOUND_CONFIG.turnRate, HOUND_CONFIG.turnRate) *
@@ -1582,7 +1567,7 @@ function createHound(hiveCtx, rigDef, materials, index) {
     hound.yawRate += (targetYawRate - hound.yawRate) * (1 - Math.exp(-10 * dt));
     hound.yaw += hound.yawRate * dt;
 
-    // 3. 线速度加速度积分 (Linear Velocity Integration)
+    // 线速度加速度积分 (Linear Velocity Integration)
     const accelRate = hound.maxSpeed > hound.speed ? HOUND_CONFIG.accel : -HOUND_CONFIG.accel * 1.4;
     hound.prevSpeed = hound.speed;
     hound.speed = isLunging
@@ -1593,7 +1578,7 @@ function createHound(hiveCtx, rigDef, materials, index) {
       hound.speed = hound.maxSpeed;
     }
 
-    // 4. 群体避挤与玩家碰撞排斥 (Flocking Repulsion & Push)
+    // 群体避挤与玩家碰撞排斥 (Flocking Repulsion & Push)
     const sinYaw = Math.sin(hound.yaw);
     const cosYaw = Math.cos(hound.yaw);
 
@@ -1617,7 +1602,7 @@ function createHound(hiveCtx, rigDef, materials, index) {
 
     hound.push.multiplyScalar(Math.exp(-5 * dt));
 
-    // 5. 障碍探测与地面贴合 (Obstacle Feeler & Navmesh Bounds)
+    // 障碍探测与地面贴合 (Obstacle Feeler & Navmesh Bounds)
     let nextX = hound.pos.x + (sinYaw * hound.speed + hound.push.x) * dt;
     let nextZ = hound.pos.z + (cosYaw * hound.speed + hound.push.z) * dt;
     const navmesh = engineCtx.physics.nav;
@@ -1670,13 +1655,57 @@ function createHound(hiveCtx, rigDef, materials, index) {
     hound.pos.y +=
       (engineCtx.physics.groundHeight(nextX, nextZ, hound.pos.y + 0.6) - hound.pos.y) *
       (1 - Math.exp(-12 * dt));
+  }
 
-    // 6. 四足小跑步态推进 (Trotting Locomotion Dynamics)
+  /**
+   * 猎犬战斗与行为决策主循环 (Hound Think & State Machine)
+   */
+  function updateAliveHound(dt) {
+    const player = engineCtx.player;
+
+    hound.fwd.set(Math.sin(hound.yaw), 0, Math.cos(hound.yaw));
+    hound.sensor.copy(hound.headPos);
+
+    hiveCtx.think(hound, dt, 0.55);
+
+    if (hound.mode !== hound.modeSeen) {
+      hound.modeSeen = hound.mode;
+      hound.hasGoal = false;
+      hound.path = null;
+      hound.waitT = 0;
+      if (hound.mode === "engage") {
+        seekCoverOrFlank();
+      } else if (hound.es === "tele" || hound.es === "burst") {
+        hiveCtx.releaseToken(hound);
+        hound.es = "move";
+      }
+    }
+
+    hound.wantYaw = hound.yaw;
+    hound.maxSpeed = 0;
+    hound.cool -= dt;
+    hound.lungeCd -= dt;
+
+    const distToPlayer = player
+      ? Math.hypot(player.pos.x - hound.pos.x, player.pos.z - hound.pos.z)
+      : 1e9;
+
+    // 1. 行为分支与状态跃迁计算
+    const { aimTarget, headLookTarget, crouchTarget, isLunging } = updateHoundBehavior(
+      dt,
+      player,
+      distToPlayer,
+    );
+
+    // 2. 转向、动力学与避挤地面贴合步进
+    updateHoundMotionAndPhysics(dt, player, distToPlayer, isLunging);
+
+    // 3. 四足小跑步态推进 (Trotting Locomotion Dynamics)
     updateHoundLocomotion(dt);
 
     hound.crouch += (crouchTarget - hound.crouch) * (1 - Math.exp(-12 * dt));
 
-    // 7. 炮塔与头部多级朝向计算 (Turret Aiming & Head Look-At IK)
+    // 4. 炮塔与头部多级朝向计算 (Turret Aiming & Head Look-At IK)
     const cosY = Math.cos(hound.yaw);
     const sinY = Math.sin(hound.yaw);
     let targetTurretYaw = 0;

@@ -23,9 +23,15 @@ const br = (i, e) => {
   for (var t in e) _M(i, t, { get: e[t], enumerable: true });
 };
 
-import { oi, Mn, en, Pi, vf, zc, Pr, zy, Dy, il, Zn, bi, Fo, sl, kn, Wt, dr } from "./constants.js";
-
-import { sa, Ly, oa, $e, Wi, ot, Fn, ky, Fy, Uy, Ny, Fg, Dc, Lc, Ii, By, Qi } from "./geo.js";
+import {
+  SCENE_BOUNDS,
+  PLAYER_CONFIG,
+  clamp,
+  lerp,
+  saturate,
+  smoothstep,
+  damp,
+} from "./constants.js";
 
 const { Vector3, Euler, Matrix4 } = THREE;
 
@@ -49,7 +55,7 @@ export const PLAYER_TUNE = {
   jumpApex: 1.0, // 跳跃高度峰值 (米)
   coyote: 0.12, // 土狼时间 (离地后允许起跳的秒数)
   jumpBuffer: 0.13, // 跳跃预输入缓冲时间 (秒)
-  standHeight: Pi.height, // 站立碰撞胶囊高 (1.8m)
+  standHeight: PLAYER_CONFIG.height, // 站立碰撞胶囊高 (1.8m)
   crouchHeight: 1.15, // 蹲伏碰撞胶囊高 (1.15m)
   eyeRate: 11, // 蹲起视高平滑过渡速率
 
@@ -109,7 +115,7 @@ export function createPlayer(ctx) {
   const fallbackPost = {};
 
   // 视高与胶囊体尺寸
-  let currentEyeHeight = Pi.eye;
+  let currentEyeHeight = PLAYER_CONFIG.eye;
   let targetCapsuleHeight = PLAYER_TUNE.standHeight;
 
   // 跳跃与离地计时
@@ -143,7 +149,7 @@ export function createPlayer(ctx) {
   let hurtPulse = 0;
   let lowHealthWeight = 0;
   let deathTimer = 0;
-  let currentFov = Pi.fov;
+  let currentFov = PLAYER_CONFIG.fov;
   let adsProgress = 0;
   let lastGroundSurface = "concrete";
 
@@ -170,7 +176,7 @@ export function createPlayer(ctx) {
     speed: 0,
     enabled: true,
     invulnerable: false,
-    baseFov: Pi.fov,
+    baseFov: PLAYER_CONFIG.fov,
     hurtPulse: 0,
     lookScale: 1,
     lastSafe: lastSafeQuayPosition,
@@ -192,7 +198,7 @@ export function createPlayer(ctx) {
       player.invulnerable = false;
       player.speed = 0;
 
-      currentEyeHeight = Pi.eye;
+      currentEyeHeight = PLAYER_CONFIG.eye;
       targetCapsuleHeight = PLAYER_TUNE.standHeight;
       coyoteTimer = 0;
       jumpBufferTimer = 0;
@@ -259,7 +265,7 @@ export function createPlayer(ctx) {
     addRecoil(pitchAmount = 0, yawAmount = 0) {
       const keep = PLAYER_TUNE.recoilKeep;
       // 永久偏移一部分
-      player.pitch = Zn(
+      player.pitch = clamp(
         player.pitch + pitchAmount * keep,
         -PLAYER_TUNE.pitchLimit,
         PLAYER_TUNE.pitchLimit,
@@ -269,8 +275,8 @@ export function createPlayer(ctx) {
       // 弹性回复部分
       recoilPitchTarget += pitchAmount * (1 - keep);
       recoilYawTarget += yawAmount * (1 - keep);
-      recoilPitchTarget = Zn(recoilPitchTarget, -0.3, 0.3);
-      recoilYawTarget = Zn(recoilYawTarget, -0.2, 0.2);
+      recoilPitchTarget = clamp(recoilPitchTarget, -0.3, 0.3);
+      recoilYawTarget = clamp(recoilYawTarget, -0.2, 0.2);
       recoilHoldTimer = PLAYER_TUNE.recoilHold;
     },
 
@@ -281,7 +287,7 @@ export function createPlayer(ctx) {
 
     /** 调整基础视场角 */
     setFov(fovVal) {
-      player.baseFov = Zn(+fovVal || Pi.fov, 55, 100);
+      player.baseFov = clamp(+fovVal || PLAYER_CONFIG.fov, 55, 100);
     },
 
     /** 主逻辑更新 */
@@ -295,7 +301,7 @@ export function createPlayer(ctx) {
     if (!evt || !evt.pos) return;
     const dist = player.eye.distanceTo(evt.pos);
     const scale = evt.size || 1;
-    const impact = Fo(1 - dist / (14 + scale * 10)) * (0.35 + 0.35 * scale);
+    const impact = saturate(1 - dist / (14 + scale * 10)) * (0.35 + 0.35 * scale);
     if (impact > 0.01) player.addShake(impact);
   });
 
@@ -305,7 +311,7 @@ export function createPlayer(ctx) {
   function canStandUp() {
     const boxes = ctx.physics && ctx.physics.boxes;
     if (!boxes) return true;
-    const r = Pi.radius * 0.9;
+    const r = PLAYER_CONFIG.radius * 0.9;
     const minY = player.pos.y + PLAYER_TUNE.crouchHeight - 0.05;
     const maxY = player.pos.y + PLAYER_TUNE.standHeight;
 
@@ -347,36 +353,17 @@ export function createPlayer(ctx) {
   }
 
   /**
-   * 玩家主动机能主更新循环
+   * 计算玩家在当前控制输入与开镜/蹲伏/冲刺下的期望速度与运动状态
+   * @param {any} input
+   * @param {boolean} isControlEnabled
+   * @returns {{ moveX: number, moveY: number, hasMoveInput: boolean }}
    */
-  function updatePlayer(dt) {
-    const input = ctx.input;
-    const weapon = ctx.weapon || {};
-
-    // 瞄准开镜 (ADS) 权重平滑
-    if (weapon.stub || typeof weapon.ads !== "number") {
-      adsProgress = kn(adsProgress, player.enabled && input.ads ? 1 : 0, 14, dt);
-      player.ads = adsProgress;
-    } else {
-      player.ads = Fo(weapon.ads);
-    }
-
-    // 阵亡状态处理
-    if (!player.alive) {
-      deathTimer += dt;
-      updateDeadPhysics(dt);
-      updateCameraRig(dt);
-      updatePostEffects(dt);
-      return;
-    }
-
-    const isControlEnabled = player.enabled;
-
+  function updateLocomotionIntent(input, isControlEnabled) {
     // 视角转动灵敏度缩放 (开镜降低灵敏度)
-    player.lookScale = bi(1, PLAYER_TUNE.adsLook, player.ads);
+    player.lookScale = lerp(1, PLAYER_TUNE.adsLook, player.ads);
     if (isControlEnabled) {
       player.yaw -= input.look.dx * player.lookScale;
-      player.pitch = Zn(
+      player.pitch = clamp(
         player.pitch - input.look.dy * player.lookScale,
         -PLAYER_TUNE.pitchLimit,
         PLAYER_TUNE.pitchLimit,
@@ -421,18 +408,28 @@ export function createPlayer(ctx) {
     } else if (canSprint) {
       targetSpeed = PLAYER_TUNE.sprint;
     }
-    targetSpeed = bi(targetSpeed, Math.min(targetSpeed, PLAYER_TUNE.ads), player.ads);
+    targetSpeed = lerp(targetSpeed, Math.min(targetSpeed, PLAYER_TUNE.ads), player.ads);
     if (moveY < 0) {
-      targetSpeed *= bi(1, 0.82, -moveY); // 后退减速
+      targetSpeed *= lerp(1, 0.82, -moveY);
     }
 
-    // 世界坐标期望移动速度
     const sinYaw = Math.sin(player.yaw);
     const cosYaw = Math.cos(player.yaw);
     desiredVelocity
       .set(moveX * cosYaw - moveY * sinYaw, 0, -moveX * sinYaw - moveY * cosYaw)
       .multiplyScalar(targetSpeed);
 
+    return { moveX, moveY, hasMoveInput };
+  }
+
+  /**
+   * 水平/垂直动量积分、跳跃、胶囊体胶着碰撞与落水搜救
+   * @param {number} dt
+   * @param {any} input
+   * @param {boolean} isControlEnabled
+   * @param {boolean} hasMoveInput
+   */
+  function updatePlayerPhysics(dt, input, isControlEnabled, hasMoveInput) {
     // 水平地面惯性阻尼与空中机动响应
     const accelRate = player.onGround
       ? hasMoveInput
@@ -489,7 +486,7 @@ export function createPlayer(ctx) {
         player.pos,
         player.vel,
         dt,
-        Pi.radius,
+        PLAYER_CONFIG.radius,
         targetCapsuleHeight,
         wasOnGround,
       ) || {};
@@ -500,8 +497,8 @@ export function createPlayer(ctx) {
     // 港区地图边界钳位
     const bounds = ctx.physics.bounds;
     if (bounds) {
-      player.pos.x = Zn(player.pos.x, bounds.min.x + 0.4, bounds.max.x - 0.4);
-      player.pos.z = Zn(player.pos.z, bounds.min.z + 0.4, bounds.max.z - 0.4);
+      player.pos.x = clamp(player.pos.x, bounds.min.x + 0.4, bounds.max.x - 0.4);
+      player.pos.z = clamp(player.pos.z, bounds.min.z + 0.4, bounds.max.z - 0.4);
     }
 
     player.onGround = !!hitResult.onGround;
@@ -534,7 +531,7 @@ export function createPlayer(ctx) {
       peakFallSpeed = 0;
 
       // 记录安全的码头陆地位置 (防止落海失救)
-      if (player.pos.x <= oi.quayX - 1.2 && player.pos.y > -0.5) {
+      if (player.pos.x <= SCENE_BOUNDS.quayX - 1.2 && player.pos.y > -0.5) {
         lastSafeQuayPosition.copy(player.pos);
       }
     } else {
@@ -545,7 +542,7 @@ export function createPlayer(ctx) {
     wasOnGround = player.onGround;
 
     // 掉入海水中自动救援
-    if (player.pos.y < oi.seaY - 2.2) {
+    if (player.pos.y < SCENE_BOUNDS.seaY - 2.2) {
       player.pos.copy(lastSafeQuayPosition);
       player.vel.set(0, 0, 0);
       player.onGround = true;
@@ -557,8 +554,41 @@ export function createPlayer(ctx) {
     }
 
     player.speed = Math.hypot(player.vel.x, player.vel.z);
+  }
 
-    // 脚步声节拍驱动
+  /**
+   * 玩家主动机能主更新循环
+   */
+  function updatePlayer(dt) {
+    const input = ctx.input;
+    const weapon = ctx.weapon || {};
+
+    // 瞄准开镜 (ADS) 权重平滑
+    if (weapon.stub || typeof weapon.ads !== "number") {
+      adsProgress = damp(adsProgress, player.enabled && input.ads ? 1 : 0, 14, dt);
+      player.ads = adsProgress;
+    } else {
+      player.ads = saturate(weapon.ads);
+    }
+
+    // 阵亡状态处理
+    if (!player.alive) {
+      deathTimer += dt;
+      updateDeadPhysics(dt);
+      updateCameraRig(dt);
+      updatePostEffects(dt);
+      return;
+    }
+
+    const isControlEnabled = player.enabled;
+
+    // 1. 意图解析与机能速度期望
+    const { hasMoveInput } = updateLocomotionIntent(input, isControlEnabled);
+
+    // 2. 运动学动力学积分与物理碰撞
+    updatePlayerPhysics(dt, input, isControlEnabled, hasMoveInput);
+
+    // 3. 脚步声节拍驱动
     const currentStride = player.crouching
       ? PLAYER_TUNE.stride.crouch
       : player.sprinting
@@ -575,30 +605,32 @@ export function createPlayer(ctx) {
         });
       }
     } else if (player.onGround) {
-      footstepCycle = kn(footstepCycle, Math.round(footstepCycle), 8, dt);
+      footstepCycle = damp(footstepCycle, Math.round(footstepCycle), 8, dt);
     }
 
-    // 第一人称视口仿生摆动 (Head Bobbing)
+    // 4. 第一人称视口仿生摆动 (Head Bobbing)
     const bobTarget = player.onGround
-      ? Fo(player.speed / PLAYER_TUNE.walk) *
+      ? saturate(player.speed / PLAYER_TUNE.walk) *
         (player.sprinting ? PLAYER_TUNE.bobSprint : 1) *
-        bi(1, PLAYER_TUNE.bobAds, player.ads) *
+        lerp(1, PLAYER_TUNE.bobAds, player.ads) *
         (player.crouching ? 0.7 : 1)
       : 0;
-    headBobWeight = kn(headBobWeight, bobTarget, 9, dt);
+    headBobWeight = damp(headBobWeight, bobTarget, 9, dt);
     bobOffsetY = -Math.cos(footstepCycle * Math.PI * 2) * PLAYER_TUNE.bobY * headBobWeight;
     bobOffsetX = Math.sin(footstepCycle * Math.PI) * PLAYER_TUNE.bobX * headBobWeight;
 
-    // 侧倾转角
+    // 5. 侧倾转角 (Strafe Roll)
+    const sinYaw = Math.sin(player.yaw);
+    const cosYaw = Math.cos(player.yaw);
     const lateralSpeed = player.vel.x * cosYaw - player.vel.z * sinYaw;
-    strafeRollAngle = kn(
+    strafeRollAngle = damp(
       strafeRollAngle,
-      (-lateralSpeed / PLAYER_TUNE.sprint) * PLAYER_TUNE.rollStrafe * bi(1, 0.4, player.ads),
+      (-lateralSpeed / PLAYER_TUNE.sprint) * PLAYER_TUNE.rollStrafe * lerp(1, 0.4, player.ads),
       8,
       dt,
     );
 
-    // 脱战生命自然回复
+    // 6. 脱战生命自然回复
     healthRegenTimer += dt;
     if (healthRegenTimer > PLAYER_TUNE.regenDelay && player.health < player.maxHealth) {
       player.health = Math.min(player.maxHealth, player.health + PLAYER_TUNE.regenRate * dt);
@@ -612,22 +644,29 @@ export function createPlayer(ctx) {
    * 玩家死亡物理减速
    */
   function updateDeadPhysics(dt) {
-    player.vel.x = kn(player.vel.x, 0, 5, dt);
-    player.vel.z = kn(player.vel.z, 0, 5, dt);
+    player.vel.x = damp(player.vel.x, 0, 5, dt);
+    player.vel.z = damp(player.vel.z, 0, 5, dt);
     player.vel.y -= PLAYER_TUNE.gravity * dt;
 
     try {
-      const hit = ctx.physics.moveCapsule(player.pos, player.vel, dt, Pi.radius, 0.6, wasOnGround);
+      const hit = ctx.physics.moveCapsule(
+        player.pos,
+        player.vel,
+        dt,
+        PLAYER_CONFIG.radius,
+        0.6,
+        wasOnGround,
+      );
       wasOnGround = !!(hit && hit.onGround);
     } catch {}
 
-    if (player.pos.y < oi.seaY - 1) {
-      player.pos.y = oi.seaY - 1;
+    if (player.pos.y < SCENE_BOUNDS.seaY - 1) {
+      player.pos.y = SCENE_BOUNDS.seaY - 1;
       player.vel.y = 0;
     }
     player.speed = 0;
     player.sprinting = false;
-    headBobWeight = kn(headBobWeight, 0, 10, dt);
+    headBobWeight = damp(headBobWeight, 0, 10, dt);
     bobOffsetX *= 0.9;
     bobOffsetY *= 0.9;
   }
@@ -636,19 +675,19 @@ export function createPlayer(ctx) {
    * 更新第一人称相机骨架、视高插值、后坐力回复与多频震动
    */
   function updateCameraRig(dt) {
-    let targetEyeY = player.crouching ? Pi.crouchEye : Pi.eye;
+    let targetEyeY = player.crouching ? PLAYER_CONFIG.crouchEye : PLAYER_CONFIG.eye;
     let deathRoll = 0;
     let deathPitch = 0;
 
     if (player.alive) {
       currentEyeHeight =
-        dt > 0 ? kn(currentEyeHeight, targetEyeY, PLAYER_TUNE.eyeRate, dt) : targetEyeY;
+        dt > 0 ? damp(currentEyeHeight, targetEyeY, PLAYER_TUNE.eyeRate, dt) : targetEyeY;
     } else {
       // 倒下死亡动作视线倾斜
-      const progress = sl(0, 0.85, deathTimer);
+      const progress = smoothstep(0, 0.85, deathTimer);
       const ease = progress * progress;
-      targetEyeY = bi(Pi.eye, 0.22, ease);
-      currentEyeHeight = kn(currentEyeHeight, targetEyeY, 18, dt);
+      targetEyeY = lerp(PLAYER_CONFIG.eye, 0.22, ease);
+      currentEyeHeight = damp(currentEyeHeight, targetEyeY, 18, dt);
       deathRoll = 1.15 * ease;
       deathPitch = -0.25 * progress + 0.12 * Math.sin(progress * Math.PI);
     }
@@ -658,16 +697,16 @@ export function createPlayer(ctx) {
       const springForce = -landDipSpring.x * 150 - landDipSpring.v * 17;
       landDipSpring.v += springForce * dt;
       landDipSpring.x += landDipSpring.v * dt;
-      landDipSpring.x = Zn(landDipSpring.x, -PLAYER_TUNE.landDipMax, 0.05);
+      landDipSpring.x = clamp(landDipSpring.x, -PLAYER_TUNE.landDipMax, 0.05);
 
       // 后坐力回复阻尼
       recoilHoldTimer -= dt;
       if (recoilHoldTimer <= 0) {
-        recoilPitchTarget = kn(recoilPitchTarget, 0, PLAYER_TUNE.recoilRecover, dt);
-        recoilYawTarget = kn(recoilYawTarget, 0, PLAYER_TUNE.recoilRecover, dt);
+        recoilPitchTarget = damp(recoilPitchTarget, 0, PLAYER_TUNE.recoilRecover, dt);
+        recoilYawTarget = damp(recoilYawTarget, 0, PLAYER_TUNE.recoilRecover, dt);
       }
-      recoilPitchCurrent = kn(recoilPitchCurrent, recoilPitchTarget, PLAYER_TUNE.recoilApply, dt);
-      recoilYawCurrent = kn(recoilYawCurrent, recoilYawTarget, PLAYER_TUNE.recoilApply, dt);
+      recoilPitchCurrent = damp(recoilPitchCurrent, recoilPitchTarget, PLAYER_TUNE.recoilApply, dt);
+      recoilYawCurrent = damp(recoilYawCurrent, recoilYawTarget, PLAYER_TUNE.recoilApply, dt);
 
       // 镜头震动衰减
       shakeIntensity = Math.max(0, shakeIntensity - PLAYER_TUNE.shakeDecay * dt);
@@ -685,7 +724,7 @@ export function createPlayer(ctx) {
     );
 
     // 视口朝向叠加后坐力
-    const totalPitch = Zn(player.pitch + recoilPitchCurrent, -1.55, 1.55);
+    const totalPitch = clamp(player.pitch + recoilPitchCurrent, -1.55, 1.55);
     const totalYaw = player.yaw + recoilYawCurrent;
     cameraEuler.set(totalPitch, totalYaw, 0, "YXZ");
     player.forward.set(0, 0, -1).applyEuler(cameraEuler);
@@ -716,14 +755,14 @@ export function createPlayer(ctx) {
 
     // 动态 FOV 过渡
     if (!ctx.params || !ctx.params.fov) {
-      const targetFov = bi(
+      const targetFov = lerp(
         player.baseFov + (player.sprinting ? PLAYER_TUNE.fovSprint : 0),
         PLAYER_TUNE.fovAds,
         player.ads,
       );
       currentFov =
         dt > 0
-          ? kn(currentFov, targetFov, player.ads > 0.02 && player.ads < 0.98 ? 30 : 7, dt)
+          ? damp(currentFov, targetFov, player.ads > 0.02 && player.ads < 0.98 ? 30 : 7, dt)
           : targetFov;
       if (Math.abs(camera.fov - currentFov) > 0.01) {
         camera.fov = currentFov;
@@ -739,8 +778,10 @@ export function createPlayer(ctx) {
     hurtPulse = Math.max(0, hurtPulse - dt * 1.9);
     player.hurtPulse = hurtPulse;
 
-    const lowHealthTarget = player.alive ? sl(0.55, 0.12, player.health / player.maxHealth) : 1;
-    lowHealthWeight = kn(lowHealthWeight, lowHealthTarget, 4, dt);
+    const lowHealthTarget = player.alive
+      ? smoothstep(0.55, 0.12, player.health / player.maxHealth)
+      : 1;
+    lowHealthWeight = damp(lowHealthWeight, lowHealthTarget, 4, dt);
 
     const post = getPostParams();
     post.damage = hurtPulse;

@@ -431,20 +431,18 @@ const {
   createCanvasElement: dg,
 } = THREE;
 
-import { oi, Mn, en, Pi, vf, zc, Pr, zy, Dy, il, Zn, bi, Fo, sl, kn, Wt, dr } from "./constants.js";
-
-import { sa, Ly, oa, $e, Wi, ot, Fn, ky, Fy, Uy, Ny, Fg, Dc, Lc, Ii, By, Qi } from "./geo.js";
+import { clamp, lerp, saturate, damp, FACTION_PLAYER, FACTION_ENEMY } from "./constants.js";
 
 import {
-  buildPac9Geometries as w_,
-  PAC9_MODEL_PARAMS as mi,
-  applyPac9ShaderDetails as Bf,
-  createPac9MarkingsMesh as F_,
-  createPac9SightDotMesh as U_,
-  createPac9MuzzleFlashMesh as N_,
-  buildPac9HandsMesh as Vv,
-  countGeometryTris as Kc,
-  pac9RainUniform as Wv,
+  buildPac9Geometries,
+  PAC9_MODEL_PARAMS,
+  applyPac9ShaderDetails,
+  createPac9MarkingsMesh,
+  createPac9SightDotMesh,
+  createPac9MuzzleFlashMesh,
+  buildPac9HandsMesh,
+  countGeometryTris,
+  pac9RainUniform,
 } from "./weapons/pac9_model.js";
 
 // ============================================================================
@@ -473,7 +471,7 @@ const POSE_HIPFIRE = {
 
 /** 开镜瞄准 (ADS - Aim Down Sights) 视模对齐偏移 (全息红点光轴居中) */
 const POSE_ADS = {
-  p: [0, -mi.sightY, -0.135],
+  p: [0, -PAC9_MODEL_PARAMS.sightY, -0.135],
   r: [0, 0, 0],
 };
 
@@ -500,7 +498,7 @@ const RELOAD_DURATION_EMPTY = 2.72;
  * @returns {number}
  */
 const smootherstep = (t) => {
-  t = Fo(t);
+  t = saturate(t);
   return t * t * t * (t * (6 * t - 15) + 10);
 };
 
@@ -549,7 +547,7 @@ async function createWeapon(ctx) {
   root.name = "viewmodel-pac9";
 
   // 1. 获取程序化几何体构件
-  const geo = w_();
+  const geo = buildPac9Geometries();
 
   // 2. 材质分配与三向投影贴图纹理
   const matScaleMap = {
@@ -582,7 +580,7 @@ async function createWeapon(ctx) {
     vertexColors: true,
   });
   matAnodized.name = "pac9_anodised";
-  Bf(matAnodized, 0);
+  applyPac9ShaderDetails(matAnodized, 0);
 
   // 哑光印字/刻字材质
   const matMatte = new Qt({
@@ -601,7 +599,7 @@ async function createWeapon(ctx) {
     vertexColors: true,
   });
   matPhosphate.name = "pac9_phosphate";
-  Bf(matPhosphate, 1);
+  applyPac9ShaderDetails(matPhosphate, 1);
 
   // 工程塑料下机匣/握把聚合物材质
   const matPolymer = new Qt({
@@ -611,7 +609,7 @@ async function createWeapon(ctx) {
     vertexColors: true,
   });
   matPolymer.name = "pac9_polymer";
-  Bf(matPolymer, 2);
+  applyPac9ShaderDetails(matPolymer, 2);
 
   // 棕褐色军规抗冲击弹匣工程塑料
   const matPolymerTan = new Qt({
@@ -621,7 +619,7 @@ async function createWeapon(ctx) {
     vertexColors: true,
   });
   matPolymerTan.name = "pac9_polymer_tan";
-  Bf(matPolymerTan, 2);
+  applyPac9ShaderDetails(matPolymerTan, 2);
 
   // 组装机匣主体
   root.add(
@@ -637,7 +635,7 @@ async function createWeapon(ctx) {
 
   // 组装可拆卸供弹具 (30发弹匣与首发黄铜穿甲弹)
   const magGroup = new wt();
-  const magDefaultPos = new Vector3_().fromArray(mi.magPos);
+  const magDefaultPos = new Vector3_().fromArray(PAC9_MODEL_PARAMS.magPos);
   magGroup.position.copy(magDefaultPos);
 
   const topRoundMesh = createMesh(geo.round, getProceduralMat("brass"));
@@ -647,7 +645,7 @@ async function createWeapon(ctx) {
   // 组装高精度机匣激光刻字与导轨刻度 (PAC-9 刻标、警示标记、快慢机 AUTO/SEMI/SAFE)
   let markingsMesh = null;
   try {
-    markingsMesh = F_([
+    markingsMesh = createPac9MarkingsMesh([
       ["model", -0.0168, -0.0315, 0.064, 0.0095, "L"],
       ["maker", -0.0168, -0.042, 0.064, 0.003, "L"],
       ["cal", -0.0168, -0.0465, 0.064, 0.0028, "L"],
@@ -681,16 +679,19 @@ async function createWeapon(ctx) {
   }
 
   // 全息瞄准镜分划板与准直物镜
-  const opticSightMesh = U_(
-    mi.window.map((pt) => [pt[0] * 1.01, (pt[1] - mi.sightY) * 1.01 + mi.sightY]),
-    mi.lensF + 0.0025,
+  const opticSightMesh = createPac9SightDotMesh(
+    PAC9_MODEL_PARAMS.window.map((pt) => [
+      pt[0] * 1.01,
+      (pt[1] - PAC9_MODEL_PARAMS.sightY) * 1.01 + PAC9_MODEL_PARAMS.sightY,
+    ]),
+    PAC9_MODEL_PARAMS.lensF + 0.0025,
   );
   opticSightMesh.frustumCulled = false;
   root.add(opticSightMesh);
 
   // 枪口焰粒子与几何体
-  const muzzleFlashMesh = N_();
-  muzzleFlashMesh.position.fromArray(mi.muzzle);
+  const muzzleFlashMesh = createPac9MuzzleFlashMesh();
+  muzzleFlashMesh.position.fromArray(PAC9_MODEL_PARAMS.muzzle);
   muzzleFlashMesh.visible = false;
   root.add(muzzleFlashMesh);
 
@@ -705,7 +706,7 @@ async function createWeapon(ctx) {
 
   // 右手（持握机匣握把，扣扳机手）
   const rightHandBaseQuat = eulerToQuat(-0.24, 0, 0).multiply(eulerToQuat(0, 0, -Math.PI / 2));
-  const rightHandRig = Vv({
+  const rightHandRig = buildPac9HandsMesh({
     mirror: false,
     fingers: [null, [0.62, 1.72, 0.8, 0], [0.68, 1.7, 0.8, -0.03], [0.74, 1.66, 0.8, -0.09]],
     indexPoses: [
@@ -724,7 +725,7 @@ async function createWeapon(ctx) {
   const rightHandGroup = new wt();
   rightHandGroup.quaternion.copy(rightHandBaseQuat);
   rightHandGroup.position
-    .fromArray(mi.grip)
+    .fromArray(PAC9_MODEL_PARAMS.grip)
     .sub(new Vector3_(0.006, -0.031, -0.085).applyQuaternion(rightHandBaseQuat));
 
   const matGloveFabric = getProceduralMat("glove_fabric");
@@ -760,7 +761,7 @@ async function createWeapon(ctx) {
 
   // 左手（托住战术护木、拔插弹匣、拉动枪栓）
   const leftHandBaseQuat = eulerToQuat(0, 0, Math.PI / 2).multiply(eulerToQuat(0.06, 0, 0));
-  const leftHandRig = Vv({
+  const leftHandRig = buildPac9HandsMesh({
     mirror: true,
     fingers: [
       [1.27, 1.42, 0.75, 0.02],
@@ -815,10 +816,14 @@ async function createWeapon(ctx) {
   );
   const poseGripChargingHandle = makePose(
     rackQuat,
-    [mi.handlePos[0] - 0.004, mi.handlePos[1], mi.handlePos[2]],
+    [
+      PAC9_MODEL_PARAMS.handlePos[0] - 0.004,
+      PAC9_MODEL_PARAMS.handlePos[1],
+      PAC9_MODEL_PARAMS.handlePos[2],
+    ],
     new Vector3_(0, -0.024, -0.118),
   );
-  const poseRackBoltBack = offsetPose(poseGripChargingHandle, 0, 0, mi.boltTravel);
+  const poseRackBoltBack = offsetPose(poseGripChargingHandle, 0, 0, PAC9_MODEL_PARAMS.boltTravel);
 
   // 换弹关键帧时间表: [时间(秒), 姿态]
   const kfTacticalReload = [
@@ -883,17 +888,17 @@ async function createWeapon(ctx) {
 
   // 设置第一人称视模渲染层级
   root.traverse((obj) => {
-    obj.layers.set(zc);
+    obj.layers.set(FACTION_ENEMY);
   });
   ctx.camera.add(root);
 
   // 统计几何体面数与网格数
   const totalTris =
-    Object.values(geo).reduce((sum, g) => sum + Kc(g), 0) +
-    Kc(rightHandRig.fabric) +
-    Kc(rightHandRig.index[0]) +
-    Kc(leftHandRig.fabric) +
-    (markingsMesh ? Kc(markingsMesh.geometry) : 0) +
+    Object.values(geo).reduce((sum, g) => sum + countGeometryTris(g), 0) +
+    countGeometryTris(rightHandRig.fabric) +
+    countGeometryTris(rightHandRig.index[0]) +
+    countGeometryTris(leftHandRig.fabric) +
+    (markingsMesh ? countGeometryTris(markingsMesh.geometry) : 0) +
     2;
 
   let totalMeshes = 0;
@@ -902,7 +907,7 @@ async function createWeapon(ctx) {
   });
   console.log(
     "[weapon] " +
-      mi.name +
+      PAC9_MODEL_PARAMS.name +
       ": " +
       Math.round(totalTris) +
       " tris, " +
@@ -966,7 +971,7 @@ async function createWeapon(ctx) {
   };
 
   const weapon = {
-    name: mi.name,
+    name: PAC9_MODEL_PARAMS.name,
     ammo: MAG_CAPACITY,
     magSize: MAG_CAPACITY,
     reserve: DEFAULT_RESERVE_AMMO,
@@ -992,7 +997,10 @@ async function createWeapon(ctx) {
       weapon.reserve += count;
     },
     setWetness(w) {
-      Wv.value = Math.max(0, Math.min(1, +w || 0));
+      pac9RainUniform.value = Math.max(0, Math.min(1, +w || 0));
+    },
+    get reloading() {
+      return state.reload !== null;
     },
     snap() {
       state.adsLin = ctx.input.ads ? 1 : 0;
@@ -1060,7 +1068,7 @@ async function createWeapon(ctx) {
   }
 
   function getMuzzleWorldPos(outVec = new Vector3_()) {
-    return localPointToWorld(mi.muzzle, outVec);
+    return localPointToWorld(PAC9_MODEL_PARAMS.muzzle, outVec);
   }
 
   /**
@@ -1119,7 +1127,9 @@ async function createWeapon(ctx) {
         damage: BASE_DAMAGE,
         range: MAX_FIRE_RANGE,
       });
-    } catch (e) {}
+    } catch (e) {
+      console.warn("[weapon] playerShot calculation error:", e);
+    }
 
     if (hitResult && hitResult.point) {
       vHitPos.copy(hitResult.point);
@@ -1134,7 +1144,7 @@ async function createWeapon(ctx) {
     if (fx) {
       if (fx.tracer) fx.tracer(vMuzzlePos, vHitPos);
       if (fx.shell) {
-        localPointToWorld(mi.eject, vEjectPos);
+        localPointToWorld(PAC9_MODEL_PARAMS.eject, vEjectPos);
         vShellVel
           .set(2 + random() * 1.2, 1.2 + random() * 0.8, 0.5 - random() * 0.6)
           .applyQuaternion(camera.quaternion);
@@ -1156,7 +1166,7 @@ async function createWeapon(ctx) {
     });
 
     // 后坐力计算与施加给玩家视角
-    const adsFactor = bi(1, 0.55, state.adsE) * (player.crouching ? 0.85 : 1);
+    const adsFactor = lerp(1, 0.55, state.adsE) * (player.crouching ? 0.85 : 1);
     const burstCount = state.burst;
     const recoilScale = burstCount <= 9 ? 1 : 0.38;
     const recoilYaw =
@@ -1173,7 +1183,7 @@ async function createWeapon(ctx) {
     }
 
     // 视模弹簧冲量激振
-    state.kZ.v += 1.5 * bi(1, 0.6, state.adsE);
+    state.kZ.v += 1.5 * lerp(1, 0.6, state.adsE);
     state.kP.v += 1.5 * adsFactor;
     state.kY.v += (random() - 0.5) * 1 * adsFactor;
     state.kR.v += (random() - 0.5) * 1.8 * adsFactor;
@@ -1186,7 +1196,7 @@ async function createWeapon(ctx) {
     flashUniforms.uJet.value = 0.6 + random() * 0.6;
     muzzleFlashMesh.rotation.z = (random() - 0.5) * 0.4;
 
-    const flashScale = (0.8 + random() * 0.5) * bi(1, 0.62, state.adsE);
+    const flashScale = (0.8 + random() * 0.5) * lerp(1, 0.62, state.adsE);
     muzzleFlashMesh.scale.set(flashScale, flashScale, flashScale * (0.8 + random() * 0.5));
 
     state.boltT = 0;
@@ -1194,6 +1204,213 @@ async function createWeapon(ctx) {
       state.boltLocked = true;
       topRoundMesh.visible = false;
     }
+  }
+
+  /**
+   * 换弹时间线机理与左右手状态机
+   * @param {number} dt
+   * @returns {number} rackBoltProgress
+   */
+  function updateReloadTimeline(dt) {
+    let rackBoltProgress = 0;
+    if (debug.reloadT != null && !state.reload) {
+      state.reload = {
+        t: 0,
+        T: debug.empty ? RELOAD_DURATION_EMPTY : RELOAD_DURATION_TACTICAL,
+        empty: debug.empty,
+        f: {},
+      };
+    }
+
+    if (!state.reload) return rackBoltProgress;
+
+    const reloadData = state.reload;
+    if (debug.reloadT != null) {
+      reloadData.t = debug.reloadT;
+    } else {
+      reloadData.t += dt;
+    }
+    const curT = reloadData.t;
+
+    const triggerPhase = (phaseName, timestamp) => {
+      if (curT >= timestamp && !reloadData.f[phaseName]) {
+        reloadData.f[phaseName] = 1;
+        ctx.events.emit("weapon:reload", { phase: phaseName, empty: reloadData.empty });
+        return true;
+      }
+      return false;
+    };
+
+    // 阶段 1: 拔出旧弹匣
+    if (triggerPhase("magout", T_MAG_OUT)) {
+      state.bump.v -= 0.25;
+    }
+    if (curT > 0.86 && !reloadData.f.fresh) {
+      reloadData.f.fresh = 1;
+      topRoundMesh.visible = true;
+    }
+
+    // 阶段 2: 插入新弹匣
+    if (triggerPhase("magin", T_MAG_IN)) {
+      state.bump.v += 0.55;
+      const addCount = Math.min(weapon.magSize - weapon.ammo, weapon.reserve);
+      weapon.ammo += addCount;
+      weapon.reserve -= addCount;
+      if (!reloadData.empty) {
+        state.boltLocked = false;
+      }
+    }
+
+    // 阶段 3: 拍实弹匣底板
+    if (curT >= 1.5 && !reloadData.f.tap) {
+      reloadData.f.tap = 1;
+      state.bump.v += 0.4;
+    }
+
+    // 阶段 4: 空仓换弹专属 —— 拉动拉机柄
+    if (reloadData.empty) {
+      if (curT >= T_RACK_START) {
+        rackBoltProgress =
+          curT < T_RACK_BACK
+            ? smootherstep((curT - T_RACK_START) / (T_RACK_BACK - T_RACK_START))
+            : curT < T_RACK_RELEASE
+              ? 1
+              : Math.max(0, 1 - (curT - T_RACK_RELEASE) / 0.035);
+      }
+      if (triggerPhase("bolt", T_RACK_RELEASE)) {
+        state.boltLocked = false;
+        state.bump.v += 0.3;
+        state.kZ.v -= 0.5;
+      }
+    }
+
+    // 关键帧插值驱动左手位姿
+    sampleHandKeyframes(reloadData.empty ? kfEmptyReload : kfTacticalReload, curT);
+    leftHandGroup.position.copy(tempVec);
+    leftHandGroup.quaternion.copy(tempQuat1);
+
+    // 弹匣跟随手部移动（拔出至插入区间）
+    if (curT >= T_MAG_OUT && curT < T_MAG_IN) {
+      tempQuat2.copy(tempQuat1).multiply(leftHandMagInvert);
+      magGroup.quaternion.copy(tempQuat2);
+      magGroup.position
+        .copy(magDefaultPos)
+        .sub(poseAtMagWell.p)
+        .applyQuaternion(tempQuat2)
+        .add(tempVec);
+    } else {
+      magGroup.quaternion.identity();
+      magGroup.position.copy(magDefaultPos);
+    }
+
+    const enterBlend = smootherstep(curT / 0.3);
+    const exitBlend = 1 - smootherstep((curT - (reloadData.T - 0.46)) / 0.4);
+    state.reloadW = Math.min(enterBlend, exitBlend);
+    state.rackW = reloadData.empty ? smootherstep((curT - 1.62) / 0.3) * exitBlend : 0;
+
+    if (curT >= reloadData.T && debug.reloadT == null) {
+      state.reload = null;
+      state.reloadW = 0;
+      state.rackW = 0;
+      ctx.events.emit("weapon:reload", { phase: "done" });
+      leftHandGroup.position.copy(poseGripHandguard.p);
+      leftHandGroup.quaternion.copy(poseGripHandguard.q);
+    }
+
+    return rackBoltProgress;
+  }
+
+  /**
+   * 闲置检视 (Weapon Inspect) 动画状态机计算
+   * @param {number} dt
+   * @param {number} moveSpeed
+   * @param {boolean} wantsFire
+   * @param {any} input
+   * @returns {{ inspectPitch: number, inspectYaw: number, inspectRoll: number }}
+   */
+  function updateInspectAnimation(dt, moveSpeed, wantsFire, input) {
+    const isMovingOrLooking =
+      wantsFire ||
+      !!input.ads ||
+      !!state.reload ||
+      moveSpeed > 0.2 ||
+      (input.look && Math.abs(input.look.dx) + Math.abs(input.look.dy) > 0.002) ||
+      state.sprintT > 0.1;
+
+    if (isMovingOrLooking) {
+      state.idleT = 0;
+      if (state.inspect >= 0) state.inspect = Math.max(state.inspect, 2.9);
+    } else {
+      state.idleT += dt;
+    }
+    if (state.inspect < 0 && state.idleT > 24) {
+      state.inspect = 0;
+    }
+
+    let inspectPitch = 0;
+    let inspectYaw = 0;
+    let inspectRoll = 0;
+
+    if (state.inspect >= 0) {
+      const inspT = (state.inspect += dt);
+      inspectPitch = smootherstep(inspT / 0.5) * (1 - smootherstep((inspT - 1.4) / 0.5));
+      inspectYaw = smootherstep((inspT - 1.5) / 0.5) * (1 - smootherstep((inspT - 2.8) / 0.5));
+      inspectRoll = smootherstep(inspT / 0.5) * (1 - smootherstep((inspT - 2.9) / 0.5));
+      if (inspT > 3.5) {
+        state.inspect = -1;
+        state.idleT = 0;
+      }
+    }
+
+    return { inspectPitch, inspectYaw, inspectRoll };
+  }
+
+  /**
+   * 视模动力学物理弹簧步进 (Sway, Springs, Bobbing)
+   * @param {number} dt
+   * @param {any} player
+   * @param {any} input
+   * @param {number} moveSpeed
+   */
+  function updateSwayAndSprings(dt, player, input, moveSpeed) {
+    const isOnGround = player.onGround !== false;
+    const velY = player.vel ? player.vel.y : 0;
+
+    state.bobAmt = damp(state.bobAmt, isOnGround ? saturate(moveSpeed / 3.6) : 0, 8, dt);
+    state.bobPhase += dt * (moveSpeed > 0.3 && isOnGround ? 5.2 + moveSpeed * 1.55 : 0);
+
+    const swaySensitivity = lerp(1, 0.4, state.adsE);
+
+    // 瞄准随动摆动 (Look Sway)
+    state.swY.v += clamp(input.look ? input.look.dx : 0, -0.2, 0.2) * 3.2 * swaySensitivity;
+    state.swP.v += clamp(input.look ? input.look.dy : 0, -0.2, 0.2) * 2.6 * swaySensitivity;
+    stepSpring(state.swY, 0, dt);
+    stepSpring(state.swP, 0, dt);
+    state.swY.x = clamp(state.swY.x, -0.09, 0.09);
+    state.swP.x = clamp(state.swP.x, -0.07, 0.07);
+
+    // 跳跃与着陆冲量反馈
+    if (state.wasGround && !isOnGround && velY > 1) {
+      state.jY.v -= 0.22;
+      state.jP.v += 0.7;
+    }
+    if (!state.wasGround && isOnGround) {
+      const landImpulse = clamp(-state.lastVy * 0.06, 0, 0.6);
+      state.jY.v -= landImpulse;
+      state.jP.v -= landImpulse * 3.2;
+      state.kR.v += (random() - 0.5) * landImpulse * 2;
+    }
+    state.wasGround = isOnGround;
+    if (!isOnGround) state.lastVy = velY;
+
+    // 步进所有动力学物理弹簧
+    stepSpring(state.jY, isOnGround ? 0 : clamp(-velY * 0.0045, -0.02, 0.024), dt);
+    stepSpring(state.jP, isOnGround ? 0 : clamp(velY * 0.012, -0.06, 0.06), dt);
+    stepSpring(state.kZ, 0, dt);
+    stepSpring(state.kP, 0, dt);
+    stepSpring(state.kY, 0, dt);
+    stepSpring(state.kR, 0, dt);
+    stepSpring(state.bump, 0, dt);
   }
 
   /**
@@ -1218,7 +1435,7 @@ async function createWeapon(ctx) {
 
     // 疾跑状态判定
     const isSprinting = !!player.sprinting && !wantsFire && !input.ads && !state.reload;
-    state.sprintT = kn(state.sprintT, isSprinting ? 1 : 0, 9, dt);
+    state.sprintT = damp(state.sprintT, isSprinting ? 1 : 0, 9, dt);
 
     // 换弹按键与空仓自动换弹
     if (input.pressed && input.pressed("reload")) {
@@ -1230,110 +1447,7 @@ async function createWeapon(ctx) {
     }
 
     // 换弹时间线机理与左右手状态机
-    let rackBoltProgress = 0;
-    if (debug.reloadT != null && !state.reload) {
-      state.reload = {
-        t: 0,
-        T: debug.empty ? RELOAD_DURATION_EMPTY : RELOAD_DURATION_TACTICAL,
-        empty: debug.empty,
-        f: {},
-      };
-    }
-
-    if (state.reload) {
-      const reloadData = state.reload;
-      if (debug.reloadT != null) {
-        reloadData.t = debug.reloadT;
-      } else {
-        reloadData.t += dt;
-      }
-      const curT = reloadData.t;
-
-      const triggerPhase = (phaseName, timestamp) => {
-        if (curT >= timestamp && !reloadData.f[phaseName]) {
-          reloadData.f[phaseName] = 1;
-          ctx.events.emit("weapon:reload", { phase: phaseName, empty: reloadData.empty });
-          return true;
-        }
-        return false;
-      };
-
-      // 阶段 1: 拔出旧弹匣
-      if (triggerPhase("magout", T_MAG_OUT)) {
-        state.bump.v -= 0.25;
-      }
-      if (curT > 0.86 && !reloadData.f.fresh) {
-        reloadData.f.fresh = 1;
-        topRoundMesh.visible = true;
-      }
-
-      // 阶段 2: 插入新弹匣
-      if (triggerPhase("magin", T_MAG_IN)) {
-        state.bump.v += 0.55;
-        const addCount = Math.min(weapon.magSize - weapon.ammo, weapon.reserve);
-        weapon.ammo += addCount;
-        weapon.reserve -= addCount;
-        if (!reloadData.empty) {
-          state.boltLocked = false;
-        }
-      }
-
-      // 阶段 3: 拍实弹匣底板
-      if (curT >= 1.5 && !reloadData.f.tap) {
-        reloadData.f.tap = 1;
-        state.bump.v += 0.4;
-      }
-
-      // 阶段 4: 空仓换弹专属 —— 拉动拉机柄
-      if (reloadData.empty) {
-        if (curT >= T_RACK_START) {
-          rackBoltProgress =
-            curT < T_RACK_BACK
-              ? smootherstep((curT - T_RACK_START) / (T_RACK_BACK - T_RACK_START))
-              : curT < T_RACK_RELEASE
-                ? 1
-                : Math.max(0, 1 - (curT - T_RACK_RELEASE) / 0.035);
-        }
-        if (triggerPhase("bolt", T_RACK_RELEASE)) {
-          state.boltLocked = false;
-          state.bump.v += 0.3;
-          state.kZ.v -= 0.5;
-        }
-      }
-
-      // 关键帧插值驱动左手位姿
-      sampleHandKeyframes(reloadData.empty ? kfEmptyReload : kfTacticalReload, curT);
-      leftHandGroup.position.copy(tempVec);
-      leftHandGroup.quaternion.copy(tempQuat1);
-
-      // 弹匣跟随手部移动（拔出至插入区间）
-      if (curT >= T_MAG_OUT && curT < T_MAG_IN) {
-        tempQuat2.copy(tempQuat1).multiply(leftHandMagInvert);
-        magGroup.quaternion.copy(tempQuat2);
-        magGroup.position
-          .copy(magDefaultPos)
-          .sub(poseAtMagWell.p)
-          .applyQuaternion(tempQuat2)
-          .add(tempVec);
-      } else {
-        magGroup.quaternion.identity();
-        magGroup.position.copy(magDefaultPos);
-      }
-
-      const enterBlend = smootherstep(curT / 0.3);
-      const exitBlend = 1 - smootherstep((curT - (reloadData.T - 0.46)) / 0.4);
-      state.reloadW = Math.min(enterBlend, exitBlend);
-      state.rackW = reloadData.empty ? smootherstep((curT - 1.62) / 0.3) * exitBlend : 0;
-
-      if (curT >= reloadData.T && debug.reloadT == null) {
-        state.reload = null;
-        state.reloadW = 0;
-        state.rackW = 0;
-        ctx.events.emit("weapon:reload", { phase: "done" });
-        leftHandGroup.position.copy(poseGripHandguard.p);
-        leftHandGroup.quaternion.copy(poseGripHandguard.q);
-      }
-    }
+    const rackBoltProgress = updateReloadTimeline(dt);
 
     // 冷却与射击执行
     state.cooldown -= dt;
@@ -1391,56 +1505,30 @@ async function createWeapon(ctx) {
 
     // ADS (开镜瞄准) 进度平滑
     const wantsAds = !!input.ads && !state.reload && state.sprintT < 0.35;
-    state.adsLin = Zn(state.adsLin + (wantsAds ? dt : -dt) / 0.18, 0, 1);
+    state.adsLin = clamp(state.adsLin + (wantsAds ? dt : -dt) / 0.18, 0, 1);
     state.adsE = smootherstep(state.adsLin);
     weapon.ads = state.adsE;
 
     // 动态散布锥形角计算
     const moveSpeed = player.speed || 0;
-    const speedRatio = Fo(moveSpeed / 6);
+    const speedRatio = saturate(moveSpeed / 6);
     const targetSpread =
-      bi(0.0125, 0.0012, state.adsE) +
-      speedRatio * bi(0.013, 0.004, state.adsE) +
-      state.bloom * bi(0.0065, 0.0022, state.adsE) +
+      lerp(0.0125, 0.0012, state.adsE) +
+      speedRatio * lerp(0.013, 0.004, state.adsE) +
+      state.bloom * lerp(0.0065, 0.0022, state.adsE) +
       (player.onGround === false ? 0.022 : 0) -
       (player.crouching ? 0.002 * (1 - state.adsE) : 0);
 
-    state.spreadS = kn(state.spreadS, targetSpread, 18, dt);
+    state.spreadS = damp(state.spreadS, targetSpread, 18, dt);
     weapon.spread = state.spreadS;
 
-    // 闲置检视 (Weapon Inspect) 动画触发机制
-    const isMovingOrLooking =
-      wantsFire ||
-      !!input.ads ||
-      !!state.reload ||
-      moveSpeed > 0.2 ||
-      (input.look && Math.abs(input.look.dx) + Math.abs(input.look.dy) > 0.002) ||
-      state.sprintT > 0.1;
-
-    if (isMovingOrLooking) {
-      state.idleT = 0;
-      if (state.inspect >= 0) state.inspect = Math.max(state.inspect, 2.9);
-    } else {
-      state.idleT += dt;
-    }
-    if (state.inspect < 0 && state.idleT > 24) {
-      state.inspect = 0;
-    }
-
-    let inspectPitch = 0;
-    let inspectYaw = 0;
-    let inspectRoll = 0;
-
-    if (state.inspect >= 0) {
-      const inspT = (state.inspect += dt);
-      inspectPitch = smootherstep(inspT / 0.5) * (1 - smootherstep((inspT - 1.4) / 0.5));
-      inspectYaw = smootherstep((inspT - 1.5) / 0.5) * (1 - smootherstep((inspT - 2.8) / 0.5));
-      inspectRoll = smootherstep(inspT / 0.5) * (1 - smootherstep((inspT - 2.9) / 0.5));
-      if (inspT > 3.5) {
-        state.inspect = -1;
-        state.idleT = 0;
-      }
-    }
+    // 闲置检视 (Weapon Inspect)
+    const { inspectPitch, inspectYaw, inspectRoll } = updateInspectAnimation(
+      dt,
+      moveSpeed,
+      wantsFire,
+      input,
+    );
 
     // 枪械核心状态名更新
     weapon.state = state.reload
@@ -1460,10 +1548,11 @@ async function createWeapon(ctx) {
     if (state.boltLocked && state.boltT > cycleDur * 0.5) {
       boltOffsetNorm = Math.max(boltOffsetNorm, 0.86);
     }
-    boltMesh.position.z = mi.boltTravel * Math.max(boltOffsetNorm * 0.95, rackBoltProgress);
+    boltMesh.position.z =
+      PAC9_MODEL_PARAMS.boltTravel * Math.max(boltOffsetNorm * 0.95, rackBoltProgress);
 
     // 扣动扳机手启动指关节变形
-    state.finger = kn(state.finger, (wantsFire && canFire) || debug.flash ? 1 : 0, 30, dt);
+    state.finger = damp(state.finger, (wantsFire && canFire) || debug.flash ? 1 : 0, 30, dt);
     updateTriggerFinger(state.finger);
 
     // 枪口焰动态明暗
@@ -1475,61 +1564,26 @@ async function createWeapon(ctx) {
     state.flashT -= dt;
     flashMatUniforms.uInt.value =
       state.flashT > 0 ? 9.5 * Math.sqrt(Math.max(0, state.flashT / state.flashDur)) : 0;
-    flashMatUniforms.uHeat.value = Fo((state.heat - 0.45) / 0.8) * 2.2;
+    flashMatUniforms.uHeat.value = saturate((state.heat - 0.45) / 0.8) * 2.2;
     muzzleFlashMesh.visible =
       flashMatUniforms.uInt.value > 0 || flashMatUniforms.uHeat.value > 0.02;
 
     if (debug.freeze) return;
 
-    // 跑动步伐摆动 (Head & Weapon Bobbing)
-    const isOnGround = player.onGround !== false;
-    const velY = player.vel ? player.vel.y : 0;
+    // 步进瞄准抖动与弹簧
+    updateSwayAndSprings(dt, player, input, moveSpeed);
 
-    state.bobAmt = kn(state.bobAmt, isOnGround ? Fo(moveSpeed / 3.6) : 0, 8, dt);
-    state.bobPhase += dt * (moveSpeed > 0.3 && isOnGround ? 5.2 + moveSpeed * 1.55 : 0);
-
+    // 跑动步伐摆动计算
     const curBobPhase = state.bobPhase;
-    const bobIntensity = state.bobAmt * bi(1, 0.12, state.adsE) * (1 + state.sprintT * 1.4);
+    const bobIntensity = state.bobAmt * lerp(1, 0.12, state.adsE) * (1 + state.sprintT * 1.4);
     const bobX = Math.sin(curBobPhase) * 0.006 * bobIntensity;
     const bobY =
       (Math.sin(2 * curBobPhase) * 0.0042 -
         Math.pow(0.5 + 0.5 * Math.cos(2 * curBobPhase + 0.6), 4) * 0.0048) *
       bobIntensity;
 
-    const adsInvertRatio = bi(1, 0.3, state.adsE);
+    const adsInvertRatio = lerp(1, 0.3, state.adsE);
     const curTime = state.t;
-    const swaySensitivity = bi(1, 0.4, state.adsE);
-
-    // 瞄准随动摆动 (Look Sway)
-    state.swY.v += Zn(input.look ? input.look.dx : 0, -0.2, 0.2) * 3.2 * swaySensitivity;
-    state.swP.v += Zn(input.look ? input.look.dy : 0, -0.2, 0.2) * 2.6 * swaySensitivity;
-    stepSpring(state.swY, 0, dt);
-    stepSpring(state.swP, 0, dt);
-    state.swY.x = Zn(state.swY.x, -0.09, 0.09);
-    state.swP.x = Zn(state.swP.x, -0.07, 0.07);
-
-    // 跳跃与着陆冲量反馈
-    if (state.wasGround && !isOnGround && velY > 1) {
-      state.jY.v -= 0.22;
-      state.jP.v += 0.7;
-    }
-    if (!state.wasGround && isOnGround) {
-      const landImpulse = Zn(-state.lastVy * 0.06, 0, 0.6);
-      state.jY.v -= landImpulse;
-      state.jP.v -= landImpulse * 3.2;
-      state.kR.v += (random() - 0.5) * landImpulse * 2;
-    }
-    state.wasGround = isOnGround;
-    if (!isOnGround) state.lastVy = velY;
-
-    // 步进所有动力学物理弹簧
-    stepSpring(state.jY, isOnGround ? 0 : Zn(-velY * 0.0045, -0.02, 0.024), dt);
-    stepSpring(state.jP, isOnGround ? 0 : Zn(velY * 0.012, -0.06, 0.06), dt);
-    stepSpring(state.kZ, 0, dt);
-    stepSpring(state.kP, 0, dt);
-    stepSpring(state.kY, 0, dt);
-    stepSpring(state.kR, 0, dt);
-    stepSpring(state.bump, 0, dt);
 
     // 最终位置与姿态融合
     const moveX = input.move ? input.move.x : 0;
@@ -1542,7 +1596,7 @@ async function createWeapon(ctx) {
 
     // 视模位置计算
     const finalPosX =
-      bi(POSE_HIPFIRE.p[0], POSE_ADS.p[0], adsWeight) +
+      lerp(POSE_HIPFIRE.p[0], POSE_ADS.p[0], adsWeight) +
       POSE_SPRINT.p[0] * sprintWeight +
       POSE_RELOAD.p[0] * reloadWeight +
       bobX +
@@ -1552,7 +1606,7 @@ async function createWeapon(ctx) {
       0.035 * inspectRoll;
 
     const finalPosY =
-      bi(POSE_HIPFIRE.p[1], POSE_ADS.p[1], adsWeight) +
+      lerp(POSE_HIPFIRE.p[1], POSE_ADS.p[1], adsWeight) +
       POSE_SPRINT.p[1] * sprintWeight +
       POSE_RELOAD.p[1] * reloadWeight +
       bobY +
@@ -1563,7 +1617,7 @@ async function createWeapon(ctx) {
       0.045 * inspectRoll;
 
     const finalPosZ =
-      bi(POSE_HIPFIRE.p[2], POSE_ADS.p[2], adsWeight) +
+      lerp(POSE_HIPFIRE.p[2], POSE_ADS.p[2], adsWeight) +
       POSE_SPRINT.p[2] * sprintWeight +
       POSE_RELOAD.p[2] * reloadWeight +
       state.kZ.x * 0.55 +
@@ -1671,7 +1725,7 @@ async function createShowcase(ctx) {
       ctx.scene.add(root);
       root.position.set(0, 1.25, 0);
       root.rotation.set(0, preset[0], 0, "YXZ");
-      root.traverse((mesh) => mesh.layers.set(vf));
+      root.traverse((mesh) => mesh.layers.set(FACTION_PLAYER));
       camPos = preset[1];
       camTarget = preset[2];
       fov = preset[3];
@@ -1682,7 +1736,7 @@ async function createShowcase(ctx) {
     } else {
       // 第一人称持枪视角
       ctx.camera.add(root);
-      root.traverse((mesh) => mesh.layers.set(zc));
+      root.traverse((mesh) => mesh.layers.set(FACTION_ENEMY));
       const lookDir = lookDirections[options.wlook] || lookDirections.south;
       camPos = [defaultCamPos.x, defaultCamPos.y, defaultCamPos.z];
       camTarget = [

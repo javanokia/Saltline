@@ -14,9 +14,14 @@
  */
 
 import * as THREE from "three";
-import { oi, Mn, en, Pi, vf, zc, Pr, zy, Dy, il, Zn, bi, Fo, sl, kn, Wt, dr } from "./constants.js";
-
-import { sa, Ly, oa, $e, Wi, ot, Fn, ky, Fy, Uy, Ny, Fg, Dc, Lc, Ii, By, Qi } from "./geo.js";
+import {
+  mergeGeometries,
+  createBoxGeometry,
+  createBoxBevelGeometry,
+  createCylinderGeometry,
+  setVertexColors,
+  mergeGeometriesClean,
+} from "./geo.js";
 
 // Three.js 紧凑别名 (Compact Three.js Aliases)
 const lt = THREE;
@@ -121,7 +126,7 @@ var io = class {
       }
       ((e = o[0]), (n = o[1]), this.dz && t.translate(0, 0, this.dz));
     }
-    db.has(e) && !t.attributes.color && Lc(t, (o, r, a) => hv(o, r, a, n || fb));
+    db.has(e) && !t.attributes.color && setVertexColors(t, (o, r, a) => hv(o, r, a, n || fb));
     let s = this.b.get(e.uuid);
     (s || ((s = { mat: e, geos: [] }), this.b.set(e.uuid, s)),
       s.geos.push(t),
@@ -130,7 +135,7 @@ var io = class {
   build({ cast: e = !0, recv: t = !0 } = {}) {
     let n = new wt();
     for (let s of this.b.values()) {
-      let o = Ii(s.geos),
+      let o = mergeGeometriesClean(s.geos),
         r = new Qe(o, s.mat),
         a = s.mat.isMeshBasicMaterial || s.mat.transparent;
       ((r.castShadow = e && !a), (r.receiveShadow = t && !a), n.add(r));
@@ -142,11 +147,11 @@ function Ee(i, e, t, n, s, o, r = 0) {
   let a = Math.abs(n - i),
     l = Math.abs(s - e),
     c = Math.abs(o - t),
-    u = r > 0 ? Wi(a, l, c, r) : $e(a, l, c);
+    u = r > 0 ? createBoxBevelGeometry(a, l, c, r) : createBoxGeometry(a, l, c);
   return (u.translate((i + n) / 2, (e + s) / 2, (t + o) / 2), u);
 }
 function xt(i, e, t, n, s, o, r, a = 12, l = !1) {
-  let c = ot(i, e, t, a, l);
+  let c = createCylinderGeometry(i, e, t, a, l);
   return (
     n === "x" ? c.rotateZ(Math.PI / 2) : n === "z" && c.rotateX(Math.PI / 2),
     c.translate(s, o, r),
@@ -158,7 +163,7 @@ function Ke(i, e, t = 0.03, n = 5, s = !1) {
   let o = new W().subVectors(e, i),
     r = o.length();
   if (r < 1e-5) return null;
-  let a = ot(t, t, r, n, !s);
+  let a = createCylinderGeometry(t, t, r, n, !s);
   return (
     ub.setFromUnitVectors(hb, o.multiplyScalar(1 / r)),
     I1.compose(new W().addVectors(i, e).multiplyScalar(0.5), ub, gR),
@@ -174,7 +179,7 @@ function jt(i, e, t = 0.3, n = 0.3, s = 0) {
   let a = new W().crossVectors(o, hb);
   a.lengthSq() < 1e-6 ? a.set(1, 0, 0) : a.normalize();
   let l = new W().crossVectors(a, o),
-    c = s > 0 ? Wi(t, r, n, s) : $e(t, r, n);
+    c = s > 0 ? createBoxBevelGeometry(t, r, n, s) : createBoxGeometry(t, r, n);
   return (
     I1.makeBasis(a, o, l).setPosition((i.x + e.x) / 2, (i.y + e.y) / 2, (i.z + e.z) / 2),
     c.applyMatrix4(I1),
@@ -269,7 +274,7 @@ varying float vBlink;
     },
     build() {
       if (!t.length) return null;
-      let n = new Qe(sa(t.splice(0), !1), e);
+      let n = new Qe(mergeGeometries(t.splice(0), !1), e);
       return ((n.castShadow = !1), (n.receiveShadow = !1), n);
     },
   };
@@ -291,6 +296,256 @@ var Bt = 18.5,
   Ms = [0.6, 0.72, 0.86],
   En = [1, 0.95, 0.85],
   cl = [0.95, 0.96, 0.97];
+function buildQuayCraneBogie(g, mats, colliders, R, I) {
+  let se = R < 23.5 ? 1 : -1;
+  for (let ae of [-1.12, 1.12]) {
+    let k = I + ae;
+    g(mats.paintYellow, Ee(R - 0.3, 0.36, k - 0.98, R + 0.3, 0.84, k + 0.98, 0.04), En);
+    for (let ce of [-0.56, 0.56])
+      (g(mats.steelDark, xt(0.33, 0.33, 0.14, "x", R, 0.33, k + ce, 16)),
+        g(mats.steelDark, xt(0.37, 0.37, 0.025, "x", R - 0.085, 0.33, k + ce, 16)),
+        g(mats.steelDark, xt(0.37, 0.37, 0.025, "x", R + 0.085, 0.33, k + ce, 16)),
+        g(mats.steelGalv, xt(0.11, 0.11, 0.7, "x", R, 0.33, k + ce, 8)));
+    (g(mats.steelDark, xt(0.16, 0.16, 0.5, "z", R + se * 0.5, 0.6, k, 10)),
+      g(
+        mats.paintYellow,
+        Ee(R + se * 0.3, 0.42, k - 0.56 - 0.16, R + se * 0.62, 0.8, k - 0.3, 0.03),
+        En,
+      ));
+  }
+  (g(mats.steelDark, Ee(R - 0.2, 0.1, I - 0.22, R + 0.2, 0.9, I + 0.22, 0.03)),
+    g(mats.paintGrey, Ee(R - 0.34, 0.9, I - 1.8, R + 0.34, 1.42, I + 1.8, 0.05), wn));
+  for (let ae of [-1.12, 0, 1.12])
+    g(mats.steelGalv, xt(0.14, 0.14, 0.8, "x", R, ae ? 1.08 : 1.22, I + ae, 10));
+  g(mats.paintGrey, Ee(R - 0.54, 1.42, I - 0.54, R + 0.54, 1.6, I + 0.54, 0.03), Ms);
+  for (let ae of [-1, 1]) {
+    let k = I + ae * 2.1;
+    (g(mats.paintYellow, Ee(R - 0.16, 0.44, k - 0.12, R + 0.16, 0.8, k + 0.12, 0.02), En),
+      g(mats.steelGalv, xt(0.08, 0.08, 0.34, "z", R, 0.62, k + ae * 0.28, 8)),
+      g(mats.steelDark, xt(0.17, 0.15, 0.12, "z", R, 0.62, k + ae * 0.5, 12)),
+      g(mats.hazardStripes, Ee(R - 0.28, 0.04, k + ae * 0.13, R + 0.28, 0.4, k + ae * 0.16)));
+  }
+  (colliders.push({ min: [R - 0.5, 0, I - 2.7], max: [R + 0.5, 1.5, I + 2.7] }),
+    colliders.push({ min: [R - 0.62, 0, I - 0.62], max: [R + 0.62, 24, I + 0.62] }));
+}
+
+function buildQuayCraneAccessStairs(g, mats, colliders, batch) {
+  let T = 6.15,
+    D = 6.97,
+    C = 7.8,
+    G = [19.4, 20.6],
+    j = [26.4, 27.6];
+  function N(R, I, se, ae, k, ce) {
+    let ve = ae - I,
+      _e = Math.max(2, Math.round(ve / 0.21));
+    for (let Te of [k + 0.03, ce - 0.03]) {
+      (g(mats.steelGalv, jt([R, I - 0.12, Te], [se, ae - 0.12, Te], 0.05, 0.24)),
+        g(mats.paintYellow, Ke([R, I + 1, Te], [se, ae + 1, Te], 0.024, 5), En),
+        g(mats.paintYellow, Ke([R, I + 0.5, Te], [se, ae + 0.5, Te], 0.018, 4), En));
+      for (let Pe = 0; Pe <= 4; Pe++) {
+        let Re = Pe / 4,
+          Fe = R + (se - R) * Re,
+          ze = I + ve * Re;
+        g(mats.paintYellow, Ke([Fe, ze - 0.05, Te], [Fe, ze + 1, Te], 0.02, 4), En);
+      }
+    }
+    for (let Te = 1; Te <= _e; Te++) {
+      let Pe = (Te - 0.5) / _e,
+        Re = R + (se - R) * Pe,
+        Fe = I + ve * (Te / _e);
+      g(mats.steelGalv, Ee(Re - 0.13, Fe - 0.03, k + 0.06, Re + 0.13, Fe, ce - 0.06));
+    }
+  }
+  function Q(R, I, se, ae) {
+    (g(mats.steelGalv, Ee(R, se - 0.05, T, I, se, C)),
+      g(mats.steelGalv, Ee(R, se - 0.2, T, I, se - 0.05, T + 0.06)),
+      g(mats.steelGalv, Ee(R, se - 0.2, C - 0.06, I, se - 0.05, C)));
+    let k = ae > 0 ? I - 0.03 : R + 0.03,
+      ce = ae > 0 ? R : I;
+    ns(
+      batch,
+      mats.paintYellow,
+      [
+        [ce, se, C - 0.03],
+        [k, se, C - 0.03],
+        [k, se, T + 0.03],
+      ],
+      { post: 0.9, tint: En },
+    );
+  }
+  let K = [3.6, 6.9, 10.2, 13.5, 16.8, 20.1];
+  for (let R = 0; R < 5; R++)
+    R % 2 === 0
+      ? (Q(G[0], G[1], K[R], -1), N(G[1], K[R], j[0], K[R + 1], T, D))
+      : (Q(j[0], j[1], K[R], 1), N(j[0], K[R], G[1], K[R + 1], D, C));
+  (Q(j[0], j[1], K[5], 1),
+    N(j[0], K[5], 23.4, 21.9, D, C),
+    g(mats.steelGalv, Ee(22.5, 21.85, On + 1.35, 23.4, 21.9, C)),
+    ns(
+      batch,
+      mats.paintYellow,
+      [
+        [22.53, 21.9, On + 1.4],
+        [22.53, 21.9, C - 0.03],
+        [23.37, 21.9, C - 0.03],
+      ],
+      { post: 1.3, tint: En },
+    ),
+    ns(
+      batch,
+      mats.paintYellow,
+      [
+        [23.37, 21.9, On + 1.4],
+        [23.37, 21.9, D],
+      ],
+      { post: 1.3, tint: En },
+    ),
+    g(mats.steelGalv, Ee(j[0], 13.45, 4.95, j[1], 13.5, T)));
+  for (let R of [G[0], j[1]])
+    for (let I of [T - 0.05, C + 0.05])
+      g(mats.paintGrey, Ee(R - 0.07, 3.3, I - 0.07, R + 0.07, 21.4, I + 0.07), wn);
+  for (let R = 0; R < K.length; R++) {
+    let I = K[R] - 0.25;
+    g(mats.paintGrey, Ee(G[0], I - 0.06, C + 0, j[1], I + 0.06, C + 0.1), Ms);
+    for (let se of [G[0], j[1]])
+      g(mats.paintGrey, Ee(se - 0.05, I - 0.06, 5.9, se + 0.05, I + 0.06, C + 0.1), Ms);
+    if (R < K.length - 1) {
+      let se = K[R + 1] - 0.25;
+      (g(mats.paintGrey, Ke([G[0], I, C + 0.05], [j[1], se, C + 0.05], 0.03, 5), wn),
+        g(mats.paintGrey, Ke([j[1], I, C + 0.05], [G[0], se, C + 0.05], 0.03, 5), wn));
+    }
+  }
+  {
+    let R = G[0] - 0.05,
+      I = 7.35;
+    for (let ae of [-0.22, 0.22])
+      g(mats.steelGalv, Ke([R, 0.05, I + ae], [R, 4.75, I + ae], 0.022, 5));
+    for (let ae = 0.3; ae < 4.7; ae += 0.3)
+      g(mats.steelGalv, Ke([R, ae, I - 0.22], [R, ae, I + 0.22], 0.012, 4));
+    let se = (ae) => {
+      let k = [];
+      for (let ce = 0; ce <= 8; ce++) {
+        let ve = (Math.PI * ce) / 8;
+        k.push(_t(R - Math.sin(ve) * 0.7, ae, I - Math.cos(ve) * 0.36));
+      }
+      return k;
+    };
+    for (let ae = 2.3; ae <= 4.75; ae += 0.6) g(mats.steelGalv, kr(se(ae), 0.012, 4));
+    for (let ae = 1; ae < 8; ae += 1.5) {
+      let k = (Math.PI * ae) / 8;
+      g(
+        mats.steelGalv,
+        Ke(
+          [R - Math.sin(k) * 0.7, 2.3, I - Math.cos(k) * 0.36],
+          [R - Math.sin(k) * 0.7, 4.75, I - Math.cos(k) * 0.36],
+          0.01,
+          4,
+        ),
+      );
+    }
+    colliders.push({
+      min: [R - 0.72, 0, I - 0.4],
+      max: [R + 0.05, 4.7, I + 0.4],
+      bulletOnly: !1,
+    });
+  }
+}
+
+function buildQuayCraneOperatorCab(g, mats, beaconMgr, batch, trolleyX, ieHelper) {
+  let F = trolleyX + 0.25,
+    X = trolleyX + 2.65,
+    ne = 2.35,
+    re = 4.4,
+    $ = 18.3,
+    ue = 20.7;
+  for (let R of [F + 0.12, X - 0.3]) {
+    g(mats.paintYellow, Ee(R - 0.12, 20.88, -1, R + 0.12, 21.16, re, 0.03), En);
+    for (let I of [ne + 0.1, re - 0.1])
+      g(mats.paintYellow, Ee(R - 0.06, ue, I - 0.06, R + 0.06, 20.9, I + 0.06), En);
+  }
+  (g(mats.paintWhite, Ee(F, $, ne, X, $ + 0.14, re, 0.03), cl),
+    g(
+      mats.paintWhite,
+      Ee(F - 0.08, ue - 0.02, ne - 0.08, X + 0.12, ue + 0.12, re + 0.08, 0.03),
+      cl,
+    ),
+    g(mats.paintWhite, Ee(F, $ + 0.14, ne, F + 0.08, ue, re), cl));
+  for (let R of [ne, re - 0.06])
+    (g(mats.paintWhite, Ee(F, $ + 0.14, R, X - 0.5, $ + 0.95, R + 0.06), cl),
+      g(mats.glass, Ee(F + 0.08, $ + 0.95, R + 0.02, X - 0.06, ue, R + 0.04)),
+      g(mats.glass, Ee(X - 0.5, $ + 0.14, R + 0.02, X - 0.06, $ + 0.95, R + 0.04)));
+  for (let R of [X - 0.06])
+    for (let I of [ne, re - 0.06, (ne + re) / 2 - 0.03])
+      g(mats.paintWhite, Ee(R, $ + 0.14, I, R + 0.06, ue, I + 0.06), cl);
+  (g(mats.glass, Ee(X - 0.04, $ + 0.14, ne + 0.06, X - 0.02, ue, re - 0.06)),
+    g(mats.glass, Ee(X - 0.9, $ + 0.02, ne + 0.3, X - 0.1, $ + 0.04, re - 0.3)),
+    g(mats.steelDark, Ee(F + 0.9, $ + 0.14, 3.1, F + 1.45, $ + 0.6, 3.65, 0.04)),
+    g(mats.steelDark, Ee(F + 0.82, $ + 0.6, 3.1, F + 0.96, $ + 1.35, 3.65, 0.04)));
+  for (let R of [2.75, 4])
+    (g(mats.steelDark, Ee(F + 1.2, $ + 0.14, R - 0.16, F + 1.75, $ + 0.85, R + 0.16, 0.03)),
+      beaconMgr.add(
+        Ee(F + 1.3, $ + 0.855, R - 0.1, F + 1.6, $ + 0.865, R + 0.1),
+        [0.75, 0.5, 0.26],
+        0,
+      ));
+  (beaconMgr.add(Ee(F + 0.5, ue - 0.045, 3, F + 1.5, ue - 0.03, 3.2), [0.75, 0.5, 0.26], 0),
+    ieHelper(X + 0.15, $ + 0.1, 3.37, 2, "z"),
+    g(mats.steelGalv, Ee(F - 0.9, $ + 0.1, ne, F, $ + 0.14, re)),
+    ns(
+      batch,
+      mats.paintYellow,
+      [
+        [F, $ + 0.14, ne + 0.03],
+        [F - 0.87, $ + 0.14, ne + 0.03],
+        [F - 0.87, $ + 0.14, re - 0.03],
+        [F, $ + 0.14, re - 0.03],
+      ],
+      { post: 1, tint: En },
+    ));
+}
+
+function buildQuayCraneSpreader(mats, trolleyX) {
+  let P = new io(),
+    V = (R, I, se) => P.add(R, I, se),
+    Y = 8.3;
+  for (let R of [-0.9, 0.9])
+    for (let I of [-0.8, 0.8]) V(mats.steelDark, Ke([R, 0, I], [R * 0.8, -Y, I * 0.7], 0.022, 5));
+  V(mats.paintYellow, Ee(-0.95, -Y - 0.55, -0.75, 0.95, -Y, 0.75, 0.05), En);
+  for (let R of [-0.45, 0.45]) V(mats.steelDark, xt(0.3, 0.3, 0.12, "z", 0, -Y + 0.12, R, 12));
+  let L = -Y - 0.55,
+    Z = L - 0.34;
+  for (let R of [-0.6, 0.6])
+    V(mats.paintYellow, Ee(R - 0.16, Z, -6.02, R + 0.16, L, 6.02, 0.03), En);
+  for (let R of [-5.92, 5.92])
+    V(mats.paintYellow, Ee(-1.22, Z, R - 0.14, 1.22, L, R + 0.14, 0.03), En);
+  V(mats.paintYellow, Ee(-0.9, Z - 0.02, -1.3, 0.9, L + 0.1, 1.3, 0.04), En);
+  for (let R of [-1.2, 1.2])
+    for (let I of [-6, 6])
+      (V(mats.steelDark, Ee(R - 0.1, Z - 0.1, I - 0.1, R + 0.1, Z + 0.05, I + 0.1)),
+        V(
+          mats.paintYellow,
+          jt([R * 1.02, Z, I * 1.01], [R * 1.22, Z - 0.55, I * 1.04], 0.28, 0.03),
+          En,
+        ));
+  let J = Z - 0.08,
+    oe = J - 2.59,
+    fe = [0.9, 0.82, 0.8];
+  V(mats.paintRed, Ee(-1.2, oe, -6.08, 1.2, J, 6.08, 0.03), fe);
+  for (let R of [-1.22, 1.22])
+    for (let I = -5.7; I <= 5.71; I += 0.57)
+      V(mats.paintRed, Ee(R - 0.02, oe + 0.16, I - 0.1, R + 0.02, J - 0.12, I + 0.1), fe);
+  for (let R of [-6.095, 6.095])
+    for (let I of [-1.22, 1.22])
+      V(mats.paintRed, Ee(I - 0.08, oe, R - 0.08, I + 0.08, J, R + 0.08), [0.7, 0.62, 0.6]);
+  for (let R of [-0.8, -0.3, 0.3, 0.8])
+    V(mats.steelDark, Ke([R, oe + 0.08, 6.1], [R, J - 0.08, 6.1], 0.02, 5));
+  let le = P.build({ cast: !0, recv: !0 });
+  le.position.set(trolleyX, 20.7, 0);
+  le.userData.noMerge = !0;
+  le.name = "crane-spreader";
+  return { spreaderMesh: le, tris: P.tris };
+}
+
 function z1(i, e, t = {}) {
   let n = !!t.into,
     s = t.dz || 0,
@@ -311,6 +566,17 @@ function z1(i, e, t = {}) {
     p = i.mats.get("hazard_stripes"),
     d = i.mats.get("glass"),
     v = i.mats.emissive(16769716, 6),
+    mats = {
+      paintGrey: a,
+      paintYellow: l,
+      paintWhite: c,
+      paintRed: u,
+      steelGalv: h,
+      steelDark: f,
+      hazardStripes: p,
+      glass: d,
+      emissive: v,
+    },
     g = (R, I, se) => o.add(R, I, se),
     x = [];
   if (n) {
@@ -331,38 +597,11 @@ function z1(i, e, t = {}) {
       (o.dz = s),
       (o.minSize = 2.6));
   }
-  function y(R, I) {
-    let se = R < 23.5 ? 1 : -1;
-    for (let ae of [-1.12, 1.12]) {
-      let k = I + ae;
-      g(l, Ee(R - 0.3, 0.36, k - 0.98, R + 0.3, 0.84, k + 0.98, 0.04), En);
-      for (let ce of [-0.56, 0.56])
-        (g(f, xt(0.33, 0.33, 0.14, "x", R, 0.33, k + ce, 16)),
-          g(f, xt(0.37, 0.37, 0.025, "x", R - 0.085, 0.33, k + ce, 16)),
-          g(f, xt(0.37, 0.37, 0.025, "x", R + 0.085, 0.33, k + ce, 16)),
-          g(h, xt(0.11, 0.11, 0.7, "x", R, 0.33, k + ce, 8)));
-      (g(f, xt(0.16, 0.16, 0.5, "z", R + se * 0.5, 0.6, k, 10)),
-        g(l, Ee(R + se * 0.3, 0.42, k - 0.56 - 0.16, R + se * 0.62, 0.8, k - 0.3, 0.03), En));
-    }
-    (g(f, Ee(R - 0.2, 0.1, I - 0.22, R + 0.2, 0.9, I + 0.22, 0.03)),
-      g(a, Ee(R - 0.34, 0.9, I - 1.8, R + 0.34, 1.42, I + 1.8, 0.05), wn));
-    for (let ae of [-1.12, 0, 1.12])
-      g(h, xt(0.14, 0.14, 0.8, "x", R, ae ? 1.08 : 1.22, I + ae, 10));
-    g(a, Ee(R - 0.54, 1.42, I - 0.54, R + 0.54, 1.6, I + 0.54, 0.03), Ms);
-    for (let ae of [-1, 1]) {
-      let k = I + ae * 2.1;
-      (g(l, Ee(R - 0.16, 0.44, k - 0.12, R + 0.16, 0.8, k + 0.12, 0.02), En),
-        g(h, xt(0.08, 0.08, 0.34, "z", R, 0.62, k + ae * 0.28, 8)),
-        g(f, xt(0.17, 0.15, 0.12, "z", R, 0.62, k + ae * 0.5, 12)),
-        g(p, Ee(R - 0.28, 0.04, k + ae * 0.13, R + 0.28, 0.4, k + ae * 0.16)));
-    }
-    (x.push({ min: [R - 0.5, 0, I - 2.7], max: [R + 0.5, 1.5, I + 2.7] }),
-      x.push({ min: [R - 0.62, 0, I - 0.62], max: [R + 0.62, 24, I + 0.62] }));
-  }
   let b = [3.6, 7.6, 11.2, 12.5, 13.5, 17.2, 20.6, 23.8];
   for (let R of [Bt, is])
     for (let I of [-Di, Di]) {
-      (y(R, I), g(p, Ee(R - 0.6, 1.6, I - 0.6, R + 0.6, 3.6, I + 0.6, 0.04)));
+      (buildQuayCraneBogie(g, mats, x, R, I),
+        g(p, Ee(R - 0.6, 1.6, I - 0.6, R + 0.6, 3.6, I + 0.6, 0.04)));
       for (let se = 0; se < b.length - 1; se++)
         (g(a, Ee(R - 0.6, b[se], I - 0.6, R + 0.6, b[se + 1], I + 0.6, 0.05), wn),
           (se === 0 || se === 1 || se === 5) &&
@@ -618,124 +857,9 @@ function z1(i, e, t = {}) {
     g(c, Ee(w + 5.4, H + 0.12, 0.4, w + 6.7, H + 0.85, 1.8, 0.03), [0.7, 0.72, 0.75]),
     g(h, Ke([w + 0.3, H + 0.12, 2.5], [w + 0.3, H + 1.9, 2.5], 0.03, 5)),
     r.add(Bn(w + 0.3, H + 2.02, 2.5, 0.13), [9, 0.5, 0.25], 2.6, 0.25, 0.45));
-  let T = 6.15,
-    D = 6.97,
-    C = 7.8,
-    G = [19.4, 20.6],
-    j = [26.4, 27.6];
-  function N(R, I, se, ae, k, ce) {
-    let ve = ae - I,
-      _e = Math.max(2, Math.round(ve / 0.21));
-    for (let Te of [k + 0.03, ce - 0.03]) {
-      (g(h, jt([R, I - 0.12, Te], [se, ae - 0.12, Te], 0.05, 0.24)),
-        g(l, Ke([R, I + 1, Te], [se, ae + 1, Te], 0.024, 5), En),
-        g(l, Ke([R, I + 0.5, Te], [se, ae + 0.5, Te], 0.018, 4), En));
-      for (let Pe = 0; Pe <= 4; Pe++) {
-        let Re = Pe / 4,
-          Fe = R + (se - R) * Re,
-          ze = I + ve * Re;
-        g(l, Ke([Fe, ze - 0.05, Te], [Fe, ze + 1, Te], 0.02, 4), En);
-      }
-    }
-    for (let Te = 1; Te <= _e; Te++) {
-      let Pe = (Te - 0.5) / _e,
-        Re = R + (se - R) * Pe,
-        Fe = I + ve * (Te / _e);
-      g(h, Ee(Re - 0.13, Fe - 0.03, k + 0.06, Re + 0.13, Fe, ce - 0.06));
-    }
-  }
-  function Q(R, I, se, ae) {
-    (g(h, Ee(R, se - 0.05, T, I, se, C)),
-      g(h, Ee(R, se - 0.2, T, I, se - 0.05, T + 0.06)),
-      g(h, Ee(R, se - 0.2, C - 0.06, I, se - 0.05, C)));
-    let k = ae > 0 ? I - 0.03 : R + 0.03,
-      ce = ae > 0 ? R : I;
-    ns(
-      o,
-      l,
-      [
-        [ce, se, C - 0.03],
-        [k, se, C - 0.03],
-        [k, se, T + 0.03],
-      ],
-      { post: 0.9, tint: En },
-    );
-  }
-  let K = [3.6, 6.9, 10.2, 13.5, 16.8, 20.1];
-  for (let R = 0; R < 5; R++)
-    R % 2 === 0
-      ? (Q(G[0], G[1], K[R], -1), N(G[1], K[R], j[0], K[R + 1], T, D))
-      : (Q(j[0], j[1], K[R], 1), N(j[0], K[R], G[1], K[R + 1], D, C));
-  (Q(j[0], j[1], K[5], 1),
-    N(j[0], K[5], 23.4, 21.9, D, C),
-    g(h, Ee(22.5, 21.85, On + 1.35, 23.4, 21.9, C)),
-    ns(
-      o,
-      l,
-      [
-        [22.53, 21.9, On + 1.4],
-        [22.53, 21.9, C - 0.03],
-        [23.37, 21.9, C - 0.03],
-      ],
-      { post: 1.3, tint: En },
-    ),
-    ns(
-      o,
-      l,
-      [
-        [23.37, 21.9, On + 1.4],
-        [23.37, 21.9, D],
-      ],
-      { post: 1.3, tint: En },
-    ),
-    g(h, Ee(j[0], 13.45, 4.95, j[1], 13.5, T)));
-  for (let R of [G[0], j[1]])
-    for (let I of [T - 0.05, C + 0.05])
-      g(a, Ee(R - 0.07, 3.3, I - 0.07, R + 0.07, 21.4, I + 0.07), wn);
-  for (let R = 0; R < K.length; R++) {
-    let I = K[R] - 0.25;
-    g(a, Ee(G[0], I - 0.06, C + 0, j[1], I + 0.06, C + 0.1), Ms);
-    for (let se of [G[0], j[1]])
-      g(a, Ee(se - 0.05, I - 0.06, 5.9, se + 0.05, I + 0.06, C + 0.1), Ms);
-    if (R < K.length - 1) {
-      let se = K[R + 1] - 0.25;
-      (g(a, Ke([G[0], I, C + 0.05], [j[1], se, C + 0.05], 0.03, 5), wn),
-        g(a, Ke([j[1], I, C + 0.05], [G[0], se, C + 0.05], 0.03, 5), wn));
-    }
-  }
-  {
-    let R = G[0] - 0.05,
-      I = 7.35;
-    for (let ae of [-0.22, 0.22]) g(h, Ke([R, 0.05, I + ae], [R, 4.75, I + ae], 0.022, 5));
-    for (let ae = 0.3; ae < 4.7; ae += 0.3)
-      g(h, Ke([R, ae, I - 0.22], [R, ae, I + 0.22], 0.012, 4));
-    let se = (ae) => {
-      let k = [];
-      for (let ce = 0; ce <= 8; ce++) {
-        let ve = (Math.PI * ce) / 8;
-        k.push(_t(R - Math.sin(ve) * 0.7, ae, I - Math.cos(ve) * 0.36));
-      }
-      return k;
-    };
-    for (let ae = 2.3; ae <= 4.75; ae += 0.6) g(h, kr(se(ae), 0.012, 4));
-    for (let ae = 1; ae < 8; ae += 1.5) {
-      let k = (Math.PI * ae) / 8;
-      g(
-        h,
-        Ke(
-          [R - Math.sin(k) * 0.7, 2.3, I - Math.cos(k) * 0.36],
-          [R - Math.sin(k) * 0.7, 4.75, I - Math.cos(k) * 0.36],
-          0.01,
-          4,
-        ),
-      );
-    }
-    x.push({
-      min: [R - 0.72, 0, I - 0.4],
-      max: [R + 0.05, 4.7, I + 0.4],
-      bulletOnly: !1,
-    });
-  }
+
+  buildQuayCraneAccessStairs(g, mats, x, o);
+
   g(f, Ee(13, 21.02, -On - 0.95, ks - 1.2, 21.12, -On - 0.85));
   for (let R = 13.5; R < ks - 1.2; R += 3.3)
     g(f, Ee(R - 0.03, 21.1, -On - 0.93, R + 0.03, 21.86, -On - 0.87));
@@ -786,48 +910,9 @@ function z1(i, e, t = {}) {
         ));
   (g(f, xt(0.42, 0.42, 1.5, "z", ks - 0.9, 22.35, 0, 14)),
     g(f, xt(0.42, 0.42, 1.5, "z", ks + 0.9, 22.35, 0, 14)));
-  let F = ks + 0.25,
-    X = ks + 2.65,
-    ne = 2.35,
-    re = 4.4,
-    $ = 18.3,
-    ue = 20.7;
-  for (let R of [F + 0.12, X - 0.3]) {
-    g(l, Ee(R - 0.12, 20.88, -1, R + 0.12, 21.16, re, 0.03), En);
-    for (let I of [ne + 0.1, re - 0.1])
-      g(l, Ee(R - 0.06, ue, I - 0.06, R + 0.06, 20.9, I + 0.06), En);
-  }
-  (g(c, Ee(F, $, ne, X, $ + 0.14, re, 0.03), cl),
-    g(c, Ee(F - 0.08, ue - 0.02, ne - 0.08, X + 0.12, ue + 0.12, re + 0.08, 0.03), cl),
-    g(c, Ee(F, $ + 0.14, ne, F + 0.08, ue, re), cl));
-  for (let R of [ne, re - 0.06])
-    (g(c, Ee(F, $ + 0.14, R, X - 0.5, $ + 0.95, R + 0.06), cl),
-      g(d, Ee(F + 0.08, $ + 0.95, R + 0.02, X - 0.06, ue, R + 0.04)),
-      g(d, Ee(X - 0.5, $ + 0.14, R + 0.02, X - 0.06, $ + 0.95, R + 0.04)));
-  for (let R of [X - 0.06])
-    for (let I of [ne, re - 0.06, (ne + re) / 2 - 0.03])
-      g(c, Ee(R, $ + 0.14, I, R + 0.06, ue, I + 0.06), cl);
-  (g(d, Ee(X - 0.04, $ + 0.14, ne + 0.06, X - 0.02, ue, re - 0.06)),
-    g(d, Ee(X - 0.9, $ + 0.02, ne + 0.3, X - 0.1, $ + 0.04, re - 0.3)),
-    g(f, Ee(F + 0.9, $ + 0.14, 3.1, F + 1.45, $ + 0.6, 3.65, 0.04)),
-    g(f, Ee(F + 0.82, $ + 0.6, 3.1, F + 0.96, $ + 1.35, 3.65, 0.04)));
-  for (let R of [2.75, 4])
-    (g(f, Ee(F + 1.2, $ + 0.14, R - 0.16, F + 1.75, $ + 0.85, R + 0.16, 0.03)),
-      r.add(Ee(F + 1.3, $ + 0.855, R - 0.1, F + 1.6, $ + 0.865, R + 0.1), [0.75, 0.5, 0.26], 0));
-  (r.add(Ee(F + 0.5, ue - 0.045, 3, F + 1.5, ue - 0.03, 3.2), [0.75, 0.5, 0.26], 0),
-    ie(X + 0.15, $ + 0.1, 3.37, 2, "z"),
-    g(h, Ee(F - 0.9, $ + 0.1, ne, F, $ + 0.14, re)),
-    ns(
-      o,
-      l,
-      [
-        [F, $ + 0.14, ne + 0.03],
-        [F - 0.87, $ + 0.14, ne + 0.03],
-        [F - 0.87, $ + 0.14, re - 0.03],
-        [F, $ + 0.14, re - 0.03],
-      ],
-      { post: 1, tint: En },
-    ));
+
+  buildQuayCraneOperatorCab(g, mats, r, o, ks, ie);
+
   let me = i.mats.label("SALTLINE 04", {
       color: "white",
       font: "stencil",
@@ -846,41 +931,10 @@ function z1(i, e, t = {}) {
   if (n) return ((o.remap = null), (o.dz = 0), (o.minSize = 0), null);
   let B = o.build({ cast: !0, recv: !0 });
   B.name = "crane";
-  let P = new io(),
-    V = (R, I, se) => P.add(R, I, se),
-    Y = 8.3;
-  for (let R of [-0.9, 0.9])
-    for (let I of [-0.8, 0.8]) V(f, Ke([R, 0, I], [R * 0.8, -Y, I * 0.7], 0.022, 5));
-  V(l, Ee(-0.95, -Y - 0.55, -0.75, 0.95, -Y, 0.75, 0.05), En);
-  for (let R of [-0.45, 0.45]) V(f, xt(0.3, 0.3, 0.12, "z", 0, -Y + 0.12, R, 12));
-  let L = -Y - 0.55,
-    Z = L - 0.34;
-  for (let R of [-0.6, 0.6]) V(l, Ee(R - 0.16, Z, -6.02, R + 0.16, L, 6.02, 0.03), En);
-  for (let R of [-5.92, 5.92]) V(l, Ee(-1.22, Z, R - 0.14, 1.22, L, R + 0.14, 0.03), En);
-  V(l, Ee(-0.9, Z - 0.02, -1.3, 0.9, L + 0.1, 1.3, 0.04), En);
-  for (let R of [-1.2, 1.2])
-    for (let I of [-6, 6])
-      (V(f, Ee(R - 0.1, Z - 0.1, I - 0.1, R + 0.1, Z + 0.05, I + 0.1)),
-        V(l, jt([R * 1.02, Z, I * 1.01], [R * 1.22, Z - 0.55, I * 1.04], 0.28, 0.03), En));
-  let J = Z - 0.08,
-    oe = J - 2.59,
-    fe = [0.9, 0.82, 0.8];
-  V(u, Ee(-1.2, oe, -6.08, 1.2, J, 6.08, 0.03), fe);
-  for (let R of [-1.22, 1.22])
-    for (let I = -5.7; I <= 5.71; I += 0.57)
-      V(u, Ee(R - 0.02, oe + 0.16, I - 0.1, R + 0.02, J - 0.12, I + 0.1), fe);
-  for (let R of [-6.095, 6.095])
-    for (let I of [-1.22, 1.22])
-      V(u, Ee(I - 0.08, oe, R - 0.08, I + 0.08, J, R + 0.08), [0.7, 0.62, 0.6]);
-  for (let R of [-0.8, -0.3, 0.3, 0.8]) V(f, Ke([R, oe + 0.08, 6.1], [R, J - 0.08, 6.1], 0.02, 5));
-  let le = P.build({ cast: !0, recv: !0 });
-  return (
-    le.position.set(ks, 20.7, 0),
-    (le.userData.noMerge = !0),
-    (le.name = "crane-spreader"),
-    B.add(le),
-    { root: B, spreader: le, colliders: x, tris: o.tris + P.tris }
-  );
+
+  let { spreaderMesh: le, tris: spreaderTris } = buildQuayCraneSpreader(mats, ks);
+  B.add(le);
+  return { root: B, spreader: le, colliders: x, tris: o.tris + spreaderTris };
 }
 function mb(i, e, t, n, { s = 1, up: o = !1, tint: r = [0.3, 0.36, 0.44] } = {}) {
   let a = [],
@@ -1684,7 +1738,7 @@ function Mb(i, e) {
         N = (G.min.z + G.max.z) / 2;
       if (j < 31) {
         let Q = bb(j, N);
-        (Lc(D, (K, ie, F) => l(C, K, ie, F, Q)), t.add(n, D));
+        (setVertexColors(D, (K, ie, F) => l(C, K, ie, F, Q)), t.add(n, D));
       } else t.add(n, D, C);
     },
     u = [],

@@ -21,7 +21,7 @@
  */
 
 import * as THREE from "three";
-import { oi as SCENE_BOUNDS } from "./constants.js";
+import { SCENE_BOUNDS } from "./constants.js";
 
 // ============================================================================
 // 一、 物理常量与网格规格 (Constants & Grid Config)
@@ -100,6 +100,83 @@ export function createPhysicsSystem(engineCtx) {
   // 2. 光线投射检测 (Slab-Method Raycast)
   // --------------------------------------------------------------------------
 
+  function intersectRayAABB(ox, oy, oz, dx, dy, dz, invDx, invDy, invDz, box, maxDist) {
+    let tMin = 0;
+    let tMax = maxDist;
+    let nearAxis = -1;
+    let nearSign = 0;
+    let t1, t2;
+
+    // X 轴平面测试
+    if (dx !== 0) {
+      t1 = (box.min.x - ox) * invDx;
+      t2 = (box.max.x - ox) * invDx;
+      let sign = -1;
+      if (t1 > t2) {
+        const tmp = t1;
+        t1 = t2;
+        t2 = tmp;
+        sign = 1;
+      }
+      if (t1 > tMin) {
+        tMin = t1;
+        nearAxis = 0;
+        nearSign = sign;
+      }
+      if (t2 < tMax) tMax = t2;
+      if (tMin > tMax) return null;
+    } else if (ox < box.min.x || ox > box.max.x) {
+      return null;
+    }
+
+    // Y 轴平面测试
+    if (dy !== 0) {
+      t1 = (box.min.y - oy) * invDy;
+      t2 = (box.max.y - oy) * invDy;
+      let sign = -1;
+      if (t1 > t2) {
+        const tmp = t1;
+        t1 = t2;
+        t2 = tmp;
+        sign = 1;
+      }
+      if (t1 > tMin) {
+        tMin = t1;
+        nearAxis = 1;
+        nearSign = sign;
+      }
+      if (t2 < tMax) tMax = t2;
+      if (tMin > tMax) return null;
+    } else if (oy < box.min.y || oy > box.max.y) {
+      return null;
+    }
+
+    // Z 轴平面测试
+    if (dz !== 0) {
+      t1 = (box.min.z - oz) * invDz;
+      t2 = (box.max.z - oz) * invDz;
+      let sign = -1;
+      if (t1 > t2) {
+        const tmp = t1;
+        t1 = t2;
+        t2 = tmp;
+        sign = 1;
+      }
+      if (t1 > tMin) {
+        tMin = t1;
+        nearAxis = 2;
+        nearSign = sign;
+      }
+      if (t2 < tMax) tMax = t2;
+      if (tMin > tMax) return null;
+    } else if (oz < box.min.z || oz > box.max.z) {
+      return null;
+    }
+
+    if (nearAxis < 0) return null;
+    return { dist: tMin, axis: nearAxis, sign: nearSign };
+  }
+
   function raycast(origin, dir, maxDistance = 500) {
     let closestDist = maxDistance;
     let hitBox = null;
@@ -141,83 +218,12 @@ export function createPhysicsSystem(engineCtx) {
       const box = boxes[i];
       if (box.playerOnly) continue;
 
-      let tMin = 0;
-      let tMax = closestDist;
-      let nearAxis = -1;
-      let nearSign = 0;
-      let t1, t2;
-
-      // X 轴平面测试
-      if (dx !== 0) {
-        t1 = (box.min.x - ox) * invDx;
-        t2 = (box.max.x - ox) * invDx;
-        let sign = -1;
-        if (t1 > t2) {
-          const tmp = t1;
-          t1 = t2;
-          t2 = tmp;
-          sign = 1;
-        }
-        if (t1 > tMin) {
-          tMin = t1;
-          nearAxis = 0;
-          nearSign = sign;
-        }
-        if (t2 < tMax) tMax = t2;
-        if (tMin > tMax) continue;
-      } else if (ox < box.min.x || ox > box.max.x) {
-        continue;
-      }
-
-      // Y 轴平面测试
-      if (dy !== 0) {
-        t1 = (box.min.y - oy) * invDy;
-        t2 = (box.max.y - oy) * invDy;
-        let sign = -1;
-        if (t1 > t2) {
-          const tmp = t1;
-          t1 = t2;
-          t2 = tmp;
-          sign = 1;
-        }
-        if (t1 > tMin) {
-          tMin = t1;
-          nearAxis = 1;
-          nearSign = sign;
-        }
-        if (t2 < tMax) tMax = t2;
-        if (tMin > tMax) continue;
-      } else if (oy < box.min.y || oy > box.max.y) {
-        continue;
-      }
-
-      // Z 轴平面测试
-      if (dz !== 0) {
-        t1 = (box.min.z - oz) * invDz;
-        t2 = (box.max.z - oz) * invDz;
-        let sign = -1;
-        if (t1 > t2) {
-          const tmp = t1;
-          t1 = t2;
-          t2 = tmp;
-          sign = 1;
-        }
-        if (t1 > tMin) {
-          tMin = t1;
-          nearAxis = 2;
-          nearSign = sign;
-        }
-        if (t2 < tMax) tMax = t2;
-        if (tMin > tMax) continue;
-      } else if (oz < box.min.z || oz > box.max.z) {
-        continue;
-      }
-
-      if (nearAxis >= 0) {
-        closestDist = tMin;
+      const hit = intersectRayAABB(ox, oy, oz, dx, dy, dz, invDx, invDy, invDz, box, closestDist);
+      if (hit) {
+        closestDist = hit.dist;
         hitBox = box;
-        hitAxis = nearAxis;
-        hitSign = nearSign;
+        hitAxis = hit.axis;
+        hitSign = hit.sign;
         groundType = 0;
       }
     }
@@ -283,21 +289,12 @@ export function createPhysicsSystem(engineCtx) {
   // 3. 扫掠胶囊体角色控制器 (Swept-Capsule Controller)
   // --------------------------------------------------------------------------
 
-  function moveCapsule(pos, vel, dt, radius = 0.32, height = 1.8, stepUp = true) {
-    const result = {
-      onGround: false,
-      hitWall: false,
-      hitCeil: false,
-      surface: "concrete",
-    };
-
+  function resolveCapsuleHorizontal(pos, vel, radius, height, stepUp, dt, result) {
     const deltaX = vel.x * dt;
     const deltaZ = vel.z * dt;
     const horizDist = Math.hypot(deltaX, deltaZ);
     const subSteps = Math.max(1, Math.ceil(horizDist / (radius * 0.6)));
-    const startY = pos.y;
 
-    // 水平子步迭代位移与墙面滑动
     for (let step = 0; step < subSteps; step++) {
       pos.x += deltaX / subSteps;
       pos.z += deltaZ / subSteps;
@@ -363,8 +360,9 @@ export function createPhysicsSystem(engineCtx) {
         if (!collided) break;
       }
     }
+  }
 
-    // 垂直位移与地面/天花板解算
+  function resolveCapsuleVertical(pos, vel, radius, height, stepUp, dt, startY, result) {
     const targetY = pos.y + vel.y * dt;
     const probeRadius = radius * 0.7;
     let floorY = pos.x <= SCENE_BOUNDS.quayX + probeRadius ? SCENE_BOUNDS.groundY : -50;
@@ -416,7 +414,19 @@ export function createPhysicsSystem(engineCtx) {
           ? engineCtx.level.groundSurfaceAt(pos.x, pos.z)
           : "concrete");
     }
+  }
 
+  function moveCapsule(pos, vel, dt, radius = 0.32, height = 1.8, stepUp = true) {
+    const result = {
+      onGround: false,
+      hitWall: false,
+      hitCeil: false,
+      surface: "concrete",
+    };
+
+    const startY = pos.y;
+    resolveCapsuleHorizontal(pos, vel, radius, height, stepUp, dt, result);
+    resolveCapsuleVertical(pos, vel, radius, height, stepUp, dt, startY, result);
     return result;
   }
 

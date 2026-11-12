@@ -735,6 +735,412 @@ export async function createFXManager(engineCtx) {
     if (rip2 >= 0) addPool.fin[rip2] = 0.35;
   }
 
+  function emitMetalImpact(point, norm, reflect, lodScale, isFar) {
+    const nx = norm.x,
+      ny = norm.y,
+      nz = norm.z;
+    vTempAim.copy(reflect).addScaledVector(norm, 0.6).normalize();
+    emitSparksCone(
+      point,
+      vTempAim,
+      Math.round(18 * lodScale),
+      6,
+      24,
+      0.55,
+      0.1,
+      0.38,
+      40,
+      25,
+      10.5,
+      0,
+    );
+    emitSparksCone(
+      point,
+      vTempAim,
+      2 + Math.floor(Math.random() * 2),
+      9,
+      18,
+      0.9,
+      0.7,
+      1.3,
+      32,
+      18,
+      7,
+      PARTICLE_FLAG_BOUNCE_FLOOR,
+    );
+
+    emitStaticAddFlare(
+      point.x + nx * 0.03,
+      point.y + ny * 0.03,
+      point.z + nz * 0.03,
+      0.05,
+      0.25,
+      0.45,
+      16,
+      11,
+      5.5,
+      SPARK_FRAME_SOFT_DOT,
+    );
+    emitStaticAddFlare(
+      point.x + nx * 0.04,
+      point.y + ny * 0.04,
+      point.z + nz * 0.04,
+      0.04,
+      0.35,
+      0.5,
+      9,
+      6,
+      2.6,
+      SPARK_FRAME_STARBURST1 + Math.floor(Math.random() * 2),
+    );
+
+    if (globalTime - lastMuzzleFlashTime > 0.09) {
+      lastMuzzleFlashTime = globalTime;
+      vTempCamPos.copy(point).addScaledVector(norm, 0.12);
+      flashLight(vTempCamPos, 0xffbe30, 10, 5, 0.05);
+    }
+
+    const shadowVis = queryShadowVisibility(point, norm);
+    for (let i = 0; i < 2; i++) {
+      emitLitSmoke(
+        point.x + nx * 0.04,
+        point.y + ny * 0.04,
+        point.z + nz * 0.04,
+        nx * 0.8 + (Math.random() - 0.5) * 0.5,
+        ny * 0.8 + 0.2,
+        nz * 0.8 + (Math.random() - 0.5) * 0.5,
+        randomRange(0.5, 0.9),
+        0.06,
+        randomRange(0.3, 0.5),
+        0.4,
+        0.4,
+        0.41,
+        0.4,
+        shadowVis,
+        2.5,
+        0.3,
+        0.8,
+        -1,
+      );
+    }
+
+    if (!isFar) {
+      emitFlyingDebrisChunks(
+        point,
+        norm,
+        2,
+        1.5,
+        4,
+        0.012,
+        0.03,
+        0.003,
+        0.005,
+        0.01,
+        0.025,
+        0.2,
+        0.21,
+        0.23,
+        0.8,
+        queryFloorHeight(point),
+      );
+    }
+    decalSystem.add(point, norm, "bullet_metal");
+  }
+
+  function emitWoodImpact(point, norm, isFar) {
+    const shadowVis = dust(point, norm, 0.75, 0.5, 0.42, 0.32);
+    emitFlyingDebrisChunks(
+      point,
+      norm,
+      isFar ? 3 : 7,
+      2,
+      6,
+      0.004,
+      0.009,
+      0.03,
+      0.1,
+      0.004,
+      0.012,
+      0.62,
+      0.5,
+      0.33,
+      0.7,
+      queryFloorHeight(point),
+    );
+    if (shadowVis > 0.5 && Math.random() < 0.3) {
+      emitStaticAddFlare(point.x, point.y, point.z, 0.04, 0.1, 0.2, 3, 2, 1, SPARK_FRAME_SOFT_DOT);
+    }
+    decalSystem.add(point, norm, "bullet_wood");
+  }
+
+  function emitDirtOrRubberImpact(point, norm, isDirt) {
+    const nx = norm.x,
+      ny = norm.y,
+      nz = norm.z;
+    const shadowVis = queryShadowVisibility(point, norm);
+    const rCol = isDirt ? 0.3 : 0.14;
+    const gCol = isDirt ? 0.25 : 0.14;
+    const bCol = isDirt ? 0.19 : 0.14;
+
+    for (let i = 0; i < 5; i++) {
+      randomVectorInCone(norm, 0.6, vTempAim);
+      const spd = randomRange(0.6, 2.6);
+      emitLitSmoke(
+        point.x + nx * 0.03,
+        point.y + ny * 0.03,
+        point.z + nz * 0.03,
+        vTempAim.x * spd,
+        vTempAim.y * spd,
+        vTempAim.z * spd,
+        randomRange(0.5, 1),
+        0.07,
+        randomRange(0.3, 0.55),
+        rCol,
+        gCol,
+        bCol,
+        0.85,
+        shadowVis,
+        3.5,
+        0.1,
+        0.6,
+        i < 2 ? 7 : -1,
+      );
+    }
+
+    emitFlyingDebrisChunks(
+      point,
+      norm,
+      3,
+      1.5,
+      4,
+      0.01,
+      0.03,
+      0.008,
+      0.02,
+      0.01,
+      0.03,
+      rCol * 0.8,
+      gCol * 0.8,
+      bCol * 0.8,
+      0.7,
+      queryFloorHeight(point),
+    );
+    decalSystem.add(point, norm, "soot", 0.2, 1, 0.8);
+  }
+
+  function emitGlassImpact(point, norm) {
+    const nx = norm.x,
+      ny = norm.y,
+      nz = norm.z;
+    for (let i = 0; i < 12; i++) {
+      randomVectorInCone(norm, 0.9, vTempAim);
+      const spd = randomRange(1.5, 6);
+      const dIdx = addPool.emit(
+        point.x,
+        point.y,
+        point.z,
+        vTempAim.x * spd,
+        vTempAim.y * spd,
+        vTempAim.z * spd,
+        randomRange(0.4, 0.9),
+        randomRange(0.012, 0.02),
+        0.008,
+      );
+      if (dIdx >= 0) {
+        addPool.mode[dIdx] = PARTICLE_MODE_VELOCITY_STRETCH;
+        addPool.frame[dIdx] = SPARK_FRAME_DROPLET;
+        addPool.stretch[dIdx] = 0.01;
+        addPool.grav[dIdx] = 9.81;
+        addPool.r[dIdx] = 2.6;
+        addPool.g[dIdx] = 2.7;
+        addPool.b[dIdx] = 2.8;
+        addPool.flags[dIdx] = PARTICLE_FLAG_DIE_ON_FLOOR;
+        addPool.ramp[dIdx] = 3;
+      }
+    }
+
+    emitFlyingDebrisChunks(
+      point,
+      norm,
+      4,
+      1.5,
+      5,
+      0.01,
+      0.03,
+      0.002,
+      0.004,
+      0.01,
+      0.03,
+      0.62,
+      0.72,
+      0.74,
+      0.8,
+      queryFloorHeight(point),
+    );
+    emitLitSmoke(
+      point.x,
+      point.y,
+      point.z,
+      nx * 0.6,
+      ny * 0.6 + 0.2,
+      nz * 0.6,
+      0.6,
+      0.08,
+      0.4,
+      0.75,
+      0.8,
+      0.82,
+      0.2,
+      queryShadowVisibility(point, norm),
+      2.5,
+      0.2,
+      0.8,
+      -1,
+    );
+    decalSystem.add(point, norm, "bullet_glass");
+  }
+
+  function emitEnemyImpact(point, norm, reflect, lodScale, isFar) {
+    const nx = norm.x,
+      ny = norm.y,
+      nz = norm.z;
+    vTempAim.copy(reflect).addScaledVector(norm, 0.8).normalize();
+    emitSparksCone(
+      point,
+      vTempAim,
+      Math.round(13 * lodScale),
+      5,
+      20,
+      0.9,
+      0.12,
+      0.45,
+      42,
+      29,
+      14,
+      0,
+    );
+    emitSparksCone(point, vTempAim, 2, 6, 12, 1.0, 0.6, 1.1, 32, 18, 7, PARTICLE_FLAG_BOUNCE_FLOOR);
+
+    emitStaticAddFlare(point.x, point.y, point.z, 0.06, 0.3, 0.55, 18, 12, 6, SPARK_FRAME_SOFT_DOT);
+    emitStaticAddFlare(
+      point.x,
+      point.y,
+      point.z,
+      0.04,
+      0.3,
+      0.45,
+      8,
+      5,
+      2.4,
+      SPARK_FRAME_STARBURST1 + Math.floor(Math.random() * 2),
+    );
+
+    if (globalTime - lastMuzzleFlashTime > 0.09) {
+      lastMuzzleFlashTime = globalTime;
+      flashLight(point, 0xff7000, 8, 4.5, 0.05);
+    }
+
+    const shadowVis = queryShadowVisibility(point, norm);
+    for (let i = 0; i < 2; i++) {
+      emitLitSmoke(
+        point.x,
+        point.y,
+        point.z,
+        nx * 0.5 + (Math.random() - 0.5) * 0.4,
+        ny * 0.5 + 0.3,
+        nz * 0.5 + (Math.random() - 0.5) * 0.4,
+        randomRange(0.6, 1.1),
+        0.06,
+        randomRange(0.3, 0.5),
+        0.13,
+        0.13,
+        0.14,
+        0.65,
+        shadowVis,
+        2.2,
+        0.5,
+        0.9,
+        -1,
+      );
+    }
+
+    if (!isFar) {
+      const isBloodSpark = Math.random() < 0.35;
+      emitFlyingDebrisChunks(
+        point,
+        norm,
+        3,
+        2,
+        6,
+        0.012,
+        0.035,
+        0.004,
+        0.008,
+        0.012,
+        0.03,
+        0.6,
+        isBloodSpark ? 0.2 : 0.62,
+        isBloodSpark ? 0.05 : 0.64,
+        0.8,
+        queryFloorHeight(point),
+      );
+    }
+  }
+
+  function emitConcreteImpact(point, norm, reflect, isFar) {
+    dust(point, norm, 1, 0.52, 0.5, 0.47);
+    emitFlyingDebrisChunks(
+      point,
+      norm,
+      isFar ? 2 : 4,
+      1.5,
+      5.5,
+      0.012,
+      0.035,
+      0.008,
+      0.02,
+      0.012,
+      0.035,
+      0.42,
+      0.41,
+      0.39,
+      0.7,
+      queryFloorHeight(point),
+    );
+
+    vTempAim.copy(reflect).addScaledVector(norm, 0.7).normalize();
+    for (let i = 0; i < 4; i++) {
+      randomVectorInCone(vTempAim, 0.5, vTempAim);
+      const spd = randomRange(3, 9);
+      const sIdx = emitLitSmoke(
+        point.x,
+        point.y,
+        point.z,
+        vTempAim.x * spd,
+        vTempAim.y * spd,
+        vTempAim.z * spd,
+        randomRange(0.25, 0.45),
+        0.03,
+        0.09,
+        0.6,
+        0.58,
+        0.54,
+        0.7,
+        1,
+        2,
+        -6,
+        0.2,
+        7,
+      );
+      if (sIdx >= 0) litPool.turb[sIdx] = 0;
+    }
+
+    if (Math.random() < 0.3) {
+      emitSparksCone(point, vTempAim, 3, 4, 10, 0.6, 0.08, 0.2, 26, 15, 6, 0);
+    }
+    decalSystem.add(point, norm, "bullet_concrete");
+  }
+
   function impact(point, normal, surface = "concrete", dir = null, enemy = null) {
     vTempNorm.copy(normal || UP_VECTOR);
     if (vTempNorm.lengthSq() < 1e-6) vTempNorm.copy(UP_VECTOR);
@@ -773,452 +1179,30 @@ export async function createFXManager(engineCtx) {
     const camPos = engineCtx.camera ? engineCtx.camera.position : vTempCamPos.set(0, 0, 0);
     const isFar = camPos.distanceToSquared(vTempPoint) > 3025; // 55 米以外降低 LOD
     const lodScale = isFar ? 0.5 : 1.0;
-    const nx = vTempNorm.x,
-      ny = vTempNorm.y,
-      nz = vTempNorm.z;
 
     switch (surface) {
-      case "metal": {
-        vTempAim.copy(vTempReflect).addScaledVector(vTempNorm, 0.6).normalize();
-        emitSparksCone(
-          vTempPoint,
-          vTempAim,
-          Math.round(18 * lodScale),
-          6,
-          24,
-          0.55,
-          0.1,
-          0.38,
-          40,
-          25,
-          10.5,
-          0,
-        );
-        emitSparksCone(
-          vTempPoint,
-          vTempAim,
-          2 + Math.floor(Math.random() * 2),
-          9,
-          18,
-          0.9,
-          0.7,
-          1.3,
-          32,
-          18,
-          7,
-          PARTICLE_FLAG_BOUNCE_FLOOR,
-        );
-
-        emitStaticAddFlare(
-          vTempPoint.x + nx * 0.03,
-          vTempPoint.y + ny * 0.03,
-          vTempPoint.z + nz * 0.03,
-          0.05,
-          0.25,
-          0.45,
-          16,
-          11,
-          5.5,
-          SPARK_FRAME_SOFT_DOT,
-        );
-        emitStaticAddFlare(
-          vTempPoint.x + nx * 0.04,
-          vTempPoint.y + ny * 0.04,
-          vTempPoint.z + nz * 0.04,
-          0.04,
-          0.35,
-          0.5,
-          9,
-          6,
-          2.6,
-          SPARK_FRAME_STARBURST1 + Math.floor(Math.random() * 2),
-        );
-
-        if (globalTime - lastMuzzleFlashTime > 0.09) {
-          lastMuzzleFlashTime = globalTime;
-          vTempCamPos.copy(vTempPoint).addScaledVector(vTempNorm, 0.12);
-          flashLight(vTempCamPos, 0xffbe30, 10, 5, 0.05);
-        }
-
-        const shadowVis = queryShadowVisibility(vTempPoint, vTempNorm);
-        for (let i = 0; i < 2; i++) {
-          emitLitSmoke(
-            vTempPoint.x + nx * 0.04,
-            vTempPoint.y + ny * 0.04,
-            vTempPoint.z + nz * 0.04,
-            nx * 0.8 + (Math.random() - 0.5) * 0.5,
-            ny * 0.8 + 0.2,
-            nz * 0.8 + (Math.random() - 0.5) * 0.5,
-            randomRange(0.5, 0.9),
-            0.06,
-            randomRange(0.3, 0.5),
-            0.4,
-            0.4,
-            0.41,
-            0.4,
-            shadowVis,
-            2.5,
-            0.3,
-            0.8,
-            -1,
-          );
-        }
-
-        if (!isFar) {
-          emitFlyingDebrisChunks(
-            vTempPoint,
-            vTempNorm,
-            2,
-            1.5,
-            4,
-            0.012,
-            0.03,
-            0.003,
-            0.005,
-            0.01,
-            0.025,
-            0.2,
-            0.21,
-            0.23,
-            0.8,
-            queryFloorHeight(vTempPoint),
-          );
-        }
-        decalSystem.add(vTempPoint, vTempNorm, "bullet_metal");
+      case "metal":
+        emitMetalImpact(vTempPoint, vTempNorm, vTempReflect, lodScale, isFar);
         break;
-      }
-
-      case "wood": {
-        const shadowVis = dust(vTempPoint, vTempNorm, 0.75, 0.5, 0.42, 0.32);
-        emitFlyingDebrisChunks(
-          vTempPoint,
-          vTempNorm,
-          isFar ? 3 : 7,
-          2,
-          6,
-          0.004,
-          0.009,
-          0.03,
-          0.1,
-          0.004,
-          0.012,
-          0.62,
-          0.5,
-          0.33,
-          0.7,
-          queryFloorHeight(vTempPoint),
-        );
-        if (shadowVis > 0.5 && Math.random() < 0.3) {
-          emitStaticAddFlare(
-            vTempPoint.x,
-            vTempPoint.y,
-            vTempPoint.z,
-            0.04,
-            0.1,
-            0.2,
-            3,
-            2,
-            1,
-            SPARK_FRAME_SOFT_DOT,
-          );
-        }
-        decalSystem.add(vTempPoint, vTempNorm, "bullet_wood");
+      case "wood":
+        emitWoodImpact(vTempPoint, vTempNorm, isFar);
         break;
-      }
-
-      case "water": {
+      case "water":
         splash(vTempPoint, 1);
         break;
-      }
-
       case "rubber":
-      case "dirt": {
-        const shadowVis = queryShadowVisibility(vTempPoint, vTempNorm);
-        const isDirt = surface === "dirt";
-        const rCol = isDirt ? 0.3 : 0.14;
-        const gCol = isDirt ? 0.25 : 0.14;
-        const bCol = isDirt ? 0.19 : 0.14;
-
-        for (let i = 0; i < 5; i++) {
-          randomVectorInCone(vTempNorm, 0.6, vTempAim);
-          const spd = randomRange(0.6, 2.6);
-          emitLitSmoke(
-            vTempPoint.x + nx * 0.03,
-            vTempPoint.y + ny * 0.03,
-            vTempPoint.z + nz * 0.03,
-            vTempAim.x * spd,
-            vTempAim.y * spd,
-            vTempAim.z * spd,
-            randomRange(0.5, 1),
-            0.07,
-            randomRange(0.3, 0.55),
-            rCol,
-            gCol,
-            bCol,
-            0.85,
-            shadowVis,
-            3.5,
-            0.1,
-            0.6,
-            i < 2 ? 7 : -1,
-          );
-        }
-
-        emitFlyingDebrisChunks(
-          vTempPoint,
-          vTempNorm,
-          3,
-          1.5,
-          4,
-          0.01,
-          0.03,
-          0.008,
-          0.02,
-          0.01,
-          0.03,
-          rCol * 0.8,
-          gCol * 0.8,
-          bCol * 0.8,
-          0.7,
-          queryFloorHeight(vTempPoint),
-        );
-        decalSystem.add(vTempPoint, vTempNorm, "soot", 0.2, 1, 0.8);
+      case "dirt":
+        emitDirtOrRubberImpact(vTempPoint, vTempNorm, surface === "dirt");
         break;
-      }
-
-      case "glass": {
-        for (let i = 0; i < 12; i++) {
-          randomVectorInCone(vTempNorm, 0.9, vTempAim);
-          const spd = randomRange(1.5, 6);
-          const dIdx = addPool.emit(
-            vTempPoint.x,
-            vTempPoint.y,
-            vTempPoint.z,
-            vTempAim.x * spd,
-            vTempAim.y * spd,
-            vTempAim.z * spd,
-            randomRange(0.4, 0.9),
-            randomRange(0.012, 0.02),
-            0.008,
-          );
-          if (dIdx >= 0) {
-            addPool.mode[dIdx] = PARTICLE_MODE_VELOCITY_STRETCH;
-            addPool.frame[dIdx] = SPARK_FRAME_DROPLET;
-            addPool.stretch[dIdx] = 0.01;
-            addPool.grav[dIdx] = 9.81;
-            addPool.r[dIdx] = 2.6;
-            addPool.g[dIdx] = 2.7;
-            addPool.b[dIdx] = 2.8;
-            addPool.flags[dIdx] = PARTICLE_FLAG_DIE_ON_FLOOR;
-            addPool.ramp[dIdx] = 3;
-          }
-        }
-
-        emitFlyingDebrisChunks(
-          vTempPoint,
-          vTempNorm,
-          4,
-          1.5,
-          5,
-          0.01,
-          0.03,
-          0.002,
-          0.004,
-          0.01,
-          0.03,
-          0.62,
-          0.72,
-          0.74,
-          0.8,
-          queryFloorHeight(vTempPoint),
-        );
-        emitLitSmoke(
-          vTempPoint.x,
-          vTempPoint.y,
-          vTempPoint.z,
-          nx * 0.6,
-          ny * 0.6 + 0.2,
-          nz * 0.6,
-          0.6,
-          0.08,
-          0.4,
-          0.75,
-          0.8,
-          0.82,
-          0.2,
-          queryShadowVisibility(vTempPoint, vTempNorm),
-          2.5,
-          0.2,
-          0.8,
-          -1,
-        );
-        decalSystem.add(vTempPoint, vTempNorm, "bullet_glass");
+      case "glass":
+        emitGlassImpact(vTempPoint, vTempNorm);
         break;
-      }
-
-      case "enemy": {
-        vTempAim.copy(vTempReflect).addScaledVector(vTempNorm, 0.8).normalize();
-        emitSparksCone(
-          vTempPoint,
-          vTempAim,
-          Math.round(13 * lodScale),
-          5,
-          20,
-          0.9,
-          0.12,
-          0.45,
-          42,
-          29,
-          14,
-          0,
-        );
-        emitSparksCone(
-          vTempPoint,
-          vTempAim,
-          2,
-          6,
-          12,
-          1.0,
-          0.6,
-          1.1,
-          32,
-          18,
-          7,
-          PARTICLE_FLAG_BOUNCE_FLOOR,
-        );
-
-        emitStaticAddFlare(
-          vTempPoint.x,
-          vTempPoint.y,
-          vTempPoint.z,
-          0.06,
-          0.3,
-          0.55,
-          18,
-          12,
-          6,
-          SPARK_FRAME_SOFT_DOT,
-        );
-        emitStaticAddFlare(
-          vTempPoint.x,
-          vTempPoint.y,
-          vTempPoint.z,
-          0.04,
-          0.3,
-          0.45,
-          8,
-          5,
-          2.4,
-          SPARK_FRAME_STARBURST1 + Math.floor(Math.random() * 2),
-        );
-
-        if (globalTime - lastMuzzleFlashTime > 0.09) {
-          lastMuzzleFlashTime = globalTime;
-          flashLight(vTempPoint, 0xff7000, 8, 4.5, 0.05);
-        }
-
-        const shadowVis = queryShadowVisibility(vTempPoint, vTempNorm);
-        for (let i = 0; i < 2; i++) {
-          emitLitSmoke(
-            vTempPoint.x,
-            vTempPoint.y,
-            vTempPoint.z,
-            nx * 0.5 + (Math.random() - 0.5) * 0.4,
-            ny * 0.5 + 0.3,
-            nz * 0.5 + (Math.random() - 0.5) * 0.4,
-            randomRange(0.6, 1.1),
-            0.06,
-            randomRange(0.3, 0.5),
-            0.13,
-            0.13,
-            0.14,
-            0.65,
-            shadowVis,
-            2.2,
-            0.5,
-            0.9,
-            -1,
-          );
-        }
-
-        if (!isFar) {
-          const isBloodSpark = Math.random() < 0.35;
-          emitFlyingDebrisChunks(
-            vTempPoint,
-            vTempNorm,
-            3,
-            2,
-            6,
-            0.012,
-            0.035,
-            0.004,
-            0.008,
-            0.012,
-            0.03,
-            0.6,
-            isBloodSpark ? 0.2 : 0.62,
-            isBloodSpark ? 0.05 : 0.64,
-            0.8,
-            queryFloorHeight(vTempPoint),
-          );
-        }
+      case "enemy":
+        emitEnemyImpact(vTempPoint, vTempNorm, vTempReflect, lodScale, isFar);
         break;
-      }
-
-      default: {
-        // 混凝土默认表面 (Concrete default)
-        dust(vTempPoint, vTempNorm, 1, 0.52, 0.5, 0.47);
-        emitFlyingDebrisChunks(
-          vTempPoint,
-          vTempNorm,
-          isFar ? 2 : 4,
-          1.5,
-          5.5,
-          0.012,
-          0.035,
-          0.008,
-          0.02,
-          0.012,
-          0.035,
-          0.42,
-          0.41,
-          0.39,
-          0.7,
-          queryFloorHeight(vTempPoint),
-        );
-
-        vTempAim.copy(vTempReflect).addScaledVector(vTempNorm, 0.7).normalize();
-        for (let i = 0; i < 4; i++) {
-          randomVectorInCone(vTempAim, 0.5, vTempAim);
-          const spd = randomRange(3, 9);
-          const sIdx = emitLitSmoke(
-            vTempPoint.x,
-            vTempPoint.y,
-            vTempPoint.z,
-            vTempAim.x * spd,
-            vTempAim.y * spd,
-            vTempAim.z * spd,
-            randomRange(0.25, 0.45),
-            0.03,
-            0.09,
-            0.6,
-            0.58,
-            0.54,
-            0.7,
-            1,
-            2,
-            -6,
-            0.2,
-            7,
-          );
-          if (sIdx >= 0) litPool.turb[sIdx] = 0;
-        }
-
-        if (Math.random() < 0.3) {
-          emitSparksCone(vTempPoint, vTempAim, 3, 4, 10, 0.6, 0.08, 0.2, 26, 15, 6, 0);
-        }
-        decalSystem.add(vTempPoint, vTempNorm, "bullet_concrete");
-      }
+      default:
+        emitConcreteImpact(vTempPoint, vTempNorm, vTempReflect, isFar);
+        break;
     }
   }
 

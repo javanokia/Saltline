@@ -21,9 +21,14 @@
 
 import * as THREE from "three";
 
-import { oi, Mn, en, Pi, vf, zc, Pr, zy, Dy, il, Zn, bi, Fo, sl, kn, Wt, dr } from "./constants.js";
-
-import { sa, Ly, oa, $e, Wi, ot, Fn, ky, Fy, Uy, Ny, Fg, Dc, Lc, Ii, By, Qi } from "./geo.js";
+import {
+  createBoxGeometry,
+  createBoxBevelGeometry,
+  createCylinderGeometry,
+  createTubeFromPoints,
+  mergeStaticMeshHierarchy,
+  createMeshWithShadows,
+} from "./geo.js";
 
 import { PROP_SIZES } from "./props.js";
 
@@ -123,7 +128,7 @@ function createLevelBuilderContext(engineCtx) {
    * 将几何体包装为网格并挂入层级
    */
   function addMesh(geo, mat, opts = {}) {
-    const mesh = Qi(geo, resolveMat(mat), {
+    const mesh = createMeshWithShadows(geo, resolveMat(mat), {
       cast: opts.cast !== false,
       recv: opts.recv !== false,
     });
@@ -137,7 +142,9 @@ function createLevelBuilderContext(engineCtx) {
    * 放置长方体建筑体
    */
   function addBox(mat, w, h, d, x, y, z, opts = {}) {
-    const geo = opts.bevel ? Wi(w, h, d, opts.bevel) : $e(w, h, d);
+    const geo = opts.bevel
+      ? createBoxBevelGeometry(w, h, d, opts.bevel)
+      : createBoxGeometry(w, h, d);
     return addMesh(geo, mat, { ...opts, p: [x, y, z] });
   }
 
@@ -161,7 +168,13 @@ function createLevelBuilderContext(engineCtx) {
    * 放置圆柱体
    */
   function addCylinder(mat, radius, height, x, y, z, opts = {}) {
-    const geo = ot(opts.rTop ?? radius, radius, height, opts.seg || 12, !!opts.open);
+    const geo = createCylinderGeometry(
+      opts.rTop ?? radius,
+      radius,
+      height,
+      opts.seg || 12,
+      !!opts.open,
+    );
     const rot =
       opts.axis === "x"
         ? [0, 0, Math.PI / 2]
@@ -175,7 +188,11 @@ function createLevelBuilderContext(engineCtx) {
    * 沿三维样条曲线创建管道 (Curve Tube)
    */
   function addCurveTube(mat, points, radius = 0.03, opts = {}) {
-    return addMesh(Fn(points, radius, opts.radial || 6, false, opts.tension ?? 0.5), mat, opts);
+    return addMesh(
+      createTubeFromPoints(points, radius, opts.radial || 6, false, opts.tension ?? 0.5),
+      mat,
+      opts,
+    );
   }
 
   /**
@@ -185,7 +202,7 @@ function createLevelBuilderContext(engineCtx) {
     const v0 = new THREE.Vector3(...p0);
     const v1 = new THREE.Vector3(...p1);
     const len = v0.distanceTo(v1);
-    const geo = ot(radius, radius, len, opts.seg || 6);
+    const geo = createCylinderGeometry(radius, radius, len, opts.seg || 6);
     const mesh = addMesh(geo, mat, opts);
     mesh.position.copy(v0).add(v1).multiplyScalar(0.5);
     mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), v1.sub(v0).normalize());
@@ -227,13 +244,13 @@ function createLevelBuilderContext(engineCtx) {
     const resolvedM = resolveMat(mat);
     // 上下两块翼缘板 (Top & Bottom Flanges)
     for (const sign of [-1, 1]) {
-      addMesh($e(...makeDims(len, tf, width)), resolvedM, {
+      addMesh(createBoxGeometry(...makeDims(len, tf, width)), resolvedM, {
         parent: grp,
         p: makeOffset(sign * (depth / 2 - tf / 2)),
       });
     }
     // 中间腹板 (Web Plate)
-    addMesh($e(...makeDims(len, depth - 2 * tf, tw)), resolvedM, { parent: grp });
+    addMesh(createBoxGeometry(...makeDims(len, depth - 2 * tf, tw)), resolvedM, { parent: grp });
     staticRoot.add(grp);
     return grp;
   }
@@ -1164,7 +1181,7 @@ export async function createLevel(engineCtx) {
   }
 
   // 静态几何体合并为单一大网格 (Merge into Single Batched Mesh)
-  const mergedMesh = By(builder.staticRoot);
+  const mergedMesh = mergeStaticMeshHierarchy(builder.staticRoot);
   mergedMesh.name = "level-merged";
   root.add(mergedMesh);
   root.add(builder.dynRoot);
@@ -1402,7 +1419,7 @@ export async function createLevel(engineCtx) {
     },
     update(dt) {
       shedData.update(dt);
-      atlasInfo.update(dt);
+      atlasInfo.update();
       for (let i = 0; i < builder.updaters.length; i++) {
         try {
           builder.updaters[i](dt);

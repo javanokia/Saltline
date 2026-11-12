@@ -431,9 +431,8 @@ const {
   createCanvasElement: dg,
 } = THREE;
 
-import { oi, Mn, en, Pi, vf, zc, Pr, zy, Dy, il, Zn, bi, Fo, sl, kn, Wt, dr } from "./constants.js";
-
-import { sa, Ly, oa, $e, Wi, ot, Fn, ky, Fy, Uy, Ny, Fg, Dc, Lc, Ii, By, Qi } from "./geo.js";
+import { createSeededRandom } from "./constants.js";
+import { mergeGeometries } from "./geo.js";
 
 var ex = {};
 br(ex, { TUNE: () => Ui, create: () => Em, showcase: () => VC });
@@ -524,7 +523,7 @@ const vPlayerHead = new W();
  * @param {object} ctx 全局引擎上下文
  */
 async function createEnemiesManager(ctx) {
-  const rng = il(+((ctx.params && ctx.params.eseed) || 9001));
+  const rng = createSeededRandom(+((ctx.params && ctx.params.eseed) || 9001));
   const activeEnemies = [];
   const activeWrecks = [];
 
@@ -608,7 +607,7 @@ async function createEnemiesManager(ctx) {
     tokenT: -9,
     lastType: "",
     wantT: { gull: -9, hound: -9 },
-    mergeSimple: (geos) => sa(geos, false),
+    mergeSimple: (geos) => mergeGeometries(geos, false),
 
     /**
      * 申请射击/突袭许可令牌 (Token Management)

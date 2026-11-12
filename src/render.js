@@ -1,43 +1,16 @@
 // @ts-check
 import * as THREE from "three";
 import {
-  oi as SCENE_BOUNDS,
-  Mn as SUN_CONFIG,
-  en as SKY_CONFIG,
-  Pi as PLAYER_CONFIG,
-  vf as FACTION_PLAYER,
-  zc as FACTION_ENEMY,
-  Pr as QUALITY_PRESETS,
-  zy as detectQualityPreset,
-  Dy as createEventBus,
-  il as createSeededRandom,
-  Zn as clamp,
-  bi as lerp,
-  Fo as saturate,
-  sl as smoothstep,
-  kn as damp,
-  Wt as noop,
-  dr as STUBS,
+  SUN_CONFIG,
+  SKY_CONFIG,
+  PLAYER_CONFIG,
+  FACTION_PLAYER,
+  FACTION_ENEMY,
+  QUALITY_PRESETS,
+  clamp,
+  smoothstep,
 } from "./constants.js";
-import {
-  sa as mergeGeometries,
-  Ly as mergeAttributes,
-  oa as vScratch,
-  $e as createBoxGeometry,
-  Wi as createBoxBevelGeometry,
-  ot as createCylinderGeometry,
-  Fn as createTubeFromPoints,
-  ky as mTransform,
-  Fy as qTransform,
-  Uy as eTransform,
-  Ny as vTransformPos,
-  Fg as vTransformScale,
-  Dc as transformGeometry,
-  Lc as setVertexColors,
-  Ii as mergeGeometriesClean,
-  By as mergeStaticMeshHierarchy,
-  Qi as createMeshWithShadows,
-} from "./geo.js";
+import { createBoxGeometry, createBoxBevelGeometry, createMeshWithShadows } from "./geo.js";
 
 // Three.js 类与枚举映射
 const WebGLRenderer = THREE.WebGLRenderer;

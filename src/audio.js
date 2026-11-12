@@ -323,13 +323,13 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
     synthesisElapsedMs += performance.now() - tStart;
     if (compileQueue.length) {
       setTimeout(processCompileQueue, 12);
-    } else {
+    } else if (resolveReadyPromise) {
       resolveReadyPromise();
     }
   }
 
   if (preheatedCache) {
-    resolveReadyPromise();
+    if (resolveReadyPromise) resolveReadyPromise();
   } else {
     setTimeout(processCompileQueue, 120);
   }

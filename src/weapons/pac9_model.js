@@ -431,27 +431,9 @@ const {
   createCanvasElement: dg,
 } = THREE;
 
-import {
-  oi,
-  Mn,
-  en,
-  Pi,
-  vf,
-  zc,
-  Pr,
-  zy,
-  Dy,
-  il,
-  Zn,
-  bi,
-  Fo,
-  sl,
-  kn,
-  Wt,
-  dr,
-} from "../constants.js";
+import { SUN_CONFIG, SKY_CONFIG } from "../constants.js";
 
-import { sa, Ly, oa, $e, Wi, ot, Fn, ky, Fy, Uy, Ny, Fg, Dc, Lc, Ii, By, Qi } from "../geo.js";
+import { createBoxBevelGeometry, createTubeFromPoints, mergeGeometriesClean } from "../geo.js";
 
 var im = (i, e, t) => {
     let n = Math.sin(i * 12.9898 + e * 78.233 + t * 37.719) * 43758.5453;
@@ -486,7 +468,7 @@ function sm(i, e, t = 0, n = null) {
 var y_ = new In(),
   uC = new Ye();
 function Rt(i, e, t, n, s, o, r, a, l = 0, c = null) {
-  let u = Wi(i, e, t, n);
+  let u = createBoxBevelGeometry(i, e, t, n);
   return (
     sm(u, a, l, cC),
     c && (y_.set(c[0], c[1], c[2]), u.applyMatrix4(uC.makeRotationFromEuler(y_))),
@@ -1518,7 +1500,7 @@ function w_() {
   f.push(Rt(0.0185, 0.0065, 0.07, 0.0025, 0, 0.0468, 0.214, o, 0));
   for (let F = 0; F < 6; F++)
     f.push(Rt(0.014, 0.0012, 0.004, 5e-4, 0, 0.0503, 0.192 + F * 0.009, o, 0));
-  let T = Fn(
+  let T = createTubeFromPoints(
     [
       [q, U, -0.308],
       [q - 0.001, U + 0.002, -0.296],
@@ -1672,13 +1654,13 @@ function w_() {
       ),
     ));
   let ie = {
-    ano: Ii(r),
-    gun: Ii(a),
-    poly: Ii(l),
-    plain: Ii(f),
-    bolt: Ii(c),
-    mag: Ii(u),
-    round: Ii(h),
+    ano: mergeGeometriesClean(r),
+    gun: mergeGeometriesClean(a),
+    poly: mergeGeometriesClean(l),
+    plain: mergeGeometriesClean(f),
+    bolt: mergeGeometriesClean(c),
+    mag: mergeGeometriesClean(u),
+    round: mergeGeometriesClean(h),
   };
   for (let F of ["ano", "gun", "poly", "plain", "bolt"]) {
     let X = ie[F].attributes.position;
@@ -2351,7 +2333,12 @@ function Vv(i) {
     ),
       n("sleeve", S));
   }
-  let p = { fabric: Ii(e), rubber: null, index: s.length ? s : null, knuckle: om[0].base.slice() };
+  let p = {
+    fabric: mergeGeometriesClean(e),
+    rubber: null,
+    index: s.length ? s : null,
+    knuckle: om[0].base.slice(),
+  };
   return (i.mirror && (P_(p.fabric), p.index && p.index.forEach(P_), (p.knuckle[0] *= -1)), p);
 }
 var hm = {
@@ -2536,10 +2523,10 @@ function U_(i, e) {
       side: Sn,
       uniforms: {
         uBright: { value: 7 },
-        uSun: { value: Mn.dir.clone() },
-        uSunCol: { value: Mn.color.clone() },
-        uZen: { value: en.zenith.clone() },
-        uHor: { value: en.horizonAway.clone() },
+        uSun: { value: SUN_CONFIG.dir.clone() },
+        uSunCol: { value: SUN_CONFIG.color.clone() },
+        uZen: { value: SKY_CONFIG.zenith.clone() },
+        uHor: { value: SKY_CONFIG.horizonAway.clone() },
         uTilt: { value: 0.1 },
       },
       vertexShader: `

@@ -1,6 +1,13 @@
 import * as THREE from "three";
-import { il } from "../constants.js";
-import { ot, Fn, Dc, Lc, Ii, $e } from "../geo.js";
+import { createSeededRandom } from "../constants.js";
+import {
+  createBoxGeometry,
+  createCylinderGeometry,
+  createTubeFromPoints,
+  transformGeometry,
+  setVertexColors,
+  mergeGeometriesClean,
+} from "../geo.js";
 
 export const PROP_SIZES = {
   // ISO 集装箱系列 (Shipping Containers)
@@ -594,7 +601,7 @@ class PropMeshAssembler {
   add(mat, geo, col, noCast) {
     if (this.m) geo.applyMatrix4(this.m);
     const colorVal = col || this.defCol.get(mat);
-    if (colorVal) Lc(geo, colorVal);
+    if (colorVal) setVertexColors(geo, colorVal);
     let bucket = this.buckets.get(mat);
     if (!bucket) {
       bucket = { mat, geos: [], cast: !noCast };
@@ -607,13 +614,13 @@ class PropMeshAssembler {
   box(mat, w, h, d, x, y, z, opts = {}) {
     const geo =
       opts.r === 0
-        ? $e(w, h, d)
+        ? createBoxGeometry(w, h, d)
         : createBeveledBoxGeometry(w, h, d, opts.r || Math.min(0.012, Math.min(w, h, d) * 0.25));
     return this.add(mat, transformGeometryInPlace(geo, x, y, z, opts.rot), opts.col);
   }
 
   cyl(mat, rTop, rBottom, height, x, y, z, opts = {}) {
-    let geo = ot(rTop, rBottom, height, opts.seg || 12, !!opts.open);
+    let geo = createCylinderGeometry(rTop, rBottom, height, opts.seg || 12, !!opts.open);
     if (opts.flat) geo = toFlatShadedGeometry(geo);
     return this.add(mat, transformGeometryInPlace(geo, x, y, z, opts.rot), opts.col);
   }
@@ -621,7 +628,13 @@ class PropMeshAssembler {
   tube(mat, points, radius, opts = {}) {
     return this.add(
       mat,
-      Fn(points, radius, opts.seg || 6, false, opts.tension === undefined ? 0.5 : opts.tension),
+      createTubeFromPoints(
+        points,
+        radius,
+        opts.seg || 6,
+        false,
+        opts.tension === undefined ? 0.5 : opts.tension,
+      ),
       opts.col,
     );
   }
@@ -629,7 +642,7 @@ class PropMeshAssembler {
   bar(mat, p0, p1, radius, opts = {}) {
     const delta = new THREE.Vector3(p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]);
     const len = delta.length();
-    const geo = ot(
+    const geo = createCylinderGeometry(
       opts.r2 === undefined ? radius : opts.r2,
       radius,
       len,
@@ -654,7 +667,7 @@ class PropMeshAssembler {
     const len = delta.length();
     const geo =
       opts.r === 0
-        ? $e(width, len, depth)
+        ? createBoxGeometry(width, len, depth)
         : createBeveledBoxGeometry(width, len, depth, opts.r || Math.min(width, depth) * 0.2);
     const q = new THREE.Quaternion().setFromUnitVectors(
       new THREE.Vector3(0, 1, 0),
@@ -684,7 +697,7 @@ class PropMeshAssembler {
   parts() {
     const res = [];
     for (const b of this.buckets.values()) {
-      res.push({ mat: b.mat, geo: Ii(b.geos), cast: b.cast });
+      res.push({ mat: b.mat, geo: mergeGeometriesClean(b.geos), cast: b.cast });
     }
     return res;
   }
@@ -709,7 +722,7 @@ class PropCompoundBuilder {
     this.G = engineCtx;
     this.name = propName;
     this.seed = Math.abs(seed | 0);
-    this.rng = il((this.seed + 1) * 7919 + propName.length * 131);
+    this.rng = createSeededRandom((this.seed + 1) * 7919 + propName.length * 131);
     this.b = new Map();
     this.stack = [new THREE.Matrix4()];
   }
@@ -731,7 +744,7 @@ class PropCompoundBuilder {
 
   add(matOrName, geo, trans, lumFactor = 1, { raw = false, cast = true } = {}) {
     const m = typeof matOrName === "string" ? this.mat(matOrName) : matOrName;
-    if (trans) Dc(geo, trans);
+    if (trans) transformGeometry(geo, trans);
     geo.applyMatrix4(this.stack[this.stack.length - 1]);
     if (!raw) applyVertexColorLuminance(geo, lumFactor);
     const key = m.uuid + (cast ? "c" : "n");
@@ -762,7 +775,13 @@ class PropCompoundBuilder {
   }
 
   tube(matOrName, points, radius = 0.03, opts = {}) {
-    const geo = Fn(points, radius, opts.radial || 6, opts.closed || false, opts.tension ?? 0.5);
+    const geo = createTubeFromPoints(
+      points,
+      radius,
+      opts.radial || 6,
+      opts.closed || false,
+      opts.tension ?? 0.5,
+    );
     return this.add(matOrName, geo, opts.trans, 1, {
       raw: opts.raw || false,
       cast: opts.cast !== false,
@@ -774,7 +793,7 @@ class PropCompoundBuilder {
     const noiseOffset = this.seed * 3.71;
 
     for (const bucket of this.b.values()) {
-      const mergedGeo = Ii(bucket.geos);
+      const mergedGeo = mergeGeometriesClean(bucket.geos);
       if (!bucket.raw && grime > 0 && mergedGeo.attributes.color) {
         const pos = mergedGeo.attributes.position;
         const norm = mergedGeo.attributes.normal;
@@ -933,7 +952,7 @@ function createConnectingCylinder(p0, p1, radius = 0.02, seg = 6, caps = true) {
   const v1 = new THREE.Vector3(p1[0], p1[1], p1[2]);
   const delta = new THREE.Vector3().subVectors(v1, v0);
   const len = delta.length();
-  const geo = ot(radius, radius, len, seg, !caps);
+  const geo = createCylinderGeometry(radius, radius, len, seg, !caps);
   const q = new THREE.Quaternion().setFromUnitVectors(
     new THREE.Vector3(0, 1, 0),
     delta.normalize(),
@@ -956,7 +975,9 @@ function createOrientedBoxBeam(p0, p1, width, depth, bevel = 0.006, raw = false)
   const delta = new THREE.Vector3().subVectors(v1, v0);
   const len = delta.length();
   delta.normalize();
-  const geo = raw ? $e(width, len, depth) : createChamferedBoxGeometry(width, len, depth, bevel);
+  const geo = raw
+    ? createBoxGeometry(width, len, depth)
+    : createChamferedBoxGeometry(width, len, depth, bevel);
   const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), delta);
   const m = new THREE.Matrix4().compose(
     new THREE.Vector3().addVectors(v0, v1).multiplyScalar(0.5),

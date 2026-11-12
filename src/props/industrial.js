@@ -1,4 +1,5 @@
-import { ot, $e } from "../geo.js";
+import * as THREE from "three";
+import { createBoxGeometry, createCylinderGeometry } from "../geo.js";
 import {
   PI,
   HALF_PI,
@@ -25,13 +26,18 @@ function buildVehicleWheel(builder, x, y, z, tireRadius, tireWidth, rimRadius, i
   builder.add("tire", tireGeo, null, 0.85);
 
   // 钢制轮毂与轴承螺栓 (Steel Rim & Lug Nuts)
-  const rimGeo = ot(rimRadius, rimRadius, tireWidth * 0.6, 16);
+  const rimGeo = createCylinderGeometry(rimRadius, rimRadius, tireWidth * 0.6, 16);
   builder.add("steel_dark", rimGeo, null, 0.6);
   for (let k = 0; k < 6; k++) {
     const a = k * (PI / 3);
     const lx = Math.cos(a) * (rimRadius * 0.55);
     const ly = Math.sin(a) * (rimRadius * 0.55);
-    builder.add("steel_galv", ot(0.015, 0.015, 0.02, 6), { p: [lx, ly, tireWidth * 0.32] }, 0.8);
+    builder.add(
+      "steel_galv",
+      createCylinderGeometry(0.015, 0.015, 0.02, 6),
+      { p: [lx, ly, tireWidth * 0.32] },
+      0.8,
+    );
   }
   builder.pop();
   builder.pop();
@@ -58,8 +64,8 @@ function buildBarrel(engineCtx, options = {}, variant = 0) {
 
   // 桶身注料螺纹盖与透气盖 (Bung Hole Plugs)
   if (!options.open) {
-    b.add("steel_dark", ot(0.035, 0.035, 0.01, 10), { p: [0.18, 0.89, 0] });
-    b.add("steel_dark", ot(0.022, 0.022, 0.01, 10), { p: [-0.18, 0.89, 0] });
+    b.add("steel_dark", createCylinderGeometry(0.035, 0.035, 0.01, 10), { p: [0.18, 0.89, 0] });
+    b.add("steel_dark", createCylinderGeometry(0.022, 0.022, 0.01, 10), { p: [-0.18, 0.89, 0] });
   }
 
   // 危险化学品警示贴标 (Hazard GHS Decal)
@@ -75,9 +81,13 @@ function buildBarrel(engineCtx, options = {}, variant = 0) {
  */
 function buildPalletGeometry(builder, prng, { broken = false, bevel = true } = {}) {
   const boxFn = (w, h, d, p) =>
-    builder.add("wood_pallet", bevel ? createChamferedBoxGeometry(w, h, d, 0.004) : $e(w, h, d), {
-      p,
-    });
+    builder.add(
+      "wood_pallet",
+      bevel ? createChamferedBoxGeometry(w, h, d, 0.004) : createBoxGeometry(w, h, d),
+      {
+        p,
+      },
+    );
 
   // 顶层 5 块木板条 (5 Top Deckboards)
   const topZs = [-0.45, -0.22, 0, 0.22, 0.45];
@@ -154,7 +164,7 @@ function buildWoodCrateGeometry(
   // 主箱体 (Main Crate Body)
   builder.add(
     "wood_pallet",
-    detail ? createChamferedBoxGeometry(w, boxH, d, 0.004) : $e(w, boxH, d),
+    detail ? createChamferedBoxGeometry(w, boxH, d, 0.004) : createBoxGeometry(w, boxH, d),
     { p: [0, boxCenterY, 0] },
     prng.range(0.85, 1.0),
   );
@@ -162,17 +172,17 @@ function buildWoodCrateGeometry(
   // 底部托板木梁 (Bottom Skids)
   if (skids) {
     for (const sx of [-w / 2 + 0.07, 0, w / 2 - 0.07]) {
-      builder.add("wood_dark", $e(0.08, skidH, d), { p: [sx, skidH / 2, 0] }, 0.8);
+      builder.add("wood_dark", createBoxGeometry(0.08, skidH, d), { p: [sx, skidH / 2, 0] }, 0.8);
     }
   }
 
   // 侧边木框条与斜向交叉加固撑 (Frame Cleats & Diagonal Braces)
   if (detail) {
     for (const sz of [-d / 2, d / 2]) {
-      builder.add("wood_dark", $e(w, 0.07, 0.015), { p: [0, skidH + 0.035, sz] });
-      builder.add("wood_dark", $e(w, 0.07, 0.015), { p: [0, h - 0.035, sz] });
+      builder.add("wood_dark", createBoxGeometry(w, 0.07, 0.015), { p: [0, skidH + 0.035, sz] });
+      builder.add("wood_dark", createBoxGeometry(w, 0.07, 0.015), { p: [0, h - 0.035, sz] });
       for (const sx of [-w / 2 + 0.035, w / 2 - 0.035]) {
-        builder.add("wood_dark", $e(0.07, boxH, 0.015), { p: [sx, boxCenterY, sz] });
+        builder.add("wood_dark", createBoxGeometry(0.07, boxH, 0.015), { p: [sx, boxCenterY, sz] });
       }
     }
   }
@@ -229,7 +239,7 @@ function buildIbcTote(engineCtx, options = {}) {
   const prng = b.rng;
 
   // 镀锌钢板底座托盘 (Galvanized Steel Pallet Base)
-  b.add("steel_galv", $e(1.2, 0.028, 1.0), { p: [0, 0.014, 0] });
+  b.add("steel_galv", createBoxGeometry(1.2, 0.028, 1.0), { p: [0, 0.014, 0] });
   for (const sx of [-0.54, 0, 0.54]) {
     for (const sz of [-0.44, 0, 0.44]) {
       b.add("steel_galv", createChamferedBoxGeometry(0.12, 0.074, 0.1, 0.005), {
@@ -257,8 +267,11 @@ function buildIbcTote(engineCtx, options = {}) {
   }
 
   // 顶部 150mm 加料口盖与底部 50mm 放料球阀 (Top Lid & Bottom Ball Valve)
-  b.add("plastic_red", ot(0.08, 0.08, 0.04, 12), { p: [0, 1.08, 0] });
-  b.add("steel_dark", ot(0.035, 0.035, 0.06, 8), { p: [0, 0.16, 0.49], rot: [HALF_PI, 0, 0] });
+  b.add("plastic_red", createCylinderGeometry(0.08, 0.08, 0.04, 12), { p: [0, 1.08, 0] });
+  b.add("steel_dark", createCylinderGeometry(0.035, 0.035, 0.06, 8), {
+    p: [0, 0.16, 0.49],
+    rot: [HALF_PI, 0, 0],
+  });
 
   return b.finish();
 }
@@ -277,7 +290,7 @@ function buildCableReel(engineCtx, options = {}) {
   for (const sz of [-width / 2 + flangeThick / 2, width / 2 - flangeThick / 2]) {
     b.add(
       "wood_dark",
-      ot(radius, radius, flangeThick, 20),
+      createCylinderGeometry(radius, radius, flangeThick, 20),
       { p: [0, radius, sz], rot: [HALF_PI, 0, 0] },
       prng.range(0.8, 1.0),
     );
@@ -285,16 +298,20 @@ function buildCableReel(engineCtx, options = {}) {
 
   // 中间圆柱形电缆卷筒 (Core Cylinder)
   const coreRadius = 0.32;
-  b.add("wood_pallet", ot(coreRadius, coreRadius, width - 2 * flangeThick, 16), {
-    p: [0, radius, 0],
-    rot: [HALF_PI, 0, 0],
-  });
+  b.add(
+    "wood_pallet",
+    createCylinderGeometry(coreRadius, coreRadius, width - 2 * flangeThick, 16),
+    {
+      p: [0, radius, 0],
+      rot: [HALF_PI, 0, 0],
+    },
+  );
 
   // 缠绕黑色橡胶护套特种高压电缆 (Coiled High-Voltage Rubber Cable)
   const cableRadius = 0.54;
   b.add(
     "rubber",
-    ot(cableRadius, cableRadius, width - 2 * flangeThick - 0.02, 18),
+    createCylinderGeometry(cableRadius, cableRadius, width - 2 * flangeThick - 0.02, 18),
     { p: [0, radius, 0], rot: [HALF_PI, 0, 0] },
     0.7,
   );
@@ -351,7 +368,10 @@ function buildJerryCan(engineCtx, options = {}, variant = 0) {
   }
 
   // 铰链式金属注油密封盖 (Cam-lock Pouring Spout Cap)
-  b.add("steel_dark", ot(0.022, 0.022, 0.04, 10), { p: [0.12, 0.39, 0], rot: [0, 0, -0.4] });
+  b.add("steel_dark", createCylinderGeometry(0.022, 0.022, 0.04, 10), {
+    p: [0.12, 0.39, 0],
+    rot: [0, 0, -0.4],
+  });
 
   return b.finish();
 }
@@ -371,10 +391,14 @@ function buildTrafficCone(engineCtx, options = {}, variant = 0) {
   b.add("rubber", createChamferedBoxGeometry(0.36, 0.03, 0.36, 0.008), { p: [0, 0.015, 0] });
 
   // 橙红色锥体 (Orange Body)
-  b.add("plastic_red", ot(0.031, 0.128, 0.67, 14, false, "bottom"), { p: [0, 0.03, 0] });
+  b.add("plastic_red", createCylinderGeometry(0.031, 0.128, 0.67, 14, false, "bottom"), {
+    p: [0, 0.03, 0],
+  });
 
   // 白色高反光微棱镜反光套 (White Reflective Collars)
-  b.add("paint_white", ot(0.068, 0.088, 0.14, 14, false, "bottom"), { p: [0, 0.32, 0] });
+  b.add("paint_white", createCylinderGeometry(0.068, 0.088, 0.14, 14, false, "bottom"), {
+    p: [0, 0.32, 0],
+  });
 
   if (options.lying) b.pop();
   return b.finish();
@@ -396,8 +420,8 @@ function buildGasCylinders(engineCtx, options = {}) {
       p: [sx, 0.585, 0.225],
     });
   }
-  b.add("steel_dark", $e(0.9, 0.03, 0.03), { p: [0, 1.14, -0.225] });
-  b.add("steel_dark", $e(0.9, 0.03, 0.03), { p: [0, 1.14, 0.225] });
+  b.add("steel_dark", createBoxGeometry(0.9, 0.03, 0.03), { p: [0, 1.14, -0.225] });
+  b.add("steel_dark", createBoxGeometry(0.9, 0.03, 0.03), { p: [0, 1.14, 0.225] });
 
   // 4 具高压钢瓶 (4 High-Pressure Steel Cylinders: O2, N2, Acetylene)
   const cylColors = ["paint_teal", "paint_grey", "paint_orange", "paint_blue"];
@@ -405,7 +429,9 @@ function buildGasCylinders(engineCtx, options = {}) {
   for (let i = 0; i < 4; i++) {
     const cx = xs[i];
     // 瓶身
-    b.add(cylColors[i % cylColors.length], ot(0.1, 0.1, 1.25, 14), { p: [cx, 0.65, 0] });
+    b.add(cylColors[i % cylColors.length], createCylinderGeometry(0.1, 0.1, 1.25, 14), {
+      p: [cx, 0.65, 0],
+    });
     // 顶部球冠半球
     b.add(
       cylColors[i % cylColors.length],
@@ -413,7 +439,7 @@ function buildGasCylinders(engineCtx, options = {}) {
       { p: [cx, 1.275, 0] },
     );
     // 减压阀与防护铜盖 (Brass Pressure Regulator & Protective Cap)
-    b.add("brass", ot(0.035, 0.035, 0.08, 8), { p: [cx, 1.36, 0] });
+    b.add("brass", createCylinderGeometry(0.035, 0.035, 0.08, 8), { p: [cx, 1.36, 0] });
   }
 
   return b.finish();
@@ -443,7 +469,7 @@ function buildPipeStack(engineCtx, options = {}) {
   for (const lyr of layers) {
     for (let i = 0; i < lyr.count; i++) {
       const cz = lyr.zStart + i * (radius * 2);
-      const pipeGeo = ot(radius, radius, pipeLen, 16, true);
+      const pipeGeo = createCylinderGeometry(radius, radius, pipeLen, 16, true);
       b.add(
         "steel_rust",
         pipeGeo,
@@ -453,7 +479,7 @@ function buildPipeStack(engineCtx, options = {}) {
       // 内部内壁暗色
       b.add(
         "steel_dark",
-        ot(radius - 0.015, radius - 0.015, pipeLen - 0.01, 14, true),
+        createCylinderGeometry(radius - 0.015, radius - 0.015, pipeLen - 0.01, 14, true),
         { p: [0, lyr.y, cz], rot: [0, 0, HALF_PI] },
         0.5,
       );
@@ -471,7 +497,7 @@ function buildTarpCargo(engineCtx, options = {}) {
   const prng = b.rng;
 
   // 内部垫底木托盘
-  b.add("wood_pallet", $e(2.2, 0.14, 1.2), { p: [0, 0.07, 0] });
+  b.add("wood_pallet", createBoxGeometry(2.2, 0.14, 1.2), { p: [0, 0.07, 0] });
 
   // 物理垂坠帆布外曲面 (Organic Wrinkled Draped Canvas Surface)
   const tarpGeo = createChamferedBoxGeometry(2.35, 1.35, 1.35, 0.15);
@@ -556,7 +582,7 @@ function buildCardboardBoxes(engineCtx, options = {}) {
     // 封箱牛皮胶带 (Packing Tape)
     b.add(
       "polymer_tan",
-      $e(bw + 0.002, 0.05, bd + 0.002),
+      createBoxGeometry(bw + 0.002, 0.05, bd + 0.002),
       { p: [px, py + bh / 2, pz], r: [0, ry, 0] },
       0.9,
     );
@@ -599,28 +625,31 @@ function buildForklift(engineCtx, options = {}) {
       b.add(matDark, createConnectingCylinder([sx, 0.9, sz], [sx, cageH, sz], 0.022, 6));
     }
   }
-  b.add(matDark, $e(1.25, 0.04, 1.1), { p: [-0.35, cageH, 0] });
+  b.add(matDark, createBoxGeometry(1.25, 0.04, 1.1), { p: [-0.35, cageH, 0] });
   for (let z = -0.4; z <= 0.41; z += 0.2) {
-    b.add(matDark, $e(1.2, 0.02, 0.02), { p: [-0.35, cageH - 0.02, z] });
+    b.add(matDark, createBoxGeometry(1.2, 0.02, 0.02), { p: [-0.35, cageH - 0.02, z] });
   }
 
   // 3. 驾驶员座椅与液压方向盘 (Driver Seat & Steering Wheel)
   b.add("rubber", createChamferedBoxGeometry(0.45, 0.12, 0.48, 0.02), { p: [-0.35, 1.0, 0] });
   b.add("rubber", createChamferedBoxGeometry(0.1, 0.45, 0.46, 0.02), { p: [-0.55, 1.25, 0] });
   b.add(matDark, createConnectingCylinder([0.05, 0.9, 0], [0.12, 1.25, 0], 0.018, 6));
-  b.add("rubber", ot(0.18, 0.18, 0.02, 12), { p: [0.12, 1.27, 0], rot: [0.4, 0, 0] });
+  b.add("rubber", createCylinderGeometry(0.18, 0.18, 0.02, 12), {
+    p: [0.12, 1.27, 0],
+    rot: [0.4, 0, 0],
+  });
 
   // 4. 前部双级起升门架 (Duplex Mast Assembly)
   const mastX = 0.82;
   for (const sz of [-0.44, 0.44]) {
     b.add(matDark, createChamferedBoxGeometry(0.14, 2.3, 0.08, 0.01), { p: [mastX, 1.2, sz] });
   }
-  b.add(matDark, $e(0.1, 0.08, 0.92), { p: [mastX, 0.2, 0] });
-  b.add(matDark, $e(0.1, 0.08, 0.92), { p: [mastX, 2.25, 0] });
+  b.add(matDark, createBoxGeometry(0.1, 0.08, 0.92), { p: [mastX, 0.2, 0] });
+  b.add(matDark, createBoxGeometry(0.1, 0.08, 0.92), { p: [mastX, 2.25, 0] });
 
   // 5. 锻造钢制货叉与升降滑架 (Forks Carriage & Tines)
   const carriageY = 0.25 + forkLiftY;
-  b.add(matGalv, $e(0.06, 0.65, 0.86), { p: [mastX + 0.08, carriageY + 0.32, 0] });
+  b.add(matGalv, createBoxGeometry(0.06, 0.65, 0.86), { p: [mastX + 0.08, carriageY + 0.32, 0] });
   for (const sz of [-0.26, 0.26]) {
     // 垂直叉背
     b.add(matGalv, createChamferedBoxGeometry(0.05, 0.75, 0.12, 0.006), {
@@ -660,21 +689,27 @@ function buildGenerator(engineCtx, options = {}) {
   // 顶部 4 处重型起吊吊耳 (4 Lifting Lugs)
   for (const sx of [-0.85, 0.85]) {
     for (const sz of [-0.38, 0.38]) {
-      b.add(matDark, ot(0.045, 0.045, 0.03, 8), { p: [sx, 1.34, sz], rot: [0, 0, HALF_PI] });
+      b.add(matDark, createCylinderGeometry(0.045, 0.045, 0.03, 8), {
+        p: [sx, 1.34, sz],
+        rot: [0, 0, HALF_PI],
+      });
     }
   }
 
   // 进排气消音百叶与检修门 (Air Louvers & Access Doors)
-  b.add(matDark, $e(0.02, 0.65, 0.7), { p: [1.01, 0.75, 0] });
-  b.add(matDark, $e(0.02, 0.65, 0.7), { p: [-1.01, 0.75, 0] });
+  b.add(matDark, createBoxGeometry(0.02, 0.65, 0.7), { p: [1.01, 0.75, 0] });
+  b.add(matDark, createBoxGeometry(0.02, 0.65, 0.7), { p: [-1.01, 0.75, 0] });
 
   // 顶部消音排气管 (Exhaust Silencer Pipe)
-  b.add(matDark, ot(0.06, 0.06, 0.35, 12), { p: [0.5, 1.5, 0] });
-  b.add(matDark, ot(0.08, 0.06, 0.08, 12), { p: [0.5, 1.7, 0] });
+  b.add(matDark, createCylinderGeometry(0.06, 0.06, 0.35, 12), { p: [0.5, 1.5, 0] });
+  b.add(matDark, createCylinderGeometry(0.08, 0.06, 0.08, 12), { p: [0.5, 1.7, 0] });
 
   // 紧急停机按钮与数字液晶控制面板 (Emergency Stop & LCD Controller)
-  b.add("plastic_red", ot(0.025, 0.025, 0.03, 8), { p: [-0.6, 0.95, 0.46], rot: [HALF_PI, 0, 0] });
-  b.add("paint_grey", $e(0.35, 0.45, 0.03), { p: [-0.2, 0.85, 0.46] });
+  b.add("plastic_red", createCylinderGeometry(0.025, 0.025, 0.03, 8), {
+    p: [-0.6, 0.95, 0.46],
+    rot: [HALF_PI, 0, 0],
+  });
+  b.add("paint_grey", createBoxGeometry(0.35, 0.45, 0.03), { p: [-0.2, 0.85, 0.46] });
 
   return b.finish();
 }
@@ -693,7 +728,7 @@ function buildDumpster(engineCtx, options = {}) {
 
   // 两侧叉车提升袋口管 (Side Forklift Lifting Pockets)
   for (const sz of [-0.55, 0.55]) {
-    b.add(matDark, $e(1.85, 0.12, 0.06), { p: [0, 0.65, sz] });
+    b.add(matDark, createBoxGeometry(1.85, 0.12, 0.06), { p: [0, 0.65, sz] });
   }
 
   // 顶部双开轻质翻盖 (Plastic Split Lids)
@@ -709,7 +744,10 @@ function buildDumpster(engineCtx, options = {}) {
   // 四只重载脚轮 (4 Heavy Duty Caster Wheels)
   for (const sx of [-0.75, 0.75]) {
     for (const sz of [-0.42, 0.42]) {
-      b.add(matDark, ot(0.06, 0.06, 0.04, 10), { p: [sx, 0.08, sz], rot: [HALF_PI, 0, 0] });
+      b.add(matDark, createCylinderGeometry(0.06, 0.06, 0.04, 10), {
+        p: [sx, 0.08, sz],
+        rot: [HALF_PI, 0, 0],
+      });
     }
   }
 
@@ -740,12 +778,14 @@ function buildToolboxCart(engineCtx, options = {}) {
       { p: [0.04, curY, 0.235] },
       tint,
     );
-    b.add(matAlum, $e(0.62, 0.016, 0.016), { p: [0.04, curY + dh / 2 - 0.02, 0.245] });
+    b.add(matAlum, createBoxGeometry(0.62, 0.016, 0.016), {
+      p: [0.04, curY + dh / 2 - 0.02, 0.245],
+    });
     curY -= dh / 2;
   }
 
   // 顶层防油橡胶工作台垫 (Top Rubber Mat)
-  b.add("rubber", $e(0.7, 0.01, 0.42), { p: [0.04, 0.785, 0] });
+  b.add("rubber", createBoxGeometry(0.7, 0.01, 0.42), { p: [0.04, 0.785, 0] });
 
   // 侧边坚固推手把 (Side Tubular Grab Handle)
   b.tube(
@@ -762,7 +802,10 @@ function buildToolboxCart(engineCtx, options = {}) {
   // 4 个工业旋转脚轮 (4 Swivel Casters)
   for (const sx of [-0.28, 0.36]) {
     for (const sz of [-0.17, 0.17]) {
-      b.add(matDark, ot(0.05, 0.05, 0.03, 10), { p: [sx, 0.06, sz], rot: [HALF_PI, 0, 0] });
+      b.add(matDark, createCylinderGeometry(0.05, 0.05, 0.03, 10), {
+        p: [sx, 0.06, sz],
+        rot: [HALF_PI, 0, 0],
+      });
     }
   }
 

@@ -232,7 +232,7 @@ async function runTest() {
       if (frames > 10 && !fatal) {
         console.log(`  ✅ Showcase [${sc}] 验证通过`);
       } else {
-        console.error(`  ❌ Showcase [${sc}] 验证失败`);
+        console.error(`  ❌ Showcase [${sc}] 验证失败: frames=${frames}, fatal=${fatal}`);
         hasFailures = true;
       }
       await page.close();
@@ -289,10 +289,12 @@ async function runTest() {
       await page.screenshot({ path: screenshotPlay });
       console.log(`📸 战局交互动作截图: ${screenshotPlay}`);
 
-      if (ammoBefore !== null && ammoAfter !== null && ammoAfter < ammoBefore) {
+      if (ammoBefore !== null && ammoAfter !== null && ammoAfter < ammoBefore && isReloading) {
         console.log("🎉 【测试用例 4 通过】: 武器开火、弹药扣减与换弹交互全部正常！");
       } else {
-        console.error("❌ 【测试用例 4 失败】: 武器开火未成功消耗弹药");
+        console.error(
+          `❌ 【测试用例 4 失败】: 武器交互异常 (ammoBefore: ${ammoBefore}, ammoAfter: ${ammoAfter}, reloading: ${isReloading})`,
+        );
         hasFailures = true;
       }
 

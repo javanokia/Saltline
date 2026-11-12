@@ -77,7 +77,7 @@ export function createPipeBetweenPoints(pointA, pointB, rTop, rBottom = rTop, ra
 }
 
 export const createScaledSphere = (radius, segW = 14, segH = 10, sx = 1, sy = 1, sz = 1) => {
-  const geo = new ls(radius, segW, segH);
+  const geo = new THREE.SphereGeometry(radius, segW, segH);
   geo.scale(sx, sy, sz);
   return geo;
 };

@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { createCylinderGeometry as ot } from "../geo.js";
+import { createCylinderGeometry } from "../geo.js";
 import {
   SkeletonRig,
   createSkinnedMesh,
@@ -116,13 +116,31 @@ function buildGullRig() {
   add(
     "shell",
     "body",
-    placeGeometry(ot(1, 0.9, 1, 20), 0, 0.02, 0.165, HALF_PI, 0, 0, [0.094, 0.05, 0.06]),
+    placeGeometry(
+      createCylinderGeometry(1, 0.9, 1, 20),
+      0,
+      0.02,
+      0.165,
+      HALF_PI,
+      0,
+      0,
+      [0.094, 0.05, 0.06],
+    ),
     COLOR_HAZARD_ORANGE,
   );
   add(
     "shell",
     "body",
-    placeGeometry(ot(1, 1, 1, 20), 0, 0.02, -0.02, HALF_PI, 0, 0, [0.121, 0.012, 0.0765]),
+    placeGeometry(
+      createCylinderGeometry(1, 1, 1, 20),
+      0,
+      0.02,
+      -0.02,
+      HALF_PI,
+      0,
+      0,
+      [0.121, 0.012, 0.0765],
+    ),
     COLOR_DARK_ALLOY,
   );
   add(
@@ -215,7 +233,7 @@ function buildGullRig() {
   extraRig.add(
     "cone",
     "lamp",
-    placeGeometry(ot(0.02, 0.65, 4.5, 16, true), 0, 0, 2.25, HALF_PI, 0, 0),
+    placeGeometry(createCylinderGeometry(0.02, 0.65, 4.5, 16, true), 0, 0, 2.25, HALF_PI, 0, 0),
   );
 
   // 机头等离子速射炮 (Plasma Auto-Pulse Cannon)
@@ -620,23 +638,16 @@ function createGull(hiveCtx, rigDef, materials, index) {
   }
 
   /**
-   * 飞鸥飞行控制律、战术环绕、避障与射击状态机 (Active Flight Controller & Attack State Machine)
+   * 飞鸥飞行航路轨迹规划
+   * @param {number} dt
+   * @param {any} player
+   * @param {boolean} isEngaging
+   * @returns {{ targetSpeed: number, destX: number, destY: number, destZ: number }}
    */
-  function updateAliveGull(dt) {
-    const player = engineCtx.player;
-    const simTime = hiveCtx.t;
-
-    gull.fwd.set(Math.sin(gull.yaw), 0, Math.cos(gull.yaw));
-    gull.sensor.set(0, -0.17, 0.27).applyAxisAngle(UP_DIR_Y, gull.yaw).add(gull.pos);
-
-    hiveCtx.think(gull, dt, 0.4);
-
-    const isEngaging = gull.mode === "engage";
-    const isDamaged = gull.hp < GULL_CONFIG.hp * 0.5;
+  function planGullFlightPath(dt, player, isEngaging) {
     let targetSpeed = GULL_CONFIG.patrolSpeed;
     let destX, destY, destZ;
 
-    // 1. 战术飞行轨迹规划 (Orbit / Investigate / Patrol Trajectory)
     if (isEngaging && player) {
       targetSpeed = GULL_CONFIG.maxSpeed;
       const isAttacking = gull.atk !== "idle";
@@ -678,16 +689,19 @@ function createGull(hiveCtx, rigDef, materials, index) {
     if (destY > gull.ceil) destY = gull.ceil;
     if (!gull.hoverFixed && destY < 2.2) destY = 2.2;
 
-    // 2. PD 速度跟踪控制器 (Acceleration Command)
-    tempAccVec.set(
-      (destX - gull.pos.x) * 2.2 - gull.vel.x * 2.4,
-      (destY - gull.pos.y) * 5.0 - gull.vel.y * 3.6,
-      (destZ - gull.pos.z) * 2.2 - gull.vel.z * 2.4,
-    );
+    return { targetSpeed, destX, destY, destZ };
+  }
 
-    // 3. 多触角多层次环境光线避障 (Multi-Feeler Raycast Obstacle Avoidance)
+  /**
+   * 飞鸥射线触角多层避障与三轴碰撞滑移
+   * @param {number} dt
+   * @param {number} horizontalSpeed
+   * @param {number} targetSpeed
+   * @param {boolean} isDamaged
+   * @param {number} simTime
+   */
+  function updateGullObstacleAvoidance(dt, horizontalSpeed, targetSpeed, isDamaged, simTime) {
     gull.feeler = (gull.feeler + 1) % 3;
-    const horizontalSpeed = Math.hypot(gull.vel.x, gull.vel.z);
 
     if (gull.feeler === 0 && horizontalSpeed > 0.6) {
       tempRayDir.set(gull.vel.x / horizontalSpeed, 0, gull.vel.z / horizontalSpeed);
@@ -733,7 +747,7 @@ function createGull(hiveCtx, rigDef, materials, index) {
       gull.vel.multiplyScalar(targetSpeed / speed);
     }
 
-    // 4. 三轴分离物理碰撞滑移 (Axis-Separated Collision Response)
+    // 三轴分离物理碰撞滑移 (Axis-Separated Collision Response)
     for (let axis = 0; axis < 3; axis++) {
       const vComp = axis === 0 ? gull.vel.x : axis === 1 ? gull.vel.y : gull.vel.z;
       if (Math.abs(vComp) < 0.02) continue;
@@ -768,8 +782,139 @@ function createGull(hiveCtx, rigDef, materials, index) {
         if (gull.vel.y < 0) gull.vel.y = 0;
       }
     }
+  }
 
-    // 5. 偏航角与机动侧倾姿态学 (Yaw Steering, Pitch & Roll Banking)
+  /**
+   * 飞鸥机载机枪爆发射击状态机 (Attack Burst Execution)
+   * @param {number} dt
+   * @param {any} player
+   * @param {boolean} isEngaging
+   * @param {number} yawDelta
+   * @param {boolean} isDamaged
+   */
+  function updateGullAttack(dt, player, isEngaging, yawDelta, isDamaged) {
+    gull.muzzle.set(0, -0.12, 0.17).applyAxisAngle(UP_DIR_Y, gull.yaw).add(gull.pos);
+    gull.cool -= dt;
+
+    if (gull.atk === "idle") {
+      if (
+        isEngaging &&
+        gull.los &&
+        gull.cool <= 0 &&
+        player &&
+        player.alive &&
+        Math.abs(yawDelta) < 0.35 &&
+        gull.pos.distanceTo(player.pos) < GULL_CONFIG.fireRange &&
+        hiveCtx.requestToken(gull)
+      ) {
+        gull.atk = "tele";
+        gull.atkT = GULL_CONFIG.telegraph;
+        engineCtx.events.emit("enemy:telegraph", {
+          enemy: gull,
+          type: "gull",
+          time: GULL_CONFIG.telegraph,
+          pos: gull.pos,
+        });
+      }
+    } else if (gull.atk === "tele") {
+      gull.atkT -= dt;
+      gull.flare = Math.min(1, gull.flare + dt * 4.5);
+
+      if (isEngaging) {
+        if (gull.atkT <= 0) {
+          gull.atk = "burst";
+          gull.shots = GULL_CONFIG.burst;
+          gull.atkT = 0;
+          gull.lead = 0.2 + rng() * 0.65;
+        }
+      } else {
+        gull.atk = "idle";
+        hiveCtx.releaseToken(gull);
+      }
+    } else if (gull.atk === "burst") {
+      gull.atkT -= dt;
+      gull.flare = 1.0;
+
+      if (gull.atkT <= 0) {
+        gull.atkT = GULL_CONFIG.burstGap;
+        gull.shots--;
+
+        if (player) {
+          const distToPlayer = gull.muzzle.distanceTo(player.pos);
+          const flightTime = distToPlayer / GULL_CONFIG.boltSpeed;
+
+          tempTargetPos.set(
+            player.pos.x + player.vel.x * flightTime * gull.lead,
+            player.pos.y + 1.05,
+            player.pos.z + player.vel.z * flightTime * gull.lead,
+          );
+
+          tempRayDir.copy(tempTargetPos).sub(gull.muzzle).normalize();
+
+          const spreadFactor =
+            (GULL_CONFIG.spreadFar +
+              (GULL_CONFIG.spreadNear - GULL_CONFIG.spreadFar) * gull.exposure) *
+            (1 + hiveCtx.playerSpeed * 0.45) *
+            (isDamaged ? 1.5 : 1.0);
+
+          tempRayDir.x += (rng() - 0.5) * 2 * spreadFactor;
+          tempRayDir.y += (rng() - 0.5) * 2 * spreadFactor;
+          tempRayDir.z += (rng() - 0.5) * 2 * spreadFactor;
+          tempRayDir.normalize();
+
+          hiveCtx.fireBolt(gull.muzzle, tempRayDir, gull);
+          engineCtx.fx.muzzleFlash(gull.muzzle, tempRayDir, { scale: 0.55 });
+          engineCtx.events.emit("enemy:fire", {
+            enemy: gull,
+            pos: gull.muzzle,
+            dir: tempRayDir,
+            type: "gull",
+          });
+
+          gull.vel.addScaledVector(tempRayDir, -0.35);
+        }
+
+        if (gull.shots <= 0) {
+          gull.atk = "idle";
+          gull.cool =
+            GULL_CONFIG.cooldown[0] + rng() * (GULL_CONFIG.cooldown[1] - GULL_CONFIG.cooldown[0]);
+          hiveCtx.releaseToken(gull);
+        }
+      }
+    }
+  }
+
+  /**
+   * 飞鸥飞行控制律、战术环绕、避障与射击状态机 (Active Flight Controller & Attack State Machine)
+   */
+  function updateAliveGull(dt) {
+    const player = engineCtx.player;
+    const simTime = hiveCtx.t;
+
+    gull.fwd.set(Math.sin(gull.yaw), 0, Math.cos(gull.yaw));
+    gull.sensor.set(0, -0.17, 0.27).applyAxisAngle(UP_DIR_Y, gull.yaw).add(gull.pos);
+
+    hiveCtx.think(gull, dt, 0.4);
+
+    const isEngaging = gull.mode === "engage";
+    const isDamaged = gull.hp < GULL_CONFIG.hp * 0.5;
+
+    // 1. 战术航线规划
+    const { targetSpeed, destX, destY, destZ } = planGullFlightPath(dt, player, isEngaging);
+
+    // 2. PD 速度跟踪加速度指令
+    tempAccVec.set(
+      (destX - gull.pos.x) * 2.2 - gull.vel.x * 2.4,
+      (destY - gull.pos.y) * 5.0 - gull.vel.y * 3.6,
+      (destZ - gull.pos.z) * 2.2 - gull.vel.z * 2.4,
+    );
+
+    const horizontalSpeed = Math.hypot(gull.vel.x, gull.vel.z);
+
+    // 3. 多触角环境光线避障与物理碰撞
+    updateGullObstacleAvoidance(dt, horizontalSpeed, targetSpeed, isDamaged, simTime);
+
+    // 4. 偏航角与机动侧倾姿态学 (Yaw Steering, Pitch & Roll Banking)
     let desiredYaw = gull.yaw;
     if ((isEngaging || gull.mode === "search" || gull.mode === "investigate") && player) {
       const aimTarget = isEngaging && gull.noSeeT < 1.5 ? player.pos : gull.lastKnown;
@@ -815,7 +960,7 @@ function createGull(hiveCtx, rigDef, materials, index) {
     bones.rotor2.rotation.y -= rotorSpeed * 0.98;
     bones.rotor3.rotation.y += rotorSpeed * 1.01;
 
-    // 6. 航行警示频闪灯节律 (Navigation Strobe Flashing)
+    // 5. 航行警示频闪灯节律 (Navigation Strobe Flashing)
     const strobePhase = (simTime * 0.9 + gull.phase * 0.1) % 1;
     const isWingStrobeOn = strobePhase < 0.05 || (strobePhase > 0.13 && strobePhase < 0.18);
     const isTailStrobeOn = strobePhase > 0.5 && strobePhase < 0.56;
@@ -824,7 +969,7 @@ function createGull(hiveCtx, rigDef, materials, index) {
     bones.strobeG.scale.setScalar(isWingStrobeOn ? 1 : 1e-4);
     bones.strobeW.scale.setScalar(isTailStrobeOn ? 1 : 1e-4);
 
-    // 7. 双轴光电瞄准吊舱跟踪 (Gimbal Tracking Player / Search Sweep)
+    // 6. 双轴光电瞄准吊舱跟踪 (Gimbal Tracking Player / Search Sweep)
     if (isEngaging && player) {
       tempTargetPos.set(player.pos.x, player.pos.y + 1.1, player.pos.z);
     } else if (gull.mode !== "patrol") {
@@ -864,7 +1009,7 @@ function createGull(hiveCtx, rigDef, materials, index) {
     bones.ball.rotation.x = gull.gp - gull.pitch;
     bones.gun.rotation.x = clampValue(gull.gp, -0.2, 1.3) - gull.pitch;
 
-    // 8. 战术镜头辉光颜色与充能过载 (Lens Color & Flare)
+    // 7. 战术镜头辉光颜色与充能过载 (Lens Color & Flare)
     const targetLensColor = isEngaging ? LENS_COLOR_RED_ALERT : LENS_COLOR_AMBER_PATROL;
     const lensBrightness =
       1 + gull.flare * 3.2 + (isEngaging ? 0 : Math.sin(simTime * 3 + gull.phase) * 0.15);
@@ -879,102 +1024,10 @@ function createGull(hiveCtx, rigDef, materials, index) {
     );
     gull.flare = Math.max(0, gull.flare - dt * 1.5);
 
-    // 9. 射击攻击状态机 (Attack State Machine: idle -> tele -> burst)
-    gull.muzzle.set(0, -0.12, 0.17).applyAxisAngle(UP_DIR_Y, gull.yaw).add(gull.pos);
+    // 8. 射击攻击状态机 (Attack State Machine: idle -> tele -> burst)
+    updateGullAttack(dt, player, isEngaging, yawDelta, isDamaged);
 
-    gull.cool -= dt;
-
-    if (gull.atk === "idle") {
-      if (
-        isEngaging &&
-        gull.los &&
-        gull.cool <= 0 &&
-        player &&
-        player.alive &&
-        Math.abs(yawDelta) < 0.35 &&
-        gull.pos.distanceTo(player.pos) < GULL_CONFIG.fireRange &&
-        hiveCtx.requestToken(gull)
-      ) {
-        gull.atk = "tele";
-        gull.atkT = GULL_CONFIG.telegraph;
-        engineCtx.events.emit("enemy:telegraph", {
-          enemy: gull,
-          type: "gull",
-          time: GULL_CONFIG.telegraph,
-          pos: gull.pos,
-        });
-      }
-    } else if (gull.atk === "tele") {
-      gull.atkT -= dt;
-      gull.flare = Math.min(1, gull.flare + dt * 4.5);
-
-      if (isEngaging) {
-        if (gull.atkT <= 0) {
-          gull.atk = "burst";
-          gull.shots = GULL_CONFIG.burst;
-          gull.atkT = 0;
-          gull.lead = 0.2 + rng() * 0.65; // 前置提前量随机补偿
-        }
-      } else {
-        gull.atk = "idle";
-        hiveCtx.releaseToken(gull);
-      }
-    } else if (gull.atk === "burst") {
-      gull.atkT -= dt;
-      gull.flare = 1.0;
-
-      if (gull.atkT <= 0) {
-        gull.atkT = GULL_CONFIG.burstGap;
-        gull.shots--;
-
-        if (player) {
-          const distToPlayer = gull.muzzle.distanceTo(player.pos);
-          const flightTime = distToPlayer / GULL_CONFIG.boltSpeed;
-
-          // 动目标预判导引点 (Lead Prediction Targeting)
-          tempTargetPos.set(
-            player.pos.x + player.vel.x * flightTime * gull.lead,
-            player.pos.y + 1.05,
-            player.pos.z + player.vel.z * flightTime * gull.lead,
-          );
-
-          tempRayDir.copy(tempTargetPos).sub(gull.muzzle).normalize();
-
-          // 弹道散布 (Ballistic Spread)
-          const spreadFactor =
-            (GULL_CONFIG.spreadFar +
-              (GULL_CONFIG.spreadNear - GULL_CONFIG.spreadFar) * gull.exposure) *
-            (1 + hiveCtx.playerSpeed * 0.45) *
-            (isDamaged ? 1.5 : 1.0);
-
-          tempRayDir.x += (rng() - 0.5) * 2 * spreadFactor;
-          tempRayDir.y += (rng() - 0.5) * 2 * spreadFactor;
-          tempRayDir.z += (rng() - 0.5) * 2 * spreadFactor;
-          tempRayDir.normalize();
-
-          hiveCtx.fireBolt(gull.muzzle, tempRayDir, gull);
-          engineCtx.fx.muzzleFlash(gull.muzzle, tempRayDir, { scale: 0.55 });
-          engineCtx.events.emit("enemy:fire", {
-            enemy: gull,
-            pos: gull.muzzle,
-            dir: tempRayDir,
-            type: "gull",
-          });
-
-          // 射击后坐力冲量 (Recoil Impulse)
-          gull.vel.addScaledVector(tempRayDir, -0.35);
-        }
-
-        if (gull.shots <= 0) {
-          gull.atk = "idle";
-          gull.cool =
-            GULL_CONFIG.cooldown[0] + rng() * (GULL_CONFIG.cooldown[1] - GULL_CONFIG.cooldown[0]);
-          hiveCtx.releaseToken(gull);
-        }
-      }
-    }
-
-    // 10. 破损冒烟排烟与引擎声学调制
+    // 9. 破损冒烟排烟与引擎声学调制
     if (isDamaged) {
       gull.smokeT -= dt;
       if (gull.smokeT <= 0) {

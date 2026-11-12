@@ -20,8 +20,14 @@
  */
 
 import * as THREE from "three";
-import { Pi, Dy, il, zy, dr } from "./constants.js";
-import { Qi } from "./geo.js";
+import {
+  PLAYER_CONFIG,
+  createEventBus,
+  createSeededRandom,
+  detectQualityPreset,
+  STUBS,
+} from "./constants.js";
+import { createMeshWithShadows } from "./geo.js";
 import { initI18n, t, getLanguage } from "./i18n.js";
 
 // 导入全套解耦 ESM 核心系统
@@ -171,7 +177,7 @@ function createDummyPlayer() {
     crouching: false,
     ads: 0,
     speed: 0,
-    eye: new THREE.Vector3(0, Pi.eye, 4),
+    eye: new THREE.Vector3(0, PLAYER_CONFIG.eye, 4),
     forward: new THREE.Vector3(0, 0, -1),
     enabled: false,
     reset() {},
@@ -299,10 +305,10 @@ export async function bootstrapEngine() {
   const engineCtx = {
     THREE,
     params: urlParams,
-    events: Dy(),
-    rng: il(+(urlParams.seed || 4207)),
+    events: createEventBus(),
+    rng: createSeededRandom(+(urlParams.seed || 4207)),
     time: { t: 0, dt: 0, frame: 0, real: 0 },
-    quality: zy(urlParams.q || (urlParams.shot ? "test" : "")),
+    quality: detectQualityPreset(urlParams.q || (urlParams.shot ? "test" : "")),
   };
   window.__G = engineCtx;
 
@@ -338,8 +344,8 @@ export async function bootstrapEngine() {
       engineCtx[moduleName] = await factoryFn();
     } catch (err) {
       console.error(`[boot] module "${moduleName}" failed:`, err);
-      if (isCritical || !dr[moduleName]) throw err;
-      engineCtx[moduleName] = dr[moduleName]();
+      if (isCritical || !STUBS[moduleName]) throw err;
+      engineCtx[moduleName] = STUBS[moduleName]();
     }
     const elapsed = performance.now() - startTime;
     if (elapsed > 150) {
@@ -365,7 +371,7 @@ export async function bootstrapEngine() {
   // 6. 分流初始化：独立沙盒 Showcase 模式 vs 主战役关卡模式
   if (showcaseMode) {
     // 沙盒模式：布置简易地面与虚拟桩
-    const dummyGround = Qi(
+    const dummyGround = createMeshWithShadows(
       new THREE.PlaneGeometry(80, 80).rotateX(-Math.PI / 2),
       engineCtx.mats.get("concrete"),
       { cast: false },
@@ -384,8 +390,8 @@ export async function bootstrapEngine() {
       groundSurfaceAt: () => "concrete",
       update() {},
     };
-    engineCtx.backdrop = dr.backdrop();
-    engineCtx.ground = dr.ground();
+    engineCtx.backdrop = STUBS.backdrop();
+    engineCtx.ground = STUBS.ground();
     engineCtx.physics.build();
 
     if (showcaseMode === "fx") {
@@ -394,16 +400,16 @@ export async function bootstrapEngine() {
       try {
         engineCtx.fx = await fx.create(engineCtx);
       } catch {
-        engineCtx.fx = dr.fx();
+        engineCtx.fx = STUBS.fx();
       }
     }
 
-    engineCtx.audio = dr.audio();
-    engineCtx.hud = dr.hud();
+    engineCtx.audio = STUBS.audio();
+    engineCtx.hud = STUBS.hud();
     engineCtx.player = createDummyPlayer();
     engineCtx.combat = combat.create(engineCtx);
-    engineCtx.weapon = dr.weapon();
-    engineCtx.enemies = dr.enemies();
+    engineCtx.weapon = STUBS.weapon();
+    engineCtx.enemies = STUBS.enemies();
     engineCtx.game = { state: "showcase", update: () => false, start() {} };
 
     let scInfo = null;
@@ -429,7 +435,7 @@ export async function bootstrapEngine() {
     await updateBootProgress(t("boot.step5"), 0.58);
     await loadModule("ground", "ground", () => ground.create(engineCtx));
     if (engineCtx.ground.stub) {
-      const fallbackGround = Qi(
+      const fallbackGround = createMeshWithShadows(
         new THREE.PlaneGeometry(400, 400).rotateX(-Math.PI / 2),
         engineCtx.mats.get("asphalt"),
         { cast: false },
@@ -443,7 +449,7 @@ export async function bootstrapEngine() {
     await loadModule("fx", "fx", () => fx.create(engineCtx));
 
     await loadModule("audio", "audio", () =>
-      urlParams.noaudio ? dr.audio() : audio.create(engineCtx),
+      urlParams.noaudio ? STUBS.audio() : audio.create(engineCtx),
     );
 
     engineCtx.player = player.create(engineCtx);

@@ -502,19 +502,12 @@ function createHUD(ctx) {
   };
 
   /**
-   * HUD 每帧动力学与 UI 数据更新
-   * @param {number} dt 帧耗时
+   * 顶部罗盘与空间地标 3D 视锥投影更新
+   * @param {any} player
+   * @param {any} camera
+   * @param {number} adsProgress
    */
-  function updateHUD(dt) {
-    updateRadio(dt);
-    if (!isHudVisible) return;
-
-    const player = ctx.player;
-    const weapon = ctx.weapon || {};
-    const camera = ctx.camera;
-    const adsProgress = player.ads || 0;
-
-    // 1. 顶部罗盘刻度平移更新
+  function updateCompassAndMarkers(player, camera, adsProgress) {
     let yawDeg = ((-player.yaw * 180) / Math.PI) % 360;
     if (yawDeg < 0) yawDeg += 360;
 
@@ -538,93 +531,100 @@ function createHUD(ctx) {
       worldMarkersContainer.classList.toggle("off", !showMarkers);
     }
 
-    // 2. 3D 空间地标投影与测距计算
-    if (activeMarkers.length) {
-      camera.updateMatrixWorld();
-      camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
-      const compassHalfRange = compassWidth / 2 - 14;
+    if (!activeMarkers.length) return;
 
-      for (const marker of activeMarkers) {
-        const dx = marker.pos.x - player.pos.x;
-        const dz = marker.pos.z - player.pos.z;
-        const distMeters = Math.round(Math.hypot(dx, dz));
+    camera.updateMatrixWorld();
+    camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
+    const compassHalfRange = compassWidth / 2 - 14;
 
-        if (distMeters !== marker.lastD) {
-          marker.lastD = distMeters;
-          const distStr = distMeters + "m";
-          marker.cDist.textContent = distStr;
-          marker.wDist.textContent = distStr;
-        }
+    for (const marker of activeMarkers) {
+      const dx = marker.pos.x - player.pos.x;
+      const dz = marker.pos.z - player.pos.z;
+      const distMeters = Math.round(Math.hypot(dx, dz));
 
-        // 罗盘方位标记
-        let angleToTarget = (Math.atan2(dx, -dz) * 180) / Math.PI - yawDeg;
-        angleToTarget = ((angleToTarget + 540) % 360) - 180;
-        const compassPosPx = Math.round(
-          Math.max(
-            -compassHalfRange,
-            Math.min(compassHalfRange, angleToTarget * COMPASS_PX_PER_DEGREE),
-          ),
+      if (distMeters !== marker.lastD) {
+        marker.lastD = distMeters;
+        const distStr = distMeters + "m";
+        marker.cDist.textContent = distStr;
+        marker.wDist.textContent = distStr;
+      }
+
+      // 罗盘方位标记
+      let angleToTarget = (Math.atan2(dx, -dz) * 180) / Math.PI - yawDeg;
+      angleToTarget = ((angleToTarget + 540) % 360) - 180;
+      const compassPosPx = Math.round(
+        Math.max(
+          -compassHalfRange,
+          Math.min(compassHalfRange, angleToTarget * COMPASS_PX_PER_DEGREE),
+        ),
+      );
+
+      if (compassPosPx !== marker.lastC) {
+        marker.lastC = compassPosPx;
+        marker.cEl.style.transform = `translate3d(${compassPosPx}px,0,0)`;
+        marker.cEl.classList.toggle("edge", Math.abs(compassPosPx) >= compassHalfRange);
+      }
+
+      // 屏幕空间视锥体投影
+      tempProjectVec
+        .set(marker.pos.x, marker.pos.y + (marker.kind === "extract" ? 1.2 : 1.9), marker.pos.z)
+        .project(camera);
+
+      let screenX, screenY;
+      let isOffscreen = false;
+
+      if (tempProjectVec.z > 1) {
+        isOffscreen = true;
+        tempProjectVec.x = -tempProjectVec.x;
+        tempProjectVec.y = -tempProjectVec.y;
+      }
+
+      if (isOffscreen || Math.abs(tempProjectVec.x) > 0.9 || Math.abs(tempProjectVec.y) > 0.82) {
+        isOffscreen = true;
+        const normRatio = Math.max(
+          Math.abs(tempProjectVec.x) / 0.9,
+          Math.abs(tempProjectVec.y) / 0.82,
+          0.001,
         );
-
-        if (compassPosPx !== marker.lastC) {
-          marker.lastC = compassPosPx;
-          marker.cEl.style.transform = `translate3d(${compassPosPx}px,0,0)`;
-          marker.cEl.classList.toggle("edge", Math.abs(compassPosPx) >= compassHalfRange);
-        }
-
-        // 屏幕空间视锥体投影
-        tempProjectVec
-          .set(marker.pos.x, marker.pos.y + (marker.kind === "extract" ? 1.2 : 1.9), marker.pos.z)
-          .project(camera);
-
-        let screenX, screenY;
-        let isOffscreen = false;
-
+        tempProjectVec.x /= normRatio;
+        tempProjectVec.y /= normRatio;
         if (tempProjectVec.z > 1) {
-          isOffscreen = true;
-          tempProjectVec.x = -tempProjectVec.x;
-          tempProjectVec.y = -tempProjectVec.y;
-        }
-
-        if (isOffscreen || Math.abs(tempProjectVec.x) > 0.9 || Math.abs(tempProjectVec.y) > 0.82) {
-          isOffscreen = true;
-          const normRatio = Math.max(
+          const edgeRatio = Math.max(
             Math.abs(tempProjectVec.x) / 0.9,
             Math.abs(tempProjectVec.y) / 0.82,
-            0.001,
           );
-          tempProjectVec.x /= normRatio;
-          tempProjectVec.y /= normRatio;
-          if (tempProjectVec.z > 1) {
-            const edgeRatio = Math.max(
-              Math.abs(tempProjectVec.x) / 0.9,
-              Math.abs(tempProjectVec.y) / 0.82,
-            );
-            if (edgeRatio < 0.999) {
-              tempProjectVec.x /= edgeRatio;
-              tempProjectVec.y /= edgeRatio;
-            }
+          if (edgeRatio < 0.999) {
+            tempProjectVec.x /= edgeRatio;
+            tempProjectVec.y /= edgeRatio;
           }
         }
+      }
 
-        screenX = Math.round((tempProjectVec.x * 0.5 + 0.5) * screenWidth);
-        screenY = Math.round((-tempProjectVec.y * 0.5 + 0.5) * screenHeight);
+      screenX = Math.round((tempProjectVec.x * 0.5 + 0.5) * screenWidth);
+      screenY = Math.round((-tempProjectVec.y * 0.5 + 0.5) * screenHeight);
 
-        const isCenterDim =
-          !isOffscreen && Math.hypot(tempProjectVec.x, tempProjectVec.y * 0.6) < 0.16;
-        const stateKey = `${screenX},${screenY}${isOffscreen ? "o" : ""}${distMeters < 3 ? "n" : ""}${isCenterDim ? "d" : ""}`;
+      const isCenterDim =
+        !isOffscreen && Math.hypot(tempProjectVec.x, tempProjectVec.y * 0.6) < 0.16;
+      const stateKey = `${screenX},${screenY}${isOffscreen ? "o" : ""}${distMeters < 3 ? "n" : ""}${isCenterDim ? "d" : ""}`;
 
-        if (stateKey !== marker.lastW) {
-          marker.lastW = stateKey;
-          marker.wEl.style.transform = `translate3d(${screenX}px,${screenY}px,0)`;
-          marker.wEl.classList.toggle("offscreen", isOffscreen);
-          marker.wEl.classList.toggle("near", distMeters < 3);
-          marker.wEl.classList.toggle("dim", isCenterDim);
-        }
+      if (stateKey !== marker.lastW) {
+        marker.lastW = stateKey;
+        marker.wEl.style.transform = `translate3d(${screenX}px,${screenY}px,0)`;
+        marker.wEl.classList.toggle("offscreen", isOffscreen);
+        marker.wEl.classList.toggle("near", distMeters < 3);
+        marker.wEl.classList.toggle("dim", isCenterDim);
       }
     }
+  }
 
-    // 3. 动态准星开合度 (与武器散布角精确映射)
+  /**
+   * 动态散布准星开合度与枪械弹药、提示语状态
+   * @param {any} player
+   * @param {any} weapon
+   * @param {any} camera
+   * @param {number} adsProgress
+   */
+  function updateCrosshairAndAmmo(player, weapon, camera, adsProgress) {
     const showCrosshair = adsProgress <= 0.6 && player.alive && weapon.state !== "reloading_hidden";
     if (showCrosshair !== cache.crossOn) {
       cache.crossOn = showCrosshair;
@@ -649,7 +649,7 @@ function createHUD(ctx) {
       }
     }
 
-    // 4. 枪械弹药监视
+    // 枪械弹药监视
     const magCapacity = Math.max(1, Math.min(60, weapon.magSize | 0 || 30));
     const currentAmmo = Math.max(0, weapon.ammo | 0);
     const reserveAmmo = Math.max(0, weapon.reserve | 0);
@@ -706,8 +706,28 @@ function createHUD(ctx) {
       cache.low = isLowAmmo;
       ammoEl.classList.toggle("low", isLowAmmo);
     }
+  }
 
-    // 5. 生命值显示与分段血条
+  /**
+   * HUD 每帧动力学与 UI 数据更新
+   * @param {number} dt 帧耗时
+   */
+  function updateHUD(dt) {
+    updateRadio(dt);
+    if (!isHudVisible) return;
+
+    const player = ctx.player;
+    const weapon = ctx.weapon || {};
+    const camera = ctx.camera;
+    const adsProgress = player.ads || 0;
+
+    // 1. 顶部罗盘与三维空间地标投影
+    updateCompassAndMarkers(player, camera, adsProgress);
+
+    // 2. 动态准星开合度与枪械弹药监视
+    updateCrosshairAndAmmo(player, weapon, camera, adsProgress);
+
+    // 3. 生命值显示与分段血条
     const currentHp = Math.max(0, Math.ceil(player.health));
     const isInjured = player.health < player.maxHealth - 0.5;
 
@@ -729,7 +749,7 @@ function createHUD(ctx) {
       healthEl.classList.toggle("on", isInjured);
     }
 
-    // 6. 受击方向弧形更新
+    // 4. 受击方向弧形更新
     for (const arc of damageArcs) {
       if (arc.life <= 0) {
         if (arc.op !== 0) {
@@ -752,7 +772,7 @@ function createHUD(ctx) {
       }
     }
 
-    // 7. 目标文字打字机滚动效果
+    // 5. 目标文字打字机滚动效果
     if (objTypedChars < currentObjective.length) {
       objTypewriterProgress += dt * 46;
       const targetCount = Math.min(currentObjective.length, Math.floor(objTypewriterProgress));

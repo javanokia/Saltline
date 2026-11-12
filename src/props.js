@@ -13,7 +13,7 @@
  */
 
 import * as THREE from "three";
-import { createBoxGeometry as $e, createMeshWithShadows as Qi } from "./geo.js";
+import { createBoxGeometry, createMeshWithShadows } from "./geo.js";
 import { PROP_SIZES, withCachedPrototype } from "./props/builder.js";
 import { buildContainerMesh } from "./props/containers.js";
 import {
@@ -149,7 +149,12 @@ export function createPropsManager(engineCtx) {
       const def = PROP_SIZES[name] || [1, 1, 1, "concrete", "concrete"];
       if (!PROP_SIZES[name]) console.warn(`[props] unknown prop "${name}"`);
       const fallback = new THREE.Group();
-      fallback.add(Qi($e(def[0], def[1], def[2], "bottom"), engineCtx.mats.get(def[3])));
+      fallback.add(
+        createMeshWithShadows(
+          createBoxGeometry(def[0], def[1], def[2], "bottom"),
+          engineCtx.mats.get(def[3]),
+        ),
+      );
       fallback.userData.colliders = [
         {
           min: [-def[0] / 2, 0, -def[2] / 2],

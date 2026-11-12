@@ -2,7 +2,7 @@ import * as THREE from "three";
 
 const { Vector3 } = THREE;
 
-import { Zn, sl, kn, Fo } from "./constants.js";
+import { clamp, smoothstep, damp, saturate } from "./constants.js";
 import { disposeHierarchy } from "./geo.js";
 import { t, onLanguageChange } from "./i18n.js";
 import {
@@ -236,7 +236,7 @@ function createGameManager(ctx) {
   // Catmull-Rom 样条插值计算
   function sampleSpline(points, progress, outVec) {
     const count = points.length - 1;
-    const scaled = Zn(progress, 0, 1) * count;
+    const scaled = clamp(progress, 0, 1) * count;
     const index = Math.min(count - 1, Math.floor(scaled));
     const t = scaled - index;
 
@@ -298,8 +298,8 @@ function createGameManager(ctx) {
     }
 
     postFx.fade = Math.max(
-      1 - sl(0, 1.8, cinematicSpline.t),
-      sl(cycleDuration - 1.6, cycleDuration, cinematicSpline.t),
+      1 - smoothstep(0, 1.8, cinematicSpline.t),
+      smoothstep(cycleDuration - 1.6, cycleDuration, cinematicSpline.t),
     );
   }
 
@@ -545,7 +545,9 @@ function createGameManager(ctx) {
         let hasLineOfSight = true;
         try {
           hasLineOfSight = ctx.physics.lineOfSight(tempPos1, player.eye);
-        } catch (e) {}
+        } catch (e) {
+          console.warn("[game] lineOfSight check failed during spawn scoring:", e);
+        }
         if (!hasLineOfSight) score += 2.5;
       }
 
@@ -583,9 +585,9 @@ function createGameManager(ctx) {
     } else {
       const angle = ctx.rng() * Math.PI * 2;
       finalPos.set(
-        Zn(from.x + Math.cos(angle) * 26, -34, 26),
+        clamp(from.x + Math.cos(angle) * 26, -34, 26),
         0,
-        Zn(from.z + Math.sin(angle) * 26, -26, 24),
+        clamp(from.z + Math.sin(angle) * 26, -26, 24),
       );
     }
 
@@ -808,7 +810,10 @@ function createGameManager(ctx) {
 
     if (targetRelay && !targetRelay.cut) {
       if (hud.setPrompt)
-        hud.setPrompt(t("hud.cutRelayLabel", { short: targetRelay.short }), Fo(targetRelay.t));
+        hud.setPrompt(
+          t("hud.cutRelayLabel", { short: targetRelay.short }),
+          saturate(targetRelay.t),
+        );
     } else {
       if (hud.setPrompt) hud.setPrompt(null);
     }
@@ -883,7 +888,7 @@ function createGameManager(ctx) {
     if (hud.radio) hud.radio(RADIO_MESSAGES.done, 2.2);
 
     const stats = (ctx.combat && ctx.combat.stats) || { shots: 0, hits: 0, kills: 0 };
-    const accuracy = stats.shots > 0 ? Zn(stats.hits / stats.shots, 0, 1) : null;
+    const accuracy = stats.shots > 0 ? clamp(stats.hits / stats.shots, 0, 1) : null;
 
     // 评级计算
     const timeScore = runState.time < 270 ? 2 : runState.time < 400 ? 1 : 0;
@@ -908,6 +913,68 @@ function createGameManager(ctx) {
   }
 
   /**
+   * 游玩状态运行逻辑：出怪队列、战斗强度自适应与玩家状态监控
+   * @param {number} dt
+   * @returns {boolean}
+   */
+  function updatePlayingState(dt) {
+    runState.time += dt;
+    postFx.fade = damp(postFx.fade || 0, 0, 6, dt);
+    if (pauseCooldown > 0) pauseCooldown -= dt;
+
+    if (input.pressed("pause")) {
+      pauseGame();
+      return false;
+    }
+
+    updateInteractionAndExtraction(dt);
+    if (gameStateController.state !== "playing") return true;
+
+    processSpawnQueue(dt);
+    runState.alertT = Math.max(0, runState.alertT - dt);
+    runState.waveHot = Math.max(0, runState.waveHot - dt);
+
+    const alive = getAliveEnemiesCount();
+    if (runState.waveHot > 0 && alive === 0 && !runState.queue.length && runState.waveHot < 24) {
+      runState.waveHot = 0;
+    }
+
+    const targetIntensity =
+      runState.allCut || runState.queue.length || (runState.waveHot > 0 && alive > 0)
+        ? 1.0
+        : runState.alertT > 0 || (alive > 0 && hasEnemyNear(26))
+          ? 0.6
+          : 0.15;
+
+    if (targetIntensity !== runState.intensity) {
+      runState.intensity = targetIntensity;
+      safeCall(ctx.audio, "setIntensity", targetIntensity);
+    }
+
+    if (
+      input.mode === "lock" &&
+      !input.locked &&
+      !input.touch &&
+      !ctx.params.shot &&
+      !ctx.params.autostart
+    ) {
+      lookReminderTimer -= dt;
+      if (lookReminderTimer <= 0) {
+        lookReminderTimer = 2.0;
+        hud.message(input.describeMode(), 2.6);
+      }
+    } else {
+      lookReminderTimer = 0.8;
+    }
+
+    if (!runState.lowSaid && player.alive && player.health < 30) {
+      runState.lowSaid = true;
+      if (hud.radio) hud.radio(RADIO_MESSAGES.low, 3);
+    }
+    return true;
+  }
+
+  /**
    * 游戏总循环更新
    */
   function updateGame(dt) {
@@ -919,7 +986,7 @@ function createGameManager(ctx) {
         return false;
 
       case "intro":
-        postFx.fade = 1 - sl(0.25, Math.min(introDuration, 2.6), stateTimer);
+        postFx.fade = 1 - smoothstep(0.25, Math.min(introDuration, 2.6), stateTimer);
         if (!locCardShown && stateTimer > 0.5) {
           locCardShown = true;
           menu.locationCard(true);
@@ -939,67 +1006,8 @@ function createGameManager(ctx) {
         }
         return true;
 
-      case "playing": {
-        runState.time += dt;
-        postFx.fade = kn(postFx.fade || 0, 0, 6, dt);
-        if (pauseCooldown > 0) pauseCooldown -= dt;
-
-        if (input.pressed("pause")) {
-          pauseGame();
-          return false;
-        }
-
-        updateInteractionAndExtraction(dt);
-        if (gameStateController.state !== "playing") return true;
-
-        processSpawnQueue(dt);
-        runState.alertT = Math.max(0, runState.alertT - dt);
-        runState.waveHot = Math.max(0, runState.waveHot - dt);
-
-        const alive = getAliveEnemiesCount();
-        if (
-          runState.waveHot > 0 &&
-          alive === 0 &&
-          !runState.queue.length &&
-          runState.waveHot < 24
-        ) {
-          runState.waveHot = 0;
-        }
-
-        const targetIntensity =
-          runState.allCut || runState.queue.length || (runState.waveHot > 0 && alive > 0)
-            ? 1.0
-            : runState.alertT > 0 || (alive > 0 && hasEnemyNear(26))
-              ? 0.6
-              : 0.15;
-
-        if (targetIntensity !== runState.intensity) {
-          runState.intensity = targetIntensity;
-          safeCall(ctx.audio, "setIntensity", targetIntensity);
-        }
-
-        if (
-          input.mode === "lock" &&
-          !input.locked &&
-          !input.touch &&
-          !ctx.params.shot &&
-          !ctx.params.autostart
-        ) {
-          lookReminderTimer -= dt;
-          if (lookReminderTimer <= 0) {
-            lookReminderTimer = 2.0;
-            hud.message(input.describeMode(), 2.6);
-          }
-        } else {
-          lookReminderTimer = 0.8;
-        }
-
-        if (!runState.lowSaid && player.alive && player.health < 30) {
-          runState.lowSaid = true;
-          if (hud.radio) hud.radio(RADIO_MESSAGES.low, 3);
-        }
-        return true;
-      }
+      case "playing":
+        return updatePlayingState(dt);
 
       case "paused":
         if (pauseCooldown > 0) {
@@ -1010,8 +1018,8 @@ function createGameManager(ctx) {
         return false;
 
       case "dead":
-        postFx.saturation = kn(postFx.saturation ?? 1, 0.12, 2.2, dt);
-        postFx.fade = kn(postFx.fade || 0, 0.55, 1.4, dt);
+        postFx.saturation = damp(postFx.saturation ?? 1, 0.12, 2.2, dt);
+        postFx.fade = damp(postFx.fade || 0, 0.55, 1.4, dt);
         if (stateTimer > 1.5 && menu.screen !== "dead") {
           menu.show("dead");
           safeCall(ctx.audio, "setIntensity", 0.15);
@@ -1019,8 +1027,8 @@ function createGameManager(ctx) {
         return true;
 
       case "complete":
-        postFx.fade = kn(postFx.fade || 0, 0.72, 0.9, dt);
-        postFx.saturation = kn(postFx.saturation ?? 1, defaultSaturation * 0.7, 1, dt);
+        postFx.fade = damp(postFx.fade || 0, 0.72, 0.9, dt);
+        postFx.saturation = damp(postFx.saturation ?? 1, defaultSaturation * 0.7, 1, dt);
         if (stateTimer > 3.3 && menu.screen !== "complete") {
           menu.show("complete");
           safeCall(ctx.audio, "setIntensity", 0.15);

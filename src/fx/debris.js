@@ -22,8 +22,10 @@ const DOWN_VECTOR = new THREE.Vector3(0, -1, 0);
 
 /**
  * 创建非对称抖动的刚体几何破片 (Jittered Debris Shrapnel Box)
+ * @returns {THREE.BufferGeometry}
  */
 export function createDebrisGeometry() {
+  /** @type {THREE.BufferGeometry} */
   let geom = new THREE.BoxGeometry(1, 1, 1, 2, 1, 2);
   const pos = geom.attributes.position;
   let seed = 1234.5;

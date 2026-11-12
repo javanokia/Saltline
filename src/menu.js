@@ -10,7 +10,7 @@
  * 5. 本地玩家设置持久化 (localStorage: saltline.settings.v1)
  */
 
-import { Pi, Pr } from "./constants.js";
+import { PLAYER_CONFIG, QUALITY_PRESETS } from "./constants.js";
 import { t, getLanguagePreference, setLanguage, onLanguageChange } from "./i18n.js";
 
 // ============================================================================
@@ -25,7 +25,7 @@ export const DEFAULT_SETTINGS = {
   sens: 1.0,
   invertY: false,
   volume: 0.8,
-  fov: Pi.fov,
+  fov: PLAYER_CONFIG.fov,
 };
 
 export const QUALITY_OPTIONS = ["low", "medium", "high", "ultra"];
@@ -270,7 +270,7 @@ export function createMenu(ctx, callbacks) {
         !ctx.params.q &&
         userSettings.quality !== (ctx.quality && ctx.quality.name))
     ) {
-      const preset = Pr[userSettings.quality];
+      const preset = QUALITY_PRESETS[userSettings.quality];
       if (preset) {
         try {
           if (ctx.render && ctx.render.setQuality) {
@@ -628,8 +628,8 @@ export function createMenu(ctx, callbacks) {
     },
     applySettings,
     dispose() {
-      if (rootEl && rootEl.parentNode) {
-        rootEl.parentNode.removeChild(rootEl);
+      if (menuContainer && menuContainer.parentNode) {
+        menuContainer.parentNode.removeChild(menuContainer);
       }
     },
   };

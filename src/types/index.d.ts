@@ -293,6 +293,7 @@ export interface WeaponState {
   reloadNow(): void;
   addAmmo(count: number): void;
   setWetness(wetness: number): void;
+  readonly reloading: boolean;
   snap(): void;
 }
 
@@ -351,4 +352,30 @@ export interface EngineContext {
   game: GameManager;
   debug?: DebugSuite;
   bench?: { frame(dt: number): void };
+}
+
+// ==========================================
+// 全局浏览器与窗口扩展声明
+// ==========================================
+
+declare global {
+  interface Window {
+    __G?: any;
+    __ready?: boolean;
+    __frames?: number;
+    __fatal?: any;
+    __errors?: any[];
+    __setShot?: (shotData: any) => void;
+    __stats?: () => any;
+    webkitAudioContext?: typeof AudioContext;
+  }
+
+  interface Document {
+    webkitFullscreenElement?: Element | null;
+    webkitExitFullscreen?: () => Promise<void> | void;
+  }
+
+  interface HTMLElement {
+    webkitRequestFullscreen?: (options?: any) => Promise<void> | void;
+  }
 }

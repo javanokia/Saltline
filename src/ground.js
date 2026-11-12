@@ -6,9 +6,7 @@
  */
 
 import * as THREE from "three";
-import { oi, Mn, en, Pi, vf, zc, Pr, zy, Dy, il, Zn, bi, Fo, sl, kn, Wt, dr } from "./constants.js";
-
-import { sa, Ly, oa, $e, Wi, ot, Fn, ky, Fy, Uy, Ny, Fg, Dc, Lc, Ii, By, Qi } from "./geo.js";
+import { SCENE_BOUNDS, SUN_CONFIG, SKY_CONFIG } from "./constants.js";
 
 // Three.js 紧凑别名 (Compact Three.js Aliases)
 const lt = THREE;
@@ -811,7 +809,7 @@ function Lb(i, e, t) {
   let n = 1 - bs.smoothstep(Math.hypot(i - 30, e), 50, 220),
     s = 0;
   for (let o of B1) s += o[3] * Math.sin(o[4] * (o[0] * i + o[1] * e) - o[5] * t);
-  return oi.seaY + s * n;
+  return SCENE_BOUNDS.seaY + s * n;
 }
 var CR = B1.map(
     (i) =>
@@ -887,7 +885,7 @@ function gv(i, e, t, n, s) {
   return o;
 }
 function kb(i, e) {
-  let t = oi.seaY,
+  let t = SCENE_BOUNDS.seaY,
     n = gv(27.5, 880, 0.75, 1.075, 120),
     s = gv(48, 880, 0.9, 1.085, 120),
     r = s
@@ -929,15 +927,15 @@ function kb(i, e) {
   (d.setAttribute("normal", new et(v, 3)),
     d.setIndex(h),
     (d.boundingSphere = new Dn(new W(0, t, 0), 1300)));
-  let g = en.horizonAway.clone().multiplyScalar(0.85),
-    x = en.horizon.clone().multiplyScalar(0.8),
+  let g = SKY_CONFIG.horizonAway.clone().multiplyScalar(0.85),
+    x = SKY_CONFIG.horizon.clone().multiplyScalar(0.8),
     y = {
       uTime: { value: 0 },
       uDetail: { value: e.detail },
       uDetailN: { value: e.detailN },
       uHazeA: { value: g },
       uHazeB: { value: x },
-      uSunDirW: { value: Mn.dir.clone() },
+      uSunDirW: { value: SUN_CONFIG.dir.clone() },
     },
     b = new Qt({ color: 16777215, roughness: 0.1, metalness: 0 });
   ((b.name = "sea"),
@@ -1133,14 +1131,14 @@ function Nb(i, e) {
     r = Math.round(900 * n),
     a = [0, 1, 2, 3].map(() => new W()),
     l = [0, 1, 2, 3].map(() => new W()),
-    c = Mn.color.clone().multiplyScalar(1.9),
-    u = en.fog.clone().multiplyScalar(0.15),
+    c = SUN_CONFIG.color.clone().multiplyScalar(1.9),
+    u = SKY_CONFIG.fog.clone().multiplyScalar(0.15),
     h = {
       uTime: { value: 0 },
       uRain: { value: 0.6 },
       uBoxMin: { value: a },
       uBoxMax: { value: l },
-      uSunDir: { value: Mn.dir.clone() },
+      uSunDir: { value: SUN_CONFIG.dir.clone() },
       uSunCol: { value: c },
       uAmb: { value: u },
     },
@@ -1290,13 +1288,13 @@ async function O1(i) {
       maskTexture: o,
       uniforms: v.uniforms,
       puddleDepth(M, E) {
-        return M > oi.quayX || !m(M, E) || b(M, E) ? -0.2 : 0.5 - U1(s, n, M, E, 0);
+        return M > SCENE_BOUNDS.quayX || !m(M, E) || b(M, E) ? -0.2 : 0.5 - U1(s, n, M, E, 0);
       },
       isPuddle(M, E) {
         return _.puddleDepth(M, E) > 0.015;
       },
       wetnessAt(M, E) {
-        if (M > oi.quayX) return 1;
+        if (M > SCENE_BOUNDS.quayX) return 1;
         if (b(M, E)) return 0.12;
         if (!m(M, E)) return 0.6;
         let w = 0.5 - U1(s, n, M, E, 0);

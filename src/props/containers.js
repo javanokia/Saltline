@@ -1,6 +1,5 @@
 import * as THREE from "three";
-import { sl } from "../constants.js";
-import { $e } from "../geo.js";
+import { createBoxGeometry } from "../geo.js";
 import {
   PI,
   HALF_PI,
@@ -648,7 +647,7 @@ function generateContainerGeometry(engineCtx, type, seed, doorOpenRatio, wearFac
         assembler.add(
           matGalv,
           transformGeometryInPlace(
-            $e(0.03, 0.045, 0.085),
+            createBoxGeometry(0.03, 0.045, 0.085),
             0.052 - 0.004,
             doorMidY + endSign * (doorHeight / 2 + 0.065),
             mirrorZ(rodZ),

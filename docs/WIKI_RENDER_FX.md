@@ -154,16 +154,24 @@ $$\mathbf{N} = \text{normalize}\left(\frac{\partial \mathbf{P}}{\partial x} \tim
 
 ## 7. 视觉特效引擎架构 (VFX Engine Overview)
 
-特效引擎 `src/fx.js` 拥有完备的层次化生命周期管理：
+视觉特效引擎已完成高内聚模块化解耦，由核心调度门面 `src/fx.js` 统一编排四大专业子系统（`src/fx/`）：
 
-| 特效子系统 | 物理与渲染实现 | 最大实例容量 | 内存/绘制开销 |
-|---|---|---|---|
-| **受光烟雾与火焰** | GPU 实例化公告板、4×2 法线图集、半兰伯特包裹光 | 1,400 粒子 | 1 次 Draw Call (动态 SoA) |
-| **加色火花与电弧** | 速度拉伸线段、高动态 HDR 自发光、发光衰减阶梯 | 3,040 粒子 | 1 次 Draw Call |
-| **弹道曳光流带** | 超音速速度拉伸四边形 + 柔和膨胀光晕 + 尖端耀斑 | 48 曳光弹道 | 共享加色通道 |
-| **飞溅刚体碎屑** | 颤动凸包 BoxGeometry、自旋四元数、重力反弹 | 256 破片 | 1 次 InstancedMesh |
-| **抛壳黄铜弹壳** | 车削 LatheGeometry、角动量积分、地面声效事件 | 60 弹壳 | 1 次 InstancedMesh |
-| **动态表面贴花** | 正交切空间投影 Quad、多边形法线抬升防 Z-Fighting | 160 贴花 | 1 次 Draw Call |
+```mermaid
+flowchart TD
+    FX["src/fx.js (createFXManager & showcaseFX)"] --> TEX["src/fx/textures.js (图集生成与 GLSL 着色器)"]
+    FX --> POOLS["src/fx/pools.js (实例化网格与 SoA 粒子/曳光池)"]
+    FX --> DEBRIS["src/fx/debris.js (破片模拟与抛壳动力学)"]
+    FX --> DECALS["src/fx/decals.js (冲击贴花管理器)"]
+```
+
+| 特效子系统 | 物理与渲染实现 | 归属子模块 | 最大实例容量 | 内存/绘制开销 |
+|---|---|---|---|---|
+| **受光烟雾与火焰** | GPU 实例化公告板、4×2 法线图集、半兰伯特包裹光 | `src/fx/pools.js`<br>`src/fx/textures.js` | 1,400 粒子 | 1 次 Draw Call (动态 SoA) |
+| **加色火花与电弧** | 速度拉伸线段、高动态 HDR 自发光、发光衰减阶梯 | `src/fx/pools.js`<br>`src/fx/textures.js` | 3,040 粒子 | 1 次 Draw Call |
+| **弹道曳光流带** | 超音速速度拉伸四边形 + 柔和膨胀光晕 + 尖端耀斑 | `src/fx/pools.js` | 48 曳光弹道 | 共享加色通道 |
+| **飞溅刚体碎屑** | 颤动凸包 BoxGeometry、自旋四元数、重力反弹 | `src/fx/debris.js` | 256 破片 | 1 次 InstancedMesh |
+| **抛壳黄铜弹壳** | 车削 LatheGeometry、角动量积分、地面声效事件 | `src/fx/debris.js` | 60 弹壳 | 1 次 InstancedMesh |
+| **动态表面贴花** | 正交切空间投影 Quad、多边形法线抬升防 Z-Fighting | `src/fx/decals.js`<br>`src/fx/textures.js` | 160 贴花 | 1 次 Draw Call |
 
 ---
 

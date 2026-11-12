@@ -1,7 +1,13 @@
 # 《几猫国产3A大作》敌方单位与 AI 动力学系统 Wiki 文档
 
-> **模块归属**: `src/enemies.js`  
+> **模块归属**: [src/enemies.js](file:///Volumes/M1/3A/src/enemies.js), [src/enemies/](file:///Volumes/M1/3A/src/enemies/)  
 > **逆向状态**: **100% 完整逆向还原 (Fully Deobfuscated & Clean ESM)**  
+> **子模块组织**:
+> - [src/enemies/rig.js](file:///Volumes/M1/3A/src/enemies/rig.js): 骨架装配器 `SkeletonRig`、蒙皮网格生成器与材质槽位映射
+> - [src/enemies/hound.js](file:///Volumes/M1/3A/src/enemies/hound.js): 机械猎犬 3-DOF 逆运动学 IK、四足步态与飞扑状态机
+> - [src/enemies/gull.js](file:///Volumes/M1/3A/src/enemies/gull.js): 机械飞鸥四旋翼空气动力学、开火决策与坠毁物理
+> - [src/enemies/math.js](file:///Volumes/M1/3A/src/enemies/math.js): 射线-球体与射线-胶囊体几何相交算法
+> - [src/enemies.js](file:///Volumes/M1/3A/src/enemies.js): 蜂群协同中枢 (Hive Context)、警觉度分发与隔离展厅模式
 > **核心实体**: 机械飞鸥 (Gull Sentinel)、机械猎犬 (Combat Hound)、群落协同中枢 (Hive Context)
 
 ---

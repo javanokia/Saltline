@@ -1,7 +1,13 @@
 # 《几猫国产3A大作》程序化资产生成技术规范与工程图鉴 (Procedural Asset Generation Wiki)
 
-> **模块归属**: [src/props.js](file:///Volumes/M1/3A/src/props.js), [src/materials.js](file:///Volumes/M1/3A/src/materials.js), [src/geo.js](file:///Volumes/M1/3A/src/geo.js), [src/backdrop.js](file:///Volumes/M1/3A/src/backdrop.js)  
+> **模块归属**: [src/props.js](file:///Volumes/M1/3A/src/props.js), [src/props/](file:///Volumes/M1/3A/src/props/), [src/materials.js](file:///Volumes/M1/3A/src/materials.js), [src/geo.js](file:///Volumes/M1/3A/src/geo.js), [src/backdrop.js](file:///Volumes/M1/3A/src/backdrop.js)  
 > **逆向状态**: **100% 完整逆向还原 (Fully Deobfuscated & Clean ESM)**  
+> **工业道具子系统组织**:
+> - [src/props/builder.js](file:///Volumes/M1/3A/src/props/builder.js): 网格装配器 `PropMeshAssembler`、复合构造器 `PropCompoundBuilder` 与颜色亮度工具
+> - [src/props/containers.js](file:///Volumes/M1/3A/src/props/containers.js): ISO 6346 瓦楞集装箱全系程序化生成器（20尺/40尺/冷藏/高柜）
+> - [src/props/structures.js](file:///Volumes/M1/3A/src/props/structures.js): 14m 高杆防汛投光灯塔、新泽西水泥防撞墩、安防岗亭与门禁道闸设施
+> - [src/props/industrial.js](file:///Volumes/M1/3A/src/props/industrial.js): 3.5T 工业叉车、应急柴油发电机组、欧标木托盘、油桶与货运苫布堆垛
+> - [src/props.js](file:///Volumes/M1/3A/src/props.js): 工业道具注册中心与空间分区装配调度
 > **核心机制**: 零外部贴图与模型 (Zero External Assets)、WebGL 多渲染目标 (MRT) GPU 离屏烘焙、PCG3 哈希与多八度 FBM/Voronoi 程序化纹理合成、136 套 PBR 物理材质、Canvas 2D 工业标贴图集、倒角圆角长方体算子、ISO 6346 标准集装箱装配、36 种工业道具工厂、宏观岸桥货轮建筑群与 BufferGeometry 深度同态合批优化。
 
 ---

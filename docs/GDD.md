@@ -230,17 +230,19 @@ flowchart TD
 ```mermaid
 graph TD
     Main["src/main.js (主入口与 RAF 驱动)"] --> Render["src/render.js (渲染器与后期着色)"]
-    Main --> Game["src/game.js (全局战局状态机)"]
+    Main --> Game["src/game.js (全局战局状态机与生命周期 dispose)"]
     Game --> Level["src/level.js (关卡场景装配)"]
-    Game --> Props["src/props.js (工业资产生成)"]
+    Game --> Props["src/props.js & props/ (工业资产与建筑生成)"]
     Game --> Materials["src/materials.js (PBR 材质生成)"]
-    Game --> Enemies["src/enemies.js (机械飞鸥 & 猎犬 AI)"]
+    Game --> Enemies["src/enemies.js & enemies/ (机械飞鸥 & 猎犬 AI/IK)"]
     Game --> Player["src/player.js (角色动力学控制器)"]
-    Game --> Weapon["src/weapon.js (枪械动力学视模)"]
+    Game --> Weapon["src/weapon.js & weapons/ (枪械动力学视模)"]
     Game --> Combat["src/combat.js (战斗命中解算)"]
     Game --> HUD["src/hud.js (战术 HUD 界面)"]
-    Game --> FX["src/fx.js (粒子与曳光特效)"]
-    Game --> Audio["src/audio.js (Web Audio 声学合成)"]
+    Game --> Menu["src/menu.js (战术简报与设置面板)"]
+    Game --> I18n["src/i18n.js (双语国际化引擎)"]
+    Game --> FX["src/fx.js & fx/ (粒子与曳光特效)"]
+    Game --> Audio["src/audio.js & audio/ (Web Audio 声学合成)"]
     Game --> Physics["src/physics.js (碰撞与 A* 寻路)"]
 ```
 
@@ -250,10 +252,11 @@ graph TD
 
 | 测试用例项                       | 验证内容与目标                                       | 运行实测结果                            |    状态     |
 | :------------------------------- | :--------------------------------------------------- | :-------------------------------------- | :---------: |
-| **用例 1: 生产单文件基准测试**   | `dist/index.html?bench=1` 启动、场景装配与 60 帧渲染 | **稳定 60.1 FPS**，渲染 213 帧，零报错  | ✅ **通过** |
+| **用例 1: 生产单文件基准测试**   | `dist/index.html?bench=1` 启动、场景装配与 60 帧渲染 | **稳定 59.9~60.1 FPS**，零致命报错      | ✅ **通过** |
 | **用例 2: 原版单文件一致性对比** | 模块化产物与 `几猫国产3A大作_V1.html` 图形与运行对比 | 生成对比快照，无像素级偏差              | ✅ **通过** |
 | **用例 3: 模块展示模式测试**     | `?show=weapon`, `?show=enemies`, `?show=props`       | 各展示厅独立运转 120+ 帧无异常          | ✅ **通过** |
-| **用例 4: 战斗交互仿真测试**     | 模拟鼠标锁定、连续射击 500ms、弹药扣减与按 R 换弹    | 弹药正常扣减（30 $\to$ 25），状态机推进 | ✅ **通过** |
+| **用例 4: 战斗交互仿真测试**     | 模拟鼠标锁定、连续射击 500ms、弹药扣减与按 R 换弹    | 弹药正常扣减（30 $\to$ 22），状态机推进 | ✅ **通过** |
+| **用例 5: 国际化双语动态切换**   | `?lang=zh` 启动检测与设置面板动态热切换英文          | 中英界面无缝切换，字体与排版对齐        | ✅ **通过** |
 
 ### 10.3 关键性能预算指标 (Performance Budget)
 

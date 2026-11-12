@@ -1,7 +1,11 @@
 # 《几猫国产3A大作》纯声学合成器与 Web Audio DSP 系统 Wiki 文档
 
-> **模块归属**: [src/audio.js](file:///Volumes/M1/3A/src/audio.js)  
+> **模块归属**: [src/audio.js](file:///Volumes/M1/3A/src/audio.js), [src/audio/](file:///Volumes/M1/3A/src/audio/)  
 > **逆向状态**: **100% 完整逆向还原 (Fully Deobfuscated & Clean ESM)**  
+> **音频子系统组织**:
+> - [src/audio/dsp.js](file:///Volumes/M1/3A/src/audio/dsp.js): 直接 II 型双二阶滤波器、粉红噪声生成器、chirp 线性调频啁啾、模态共振与 tanh 软饱和原语
+> - [src/audio/sounds.js](file:///Volumes/M1/3A/src/audio/sounds.js): 全量 57 种程序化音效波形数学合成器（枪击爆破、机械步态、换弹拉栓、弹壳跳跃、雨滴碰撞）与注册表
+> - [src/audio.js](file:///Volumes/M1/3A/src/audio.js): Web Audio API 空间音频监听器、双卷积混响室（室内/室外）、5 轨自适应战术配乐与总线混音路由图
 > **核心机制**: 零外部音频资产（Zero-Asset Procedural Audio）、Direct Form II 双二阶滤波器、模态加法合成、6层复合枪声生成器、真实物理脉冲响应卷积混响、5轨自适应战术动态配乐。
 
 ---

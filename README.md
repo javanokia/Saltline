@@ -10,21 +10,38 @@
 
 ```
 /Volumes/M1/3A/
-├── 几猫国产3A大作_V1.html       # 原始单文件发行版（完整保留）
-├── index.html                 # 现代开发调试入口页（引入 ESM 模块）
+├── 几猫国产3A大作_V1.html       # 原始单文件发行版（作为对齐比对基准完整保留）
+├── index.html                 # 现代开发调试入口页（ESM 模块化架构）
 ├── package.json               # NPM 依赖与构建脚本配置
 ├── vite.config.js             # Vite 构建配置（支持 singlefile 单文件打包与 @ 路径别名）
 ├── eslint.config.js           # ESLint 9 Flat Config 代码规范基线
 ├── .prettierrc.json           # Prettier 代码格式化配置
 ├── .editorconfig              # 跨编辑器编码/缩进约定
-├── commitlint.config.js       # Conventional Commits 提交信息校验
-├── tsconfig.json              # 编辑器 TypeScript/JS 类型提示配置
+├── commitlint.config.js       # Conventional Commits 提交规范校验
+├── tsconfig.json              # 编辑器 TypeScript/JSDoc 类型提示配置
 ├── tsconfig.typecheck.json    # 核心模块严格类型检查配置
-├── .github/workflows/ci.yml   # GitHub Actions 质量门禁与 E2E 流水线
+├── .github/workflows/ci.yml   # GitHub Actions 质量门禁与 CI 流水线
 ├── CONTRIBUTING.md            # 协作流程、提交规范与质量门禁说明
 ├── CHANGELOG.md               # 版本变更记录
 ├── README.md                  # 工程架构与逆向分析技术文档
-├── scripts/                   # 逆向分析、提取与验证自动化工具
+├── docs/                      # 架构设计与技术文档库
+│   ├── GDD.md                 # 游戏总体设计文档 (Game Design Document)
+│   ├── REFACTOR-SUMMARY.md    # 逆向工程与重构全景复盘总结
+│   ├── WIKI_INDEX.md          # 十大子系统技术白皮书主索引
+│   ├── WIKI_WEAPONS.md        # 1. 枪械武器动力学与视模系统
+│   ├── WIKI_PLAYER_INPUT.md   # 2. 玩家控制器与全平台输入
+│   ├── WIKI_COMBAT_GAME_LOOP.md # 3. 战斗系统与战局推进状态机
+│   ├── WIKI_HUD_UI.md         # 4. 战术 HUD 与 UI 渲染系统
+│   ├── WIKI_PROCEDURAL_ASSETS.md # 5. 程序化材质与工业级 3D 资产
+│   ├── WIKI_AUDIO.md          # 6. 物理声学合成与 Web Audio DSP
+│   ├── WIKI_ENEMIES.md        # 7. 敌方 AI 与运动学解密
+│   ├── WIKI_LEVEL.md          # 8. 四号泊位关卡场景与建模
+│   ├── WIKI_PHYSICS_WORLD.md  # 9. 空间物理、港区世界与海洋环境
+│   └── WIKI_RENDER_FX.md      # 10. 渲染管线与视觉特效系统
+├── tests/                     # 自动化测试与质量保障
+│   ├── run_e2e_test.js        # Puppeteer Headless Chrome E2E 回归测试套件
+│   └── artifacts/             # 自动化测试输出基准截图与比对工件
+├── scripts/                   # 逆向工程与静态分析工具集
 │   ├── analyze_sections.py    # 模块切片与代码区段分析脚本
 │   ├── check_symbols.py       # 符号导出与命名解构检查
 │   ├── dump_config.py         # 配置参数与常量导出
@@ -33,26 +50,28 @@
 │   ├── find_undeclared.js     # AST 语法树未声明变量与作用域静态检查
 │   ├── three_symbols_map.json # 逆向提取的 Three.js 核心符号字典
 │   └── verify_boundaries.py   # 模块物理边界与闭包完整性验证
-└── src/                       # 逆向还原出的模块化源代码
-    ├── constants.js           # 场景边界、光照、天顶/地平线雾、玩家规格、画质预设、数学与事件工具
-    ├── geo.js                 # 核心几何体程序化生成（倒角圆角盒、柱体、样条管、合并几何体）
-    ├── render.js              # 渲染管线、后期着色器、平面反射、动态雾与曝光管理
-    ├── materials.js           # 程序化材质库（Canvas 2D 绘制沥青、货柜涂装、警示标贴、水渍）
-    ├── physics.js             # 2D 空间碰撞网格、胶囊体扫描、射线检测与 A* 敌机寻路
-    ├── props.js               # 工业级程序化 3D 资产生成器（集装箱、岸桥吊车、叉车、发电机、路灯）
-    ├── level.js               # 几猫港区关卡场景布局、掩体战术通道、中继器目标点、撤离艇泊位
-    ├── backdrop.js            # 远景海面波动模拟、远洋巨轮、岸桥吊塔与地平线晨雾
-    ├── ground.js              # 码头沥青路面、动态水洼倒影、车道标线、雨水口与表面材质检测
-    ├── fx.js                  # 粒子与视觉特效系统（枪口火焰、弹道曳光、火花、烟雾、爆炸、雨滴）
-    ├── audio.js               # Web Audio API 程序化音频合成引擎（步枪射击、脚步、机械警报、海港风雨）
-    ├── input.js               # 键盘鼠标（Pointer Lock）、双虚拟摇杆触屏适配与快捷键映射
-    ├── player.js              # FPS 移动控制器（WASD、滑铲蹲伏、奔跑、瞄准开镜、受击晃动与后坐力）
-    ├── weapon.js              # 几猫制式步枪（KR-7）3D 模型、ADS 瞄准、换弹机械动作与雨水动态光泽
-    ├── enemies.js             # 敌对机械巡逻单位（机械飞鸥、机械猎犬）、骨骼层级动作与战斗状态机
-    ├── combat.js              # 命中判定、弱点爆头计算、击中反馈十字标记与战场数据统计
-    ├── hud.js                 # 战术 HUD 界面（方位罗盘磁条、准星、受击弧光、生命/弹药计、无线电字幕）
-    ├── game.js                # 战局状态机（标题封面、战斗演进、三处中继器入侵、波次防守、撤离简报）
+└── src/                       # 模块化源代码
+    ├── constants.js           # 场景边界、光照预设、玩家规格与数学工具
+    ├── geo.js                 # 核心几何体程序化生成（倒角圆角盒、柱体、样条管）
+    ├── render.js              # 渲染管线、后期着色器、平面反射与曝光管理
+    ├── materials.js           # 程序化材质库（Canvas 2D 沥青、集装箱涂装、标贴、水渍）
+    ├── physics.js             # 空间碰撞网格、胶囊体扫描、射线检测与 A* 寻路
+    ├── props.js               # 工业级程序化 3D 资产生成器（集装箱、岸桥吊车、叉车）
+    ├── level.js               # 四号泊位关卡场景布局、掩体战术通道、中继器目标点
+    ├── backdrop.js            # 远景海面模拟、远洋巨轮、岸桥吊塔与地平线晨雾
+    ├── ground.js              # 码头路面、动态水洼倒影、车道标线与表面材质检测
+    ├── fx.js                  # 粒子特效系统（枪口火焰、曳光、火花、烟雾、爆炸、雨滴）
+    ├── audio.js               # Web Audio API 程序化音频合成引擎（步枪射击、机械声）
+    ├── input.js               # 键盘鼠标（Pointer Lock）、触屏虚拟按键与手柄适配
+    ├── player.js              # FPS 移动控制器（WASD、滑铲蹲伏、奔跑、瞄准开镜、受击晃动）
+    ├── weapon.js              # PAC-9 Longshore 3D 模型、ADS 瞄准、换弹动作与雨水光泽
+    ├── enemies.js             # 敌对机械巡逻单位（机械飞鸥、机械猎犬）与战斗状态机
+    ├── combat.js              # 命中判定、弱点爆头计算、击中反馈十字标记与战况统计
+    ├── hud.js                 # 战术 HUD 界面（磁带滚动罗盘、准星、受击弧光、生命/弹药计）
+    ├── game.js                # 战局状态机（标题封面、战斗演进、三处中继器入侵、防守撤离）
     ├── main.js                # 资源装载编排器、首帧预热、帧循环驱动、基准测试模式
+    ├── debug.js               # 开发者可视化调试套件 (NoClip / Teleport / Cheats)
+    ├── types/                 # TypeScript 类型定义声明文件
     └── ui.css                 # 港区工业风格暗黑战术 UI 样式表
 ```
 
@@ -197,7 +216,8 @@ npm test
 ## 逆向工程与技术 Wiki 文档库
 
 - **[全系统技术白皮书主索引 (docs/WIKI_INDEX.md)](docs/WIKI_INDEX.md)** — 十分子系统知识库全景架构与索引导航。
-- **[GDD 游戏总体设计文档 (Master Specification)](GDD.md)** — 游戏世界观、硬核数值、动力学参数、战术波次与终局评价全案。
+- **[GDD 游戏总体设计文档 (docs/GDD.md)](docs/GDD.md)** — 游戏世界观、硬核数值、动力学参数、战术波次与终局评价全案。
+- **[工程重构全景总结 (docs/REFACTOR-SUMMARY.md)](docs/REFACTOR-SUMMARY.md)** — 逆向还原拆解、模块化重构与架构解耦复盘总结。
 - **[1. PAC-9 枪械武器动力学与视模系统 (docs/WIKI_WEAPONS.md)](docs/WIKI_WEAPONS.md)** — 53,136 面程序化枪模、4 轴阻尼简谐振子后坐力、ADS 瞄准五次平滑赫尔米特过渡、双换弹状态机、抛壳物理与雨水着色器。
 - **[2. 玩家动力学控制器与输入系统 (docs/WIKI_PLAYER_INPUT.md)](docs/WIKI_PLAYER_INPUT.md)** — 连续惯性运动学、土狼时间 (0.12s) 与跳跃预输入缓冲 (0.13s)、仿生第一人称步频晃动、着陆沉降弹簧、脱战自愈与全平台输入适配。
 - **[3. 战斗系统与战局推进状态机 (docs/WIKI_COMBAT_GAME_LOOP.md)](docs/WIKI_COMBAT_GAME_LOOP.md)** — 环境遮挡优先射线相交、弱点 2.2x/2.5x 爆头暴击判定、Hitmarker 击中反馈、三处中继器入侵倒计时、阶梯式波次与撤离评价。

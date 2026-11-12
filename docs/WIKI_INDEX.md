@@ -10,7 +10,7 @@
 
 ```mermaid
 graph TD
-    Master["游戏设计主文档 (GDD.md)"] --> Arch["Wiki 技术白皮书 (docs/)"]
+    Master["游戏设计主文档 (docs/GDD.md)"] --> Arch["Wiki 技术白皮书 (docs/)"]
     
     subgraph CoreEngine ["核心引擎与物理层"]
         W_PHYS["物理系统与远景海洋 (WIKI_PHYSICS_WORLD.md)"]
@@ -55,7 +55,8 @@ graph TD
 
 ---
 
-## 主设计文档联动
+## 主设计与重构文档联动
 
-- 查阅完整游戏世界观、高层设计理念与全案策划设计，请参阅根目录的 **[《几猫国产3A大作》游戏设计文档 (GDD.md)](../GDD.md)**。
+- 查阅完整游戏世界观、高层设计理念与全案策划设计，请参阅 **[《几猫国产3A大作》游戏设计文档 (docs/GDD.md)](GDD.md)**。
+- 查阅逆向工程拆解总结与模块设计报告，请参阅 **[重构全景总结 (docs/REFACTOR-SUMMARY.md)](REFACTOR-SUMMARY.md)**。
 - 查阅工程模块结构、编译构建指南与 URL 调试参数，请参阅根目录的 **[工程主说明文档 (README.md)](../README.md)**。

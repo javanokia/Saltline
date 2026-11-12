@@ -1,5 +1,31 @@
+# Dependencies
 node_modules/
+
+# Production Build
 dist/
+
+# OS Artifacts
 .DS_Store
-scripts/extracted_*.js
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE & Editor Temporary Files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Logs & Temporary Scratch Files
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+scripts/extracted_*.js
+*.tmp
+temp_*
+

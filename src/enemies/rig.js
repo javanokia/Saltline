@@ -1,23 +1,22 @@
 import * as THREE from "three";
 import {
-  mergeGeometries as sa,
-  createBoxBevelGeometry as Wi,
-  createCylinderGeometry as ot,
-  transformGeometry as Dc,
+  mergeGeometries,
+  createBoxBevelGeometry,
+  createCylinderGeometry,
+  transformGeometry,
 } from "../geo.js";
 
 const {
-  Bone: Fa,
-  Group: wt,
-  SkinnedMesh: ka,
-  Skeleton: k0,
-  BufferAttribute: et,
-  Sphere: Dn,
-  Vector3: W,
-  Box3: $n,
-  Quaternion: Lt,
-  Matrix4: Ye,
-  SphereGeometry: ls,
+  Bone,
+  Group,
+  SkinnedMesh,
+  Skeleton,
+  BufferAttribute,
+  Sphere,
+  Vector3,
+  Box3,
+  Quaternion,
+  Matrix4,
 } = THREE;
 
 // ============================================================================
@@ -41,21 +40,22 @@ export const LENS_COLOR_RED_ALERT = [14.0, 1.0, 0.35]; // 锁定与开火状态:
 export const HALF_PI = Math.PI / 2;
 
 // 几何构建辅助函数 (Procedural Geometry Helpers)
-export const createBeveledBox = (w, h, d, bevel = 0.008) => Wi(w, h, d, bevel);
+export const createBeveledBox = (w, h, d, bevel = 0.008) => createBoxBevelGeometry(w, h, d, bevel);
 export const placeGeometry = (geo, x, y, z, rx = 0, ry = 0, rz = 0, scale = 1) =>
-  Dc(geo, { p: [x, y, z], r: [rx, ry, rz], s: scale });
-export const createCylinderY = (rTop, rBottom, height, seg = 12) => ot(rTop, rBottom, height, seg);
+  transformGeometry(geo, { p: [x, y, z], r: [rx, ry, rz], s: scale });
+export const createCylinderY = (rTop, rBottom, height, seg = 12) =>
+  createCylinderGeometry(rTop, rBottom, height, seg);
 export const createCylinderX = (rTop, rBottom, height, seg = 12) =>
-  Dc(ot(rTop, rBottom, height, seg), { r: [0, 0, -HALF_PI] });
+  transformGeometry(createCylinderGeometry(rTop, rBottom, height, seg), { r: [0, 0, -HALF_PI] });
 export const createCylinderZ = (rTop, rBottom, height, seg = 12) =>
-  Dc(ot(rTop, rBottom, height, seg), { r: [HALF_PI, 0, 0] });
+  transformGeometry(createCylinderGeometry(rTop, rBottom, height, seg), { r: [HALF_PI, 0, 0] });
 
-const scratchVec1 = new W();
-const scratchVec2 = new W();
-const scratchQuat = new Lt();
-const UP_DIR_Y = new W(0, 1, 0);
-const scratchMatrix = new Ye();
-const UNIT_SCALE = new W(1, 1, 1);
+const scratchVec1 = new Vector3();
+const scratchVec2 = new Vector3();
+const scratchQuat = new Quaternion();
+const UP_DIR_Y = new Vector3(0, 1, 0);
+const scratchMatrix = new Matrix4();
+const UNIT_SCALE = new Vector3(1, 1, 1);
 
 /**
  * 连接两点之间的工业管路/液压杆几何体
@@ -64,7 +64,7 @@ export function createPipeBetweenPoints(pointA, pointB, rTop, rBottom = rTop, ra
   scratchVec1.set(pointA[0], pointA[1], pointA[2]);
   scratchVec2.set(pointB[0], pointB[1], pointB[2]);
   const length = scratchVec1.distanceTo(scratchVec2);
-  const cylinder = ot(rBottom, rTop, length, radialSegments);
+  const cylinder = createCylinderGeometry(rBottom, rTop, length, radialSegments);
   const dir = scratchVec2.clone().sub(scratchVec1).normalize();
   scratchQuat.setFromUnitVectors(UP_DIR_Y, dir);
   scratchMatrix.compose(
@@ -157,7 +157,7 @@ export class SkeletonRig {
 
     const vertexCount = geo.attributes.position.count;
     if (!geo.attributes.uv) {
-      geo.setAttribute("uv", new et(new Float32Array(vertexCount * 2), 2));
+      geo.setAttribute("uv", new BufferAttribute(new Float32Array(vertexCount * 2), 2));
     }
 
     // 变换到该骨骼的世界坐标系起点
@@ -179,9 +179,9 @@ export class SkeletonRig {
       skinWeights[i * 4] = 1.0;
     }
 
-    geo.setAttribute("color", new et(colors, 3));
-    geo.setAttribute("skinIndex", new et(skinIndices, 4));
-    geo.setAttribute("skinWeight", new et(skinWeights, 4));
+    geo.setAttribute("color", new BufferAttribute(colors, 3));
+    geo.setAttribute("skinIndex", new BufferAttribute(skinIndices, 4));
+    geo.setAttribute("skinWeight", new BufferAttribute(skinWeights, 4));
 
     if (!this.slots[slotName]) {
       this.slots[slotName] = [];
@@ -205,11 +205,11 @@ export class SkeletonRig {
       const normalizedGeos = geos.some((g) => !g.index)
         ? geos.map((g) => (g.index ? g.toNonIndexed() : g))
         : geos;
-      const merged = sa(normalizedGeos, false);
+      const merged = mergeGeometries(normalizedGeos, false);
       return merged.index ? merged.toNonIndexed() : merged;
     });
 
-    const finalMergedGeometry = sa(mergedSlotGeos, true);
+    const finalMergedGeometry = mergeGeometries(mergedSlotGeos, true);
     finalMergedGeometry.computeBoundingSphere();
     finalMergedGeometry.computeBoundingBox();
 
@@ -245,7 +245,7 @@ export function createSkinnedMesh(
 ) {
   // 1. 实例化 Three.js Bone 对象
   const boneInstances = rigDef.bones.map((b) => {
-    const bone = new Fa();
+    const bone = new Bone();
     bone.name = b.name;
     bone.position.set(b.local[0], b.local[1], b.local[2]);
     return bone;
@@ -259,9 +259,9 @@ export function createSkinnedMesh(
   });
 
   // 3. 构建多材质蒙皮网格 (Multi-material SkinnedMesh)
-  const rootGroup = new wt();
+  const rootGroup = new Group();
   const materialList = rigDef.slots.map((s) => materials[s]);
-  const skinnedMesh = new ka(rigDef.geometry, materialList);
+  const skinnedMesh = new SkinnedMesh(rigDef.geometry, materialList);
   skinnedMesh.castShadow = castShadow;
   skinnedMesh.receiveShadow = receiveShadow;
   rootGroup.add(skinnedMesh);
@@ -273,12 +273,12 @@ export function createSkinnedMesh(
   rootGroup.updateMatrixWorld(true);
 
   // 4. 绑定 Skeleton
-  const skeleton = new k0(boneInstances);
+  const skeleton = new Skeleton(boneInstances);
   skinnedMesh.bind(skeleton);
-  skinnedMesh.boundingSphere = new Dn(new W(center[0], center[1], center[2]), radius);
-  skinnedMesh.boundingBox = new $n(
-    new W(center[0] - radius, center[1] - radius, center[2] - radius),
-    new W(center[0] + radius, center[1] + radius, center[2] + radius),
+  skinnedMesh.boundingSphere = new Sphere(new Vector3(center[0], center[1], center[2]), radius);
+  skinnedMesh.boundingBox = new Box3(
+    new Vector3(center[0] - radius, center[1] - radius, center[2] - radius),
+    new Vector3(center[0] + radius, center[1] + radius, center[2] + radius),
   );
 
   const boneMap = {};
@@ -297,7 +297,7 @@ export function createSkinnedMesh(
   // 可选附加外层特效网格 (如能量护罩、警示外罩)
   if (extra) {
     const extraMatList = extra.def.slots.map((s) => materials[s]);
-    const extraMesh = new ka(extra.def.geometry, extraMatList);
+    const extraMesh = new SkinnedMesh(extra.def.geometry, extraMatList);
     extraMesh.castShadow = false;
     extraMesh.receiveShadow = false;
     extraMesh.renderOrder = 5;
@@ -305,10 +305,13 @@ export function createSkinnedMesh(
     extraMesh.updateMatrixWorld(true);
     extraMesh.bind(skeleton, skinnedMesh.bindMatrix);
     const extraRadius = extra.radius || radius;
-    extraMesh.boundingSphere = new Dn(new W(center[0], center[1], center[2]), extraRadius);
-    extraMesh.boundingBox = new $n().setFromCenterAndSize(
+    extraMesh.boundingSphere = new Sphere(
+      new Vector3(center[0], center[1], center[2]),
+      extraRadius,
+    );
+    extraMesh.boundingBox = new Box3().setFromCenterAndSize(
       extraMesh.boundingSphere.center,
-      new W(1, 1, 1).multiplyScalar(2 * extraRadius),
+      new Vector3(1, 1, 1).multiplyScalar(2 * extraRadius),
     );
     result.extraMesh = extraMesh;
   }

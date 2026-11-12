@@ -12,8 +12,8 @@
  */
 
 import * as THREE from "three";
-import { Mn as SUN_CONFIG, en as SKY_CONFIG } from "./constants.js";
-import { Wi as createBoxBevelGeometry } from "./geo.js";
+import { SUN_CONFIG, SKY_CONFIG } from "./constants.js";
+import { createBoxBevelGeometry } from "./geo.js";
 
 // 子模块统一导入与再导出 (Submodule Imports & Re-exports)
 export {

@@ -1,10 +1,5 @@
 import * as THREE from "three";
-import {
-  createBoxBevelGeometry as Wi,
-  createCylinderGeometry as ot,
-  createTubeFromPoints as Fn,
-  transformGeometry as Dc,
-} from "../geo.js";
+import { createTubeFromPoints } from "../geo.js";
 import {
   SkeletonRig,
   createSkinnedMesh,
@@ -221,7 +216,7 @@ function buildHoundRig() {
     add(
       "metal",
       "body",
-      Fn(
+      createTubeFromPoints(
         [
           [s * 0.168, 0.06, 0.125],
           [s * 0.182, 0.06, 0.135],
@@ -272,7 +267,7 @@ function buildHoundRig() {
     add(
       "metal",
       "body",
-      Fn(
+      createTubeFromPoints(
         [
           [s * 0.135, 0.148, -0.19],
           [s * 0.135, 0.205, -0.16],
@@ -296,7 +291,7 @@ function buildHoundRig() {
     add(
       "shell",
       "body",
-      Fn(
+      createTubeFromPoints(
         [
           [s * 0.118, -0.105, -0.36],
           [s * 0.132, -0.118, -0.2],
@@ -414,7 +409,7 @@ function buildHoundRig() {
   add(
     "shell",
     "body",
-    Fn(
+    createTubeFromPoints(
       [
         [0.09, 0.15, -0.2],
         [0.13, 0.2, -0.16],
@@ -451,7 +446,7 @@ function buildHoundRig() {
     add(
       "metal",
       "neck",
-      Fn(
+      createTubeFromPoints(
         [
           [s * 0.042, 0.01, -0.02],
           [s * 0.055, 0.05, 0.03],

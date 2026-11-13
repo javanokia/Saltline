@@ -25,6 +25,7 @@
 ├── CHANGELOG.md               # 版本变更记录
 ├── README.md                  # 工程架构与逆向分析技术文档
 ├── docs/                      # 架构设计与技术文档库
+│   ├── PROJECT_TECHNICAL_DECONSTRUCTION.md # 全系统硬核技术拆解知识库 (Knowledge Base)
 │   ├── GDD.md                 # 游戏总体设计文档 (Game Design Document)
 │   ├── REFACTOR-SUMMARY.md    # 逆向工程与重构全景复盘总结
 │   ├── WIKI_INDEX.md          # 十大子系统技术白皮书主索引

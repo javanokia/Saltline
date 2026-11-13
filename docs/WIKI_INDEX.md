@@ -57,6 +57,7 @@ graph TD
 
 ## 主设计与重构文档联动
 
+- 查阅全系统架构与技术拆解知识库总览，请参阅 **[全系统技术拆解知识库 (docs/PROJECT_TECHNICAL_DECONSTRUCTION.md)](PROJECT_TECHNICAL_DECONSTRUCTION.md)**。
 - 查阅完整游戏世界观、高层设计理念与全案策划设计，请参阅 **[《几猫国产3A大作》游戏设计文档 (docs/GDD.md)](GDD.md)**。
 - 查阅逆向工程拆解总结与模块设计报告，请参阅 **[重构全景总结 (docs/REFACTOR-SUMMARY.md)](REFACTOR-SUMMARY.md)**。
 - 查阅工程模块结构、编译构建指南与 URL 调试参数，请参阅根目录的 **[工程主说明文档 (README.md)](../README.md)**。

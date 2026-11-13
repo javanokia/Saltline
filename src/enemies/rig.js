@@ -41,6 +41,16 @@ export const HALF_PI = Math.PI / 2;
 
 // 几何构建辅助函数 (Procedural Geometry Helpers)
 export const createBeveledBox = (w, h, d, bevel = 0.008) => createBoxBevelGeometry(w, h, d, bevel);
+/**
+ * @param {THREE.BufferGeometry} geo
+ * @param {number} x
+ * @param {number} y
+ * @param {number} z
+ * @param {number} [rx]
+ * @param {number} [ry]
+ * @param {number} [rz]
+ * @param {number | [number, number, number]} [scale]
+ */
 export const placeGeometry = (geo, x, y, z, rx = 0, ry = 0, rz = 0, scale = 1) =>
   transformGeometry(geo, { p: [x, y, z], r: [rx, ry, rz], s: scale });
 export const createCylinderY = (rTop, rBottom, height, seg = 12) =>
@@ -194,7 +204,7 @@ export class SkeletonRig {
   /**
    * 合并所有插槽几何体，构建统一的 SkinnedMesh 几何体
    * @param {string[]} [orderOverride] 槽位排序覆写
-   * @returns {{ geometry: THREE.BufferGeometry, slots: string[], bones: object[], tris: number }}
+   * @returns {{ geometry: THREE.BufferGeometry, slots: string[], bones: object[], tris: number, extra?: any }}
    */
   build(orderOverride) {
     const activeSlots = (orderOverride || this.order).filter(
@@ -213,12 +223,14 @@ export class SkeletonRig {
     finalMergedGeometry.computeBoundingSphere();
     finalMergedGeometry.computeBoundingBox();
 
-    return {
+    /** @type {{ geometry: THREE.BufferGeometry; slots: string[]; bones: any[]; tris: number; extra?: any }} */
+    const res = {
       geometry: finalMergedGeometry,
       slots: activeSlots,
       bones: this.bones,
       tris: finalMergedGeometry.attributes.position.count / 3,
     };
+    return res;
   }
 
   compile(orderOverride) {

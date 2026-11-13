@@ -2705,6 +2705,7 @@ const j8 = synthObjectiveAllDoneSting;
 /** 撤离完成行动通报胜利结算音乐 (Mission Complete Victory Theme) */
 function* synthCompleteTheme(sampleRate) {
   const buf = createAudioBufferArray(sampleRate, 7.5);
+  /** @type {Array<[number, number[], number]>} */
   const chords = [
     [50, [0, 7, 12, 16], 0],
     [46, [0, 7, 12, 15], 1.8],
@@ -2992,15 +2993,4 @@ const SURFACE_STEP_MAP = {
   glass: "step_concrete",
   rubber: "step_concrete",
 };
-const Iv = SURFACE_STEP_MAP;
-
-const isGenerator = (obj) => obj && typeof obj.next === "function";
-
-export {
-  SOUND_REGISTRY,
-  SOUND_ALIASES,
-  SURFACE_STEP_MAP,
-  SURFACE_IMPACT_MAP,
-  SURFACE_STEP_MAP as Iv,
-  SURFACE_IMPACT_MAP as l_,
-};
+export { SOUND_REGISTRY, SOUND_ALIASES, SURFACE_STEP_MAP, SURFACE_IMPACT_MAP };

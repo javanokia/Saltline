@@ -137,7 +137,8 @@ export function createInstancedParticleMesh(engineCtx, capacity, options = {}) {
       } else {
         uniforms.uRes.value.set(depthTex.image.width || 1, depthTex.image.height || 1);
       }
-      uniforms.uNearFar.value.set(camera.near, camera.far);
+      const perspCam = /** @type {THREE.PerspectiveCamera} */ (camera);
+      uniforms.uNearFar.value.set(perspCam.near, perspCam.far);
     } else {
       uniforms.uDepth.value = null;
       uniforms.uSoft.value = 0;

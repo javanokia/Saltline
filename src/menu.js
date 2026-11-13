@@ -481,8 +481,8 @@ export function createMenu(ctx, callbacks) {
   }
 
   function focusPrimaryButton() {
-    const primaryBtn = menuContainer.querySelector(
-      `.m-screen[data-s="${currentScreenName}"] .btn.primary`,
+    const primaryBtn = /** @type {HTMLElement | null} */ (
+      menuContainer.querySelector(`.m-screen[data-s="${currentScreenName}"] .btn.primary`)
     );
     if (primaryBtn) {
       try {
@@ -493,13 +493,14 @@ export function createMenu(ctx, callbacks) {
 
   // 事件委托：按钮点击
   menuContainer.addEventListener("click", (e) => {
-    const btn = e.target.closest("button");
+    const target = /** @type {Element | null} */ (e.target);
+    const btn = target ? target.closest("button") : null;
     if (!btn || !menuContainer.contains(btn)) return;
 
     ctx.events.emit("ui:click", {});
 
     if (btn.dataset.lang) {
-      const newLang = btn.dataset.lang;
+      const newLang = /** @type {"auto" | "en" | "zh"} */ (btn.dataset.lang);
       userSettings.lang = newLang;
       setLanguage(newLang);
       saveSettings(userSettings);
@@ -538,8 +539,9 @@ export function createMenu(ctx, callbacks) {
   });
 
   menuContainer.addEventListener("mouseover", (e) => {
-    const btn = e.target.closest("button");
-    if (btn && e.relatedTarget && !btn.contains(e.relatedTarget)) {
+    const target = /** @type {Element | null} */ (e.target);
+    const btn = target ? target.closest("button") : null;
+    if (btn && e.relatedTarget && !btn.contains(/** @type {Node} */ (e.relatedTarget))) {
       ctx.events.emit("ui:hover", {});
     }
   });
@@ -597,7 +599,8 @@ export function createMenu(ctx, callbacks) {
           syncSettingsUI();
           setTimeout(focusPrimaryButton, 30);
         } else if (document.activeElement && menuContainer.contains(document.activeElement)) {
-          document.activeElement.blur();
+          const el = /** @type {HTMLElement} */ (document.activeElement);
+          if (el.blur) el.blur();
         }
       }
     },
@@ -637,5 +640,3 @@ export function createMenu(ctx, callbacks) {
   syncSettingsUI();
   return menuInterface;
 }
-
-export const pM = createMenu;

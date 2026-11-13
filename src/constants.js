@@ -339,27 +339,3 @@ export const STUBS = {
     };
   },
 };
-
-// ============================================================================
-// 六、 原始短别名兼容导出 (Legacy Alias Exports)
-// ============================================================================
-
-export {
-  SCENE_BOUNDS as oi,
-  SUN_CONFIG as Mn,
-  SKY_CONFIG as en,
-  PLAYER_CONFIG as Pi,
-  FACTION_PLAYER as vf,
-  FACTION_ENEMY as zc,
-  QUALITY_PRESETS as Pr,
-  detectQualityPreset as zy,
-  createEventBus as Dy,
-  createSeededRandom as il,
-  clamp as Zn,
-  lerp as bi,
-  saturate as Fo,
-  smoothstep as sl,
-  damp as kn,
-  noop as Wt,
-  STUBS as dr,
-};

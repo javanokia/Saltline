@@ -5,13 +5,7 @@ const { Vector3 } = THREE;
 import { clamp, smoothstep, damp, saturate } from "./constants.js";
 import { disposeHierarchy } from "./geo.js";
 import { t, onLanguageChange } from "./i18n.js";
-import {
-  createMenu,
-  loadSettings,
-  saveSettings,
-  DEFAULT_SETTINGS,
-  SETTINGS_STORAGE_KEY,
-} from "./menu.js";
+import { createMenu } from "./menu.js";
 
 // ============================================================================
 // 3. 游戏流程与数值平衡配置 (Game Flow & Balance Settings)
@@ -185,9 +179,14 @@ function createGameManager(ctx) {
     dispose() {
       setGameState("disposed");
       if (menu && typeof menu.dispose === "function") menu.dispose();
+      safeCall(ctx.input, "dispose");
+      safeCall(ctx.debug, "dispose");
       safeCall(ctx.enemies, "clear");
       safeCall(ctx.fx, "clear");
       safeCall(ctx.weapon, "reset");
+      if (ctx.renderer && typeof ctx.renderer.setAnimationLoop === "function") {
+        ctx.renderer.setAnimationLoop(null);
+      }
       if (ctx.scene) disposeHierarchy(ctx.scene);
     },
   };
@@ -479,7 +478,8 @@ function createGameManager(ctx) {
   addEventListener("keydown", (e) => {
     if (gameStateController.state !== "title" || menu.panelOpen) return;
     if (e.code !== "Enter" && e.code !== "NumpadEnter") return;
-    if (e.target && e.target.tagName === "BUTTON") return;
+    const targetEl = /** @type {HTMLElement | null} */ (e.target);
+    if (targetEl && targetEl.tagName === "BUTTON") return;
     safeCall(ctx.audio, "resume");
     input.requestLock();
     startRun({});
@@ -1062,4 +1062,4 @@ function createGameManager(ctx) {
 }
 
 export const create = createGameManager;
-export { createGameManager as mM, GAME_CONFIG, DIRECTIONS, RADIO_MESSAGES, createMenu as pM };
+export { createGameManager as mM, GAME_CONFIG, DIRECTIONS, RADIO_MESSAGES };

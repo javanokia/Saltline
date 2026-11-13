@@ -311,6 +311,10 @@ const eTransform = new THREE.Euler();
 const vTransformPos = new THREE.Vector3();
 const vTransformScale = new THREE.Vector3();
 
+/**
+ * @param {THREE.BufferGeometry} geom
+ * @param {{ p?: [number, number, number]; r?: [number, number, number]; s?: number | [number, number, number] }} [transform]
+ */
 export function transformGeometry(geom, { p = [0, 0, 0], r = [0, 0, 0], s = 1 } = {}) {
   eTransform.set(r[0], r[1], r[2]);
   qTransform.setFromEuler(eTransform);
@@ -486,27 +490,3 @@ export function disposeHierarchy(root) {
     }
   });
 }
-
-// ============================================================================
-// 四、 兼容别名导出 (Legacy Alias Exports)
-// ============================================================================
-
-export {
-  mergeGeometries as sa,
-  mergeAttributes as Ly,
-  vScratch as oa,
-  createBoxGeometry as $e,
-  createBoxBevelGeometry as Wi,
-  createCylinderGeometry as ot,
-  createTubeFromPoints as Fn,
-  mTransform as ky,
-  qTransform as Fy,
-  eTransform as Uy,
-  vTransformPos as Ny,
-  vTransformScale as Fg,
-  transformGeometry as Dc,
-  setVertexColors as Lc,
-  mergeGeometriesClean as Ii,
-  mergeStaticMeshHierarchy as By,
-  createMeshWithShadows as Qi,
-};

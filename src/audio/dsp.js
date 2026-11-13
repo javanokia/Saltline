@@ -131,6 +131,7 @@ function applyBiquadFilter(buffer, type, cutoff, Q, sampleRate) {
 /**
  * 原地应用时变动态双二阶滤波器 (Time-Varying Dynamic Cutoff Biquad Filtering)
  * 每 32 个采样点重算一次系数以兼顾高性能与连续包络滤波
+ * 修正：移除函数静态变量跨调用污染，多 pass 级联时原地写入滤波缓冲
  */
 function applyDynamicBiquadFilter(buffer, type, cutoffFn, Q, sampleRate, passes = 1) {
   const len = buffer.length;
@@ -138,11 +139,6 @@ function applyDynamicBiquadFilter(buffer, type, cutoffFn, Q, sampleRate, passes 
     let z1 = 0;
     let z2 = 0;
     let coeffs = null;
-    if (p > 0) {
-      z1 = applyDynamicBiquadFilter.z1 || 0;
-      z2 = applyDynamicBiquadFilter.z2 || 0;
-    }
-    const writeTarget = p === passes - 1 ? buffer : null;
 
     for (let i = 0; i < len; i++) {
       if ((i & 31) === 0) {
@@ -155,10 +151,8 @@ function applyDynamicBiquadFilter(buffer, type, cutoffFn, Q, sampleRate, passes 
       const output = coeffs[0] * input + z1;
       z1 = coeffs[1] * input - coeffs[3] * output + z2;
       z2 = coeffs[2] * input - coeffs[4] * output;
-      if (writeTarget) writeTarget[i] = output;
+      buffer[i] = output;
     }
-    applyDynamicBiquadFilter.z1 = z1;
-    applyDynamicBiquadFilter.z2 = z2;
   }
   return buffer;
 }

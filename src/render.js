@@ -7,8 +7,6 @@ import {
   FACTION_PLAYER,
   FACTION_ENEMY,
   QUALITY_PRESETS,
-  clamp,
-  smoothstep,
 } from "./constants.js";
 import { createBoxGeometry, createBoxBevelGeometry, createMeshWithShadows } from "./geo.js";
 

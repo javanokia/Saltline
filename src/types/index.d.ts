@@ -185,7 +185,13 @@ export interface PropsManager {
 }
 
 export interface PhysicsWorld {
+  boxes: any[];
+  bounds: { min: THREE.Vector3; max: THREE.Vector3 };
+  addBox(box: any): void;
+  removeBox(box: any): void;
   build(): void;
+  groundHeight(x: number, z: number, r?: number): number;
+  moveCapsule(pos: THREE.Vector3, vel: THREE.Vector3, r: number, h: number, dt: number): any;
   raycast(
     origin: THREE.Vector3,
     dir: THREE.Vector3,
@@ -198,13 +204,22 @@ export interface PhysicsWorld {
     normal: THREE.Vector3;
     surface: string;
   } | null;
-  collideSphere(pos: THREE.Vector3, radius: number): boolean;
   lineOfSight(origin: THREE.Vector3, target: THREE.Vector3): boolean;
+  nav?: any;
 }
 
 declare global {
   interface Window {
-    __setShot?: (config: Record<string, unknown>) => void;
+    __setShot?: {
+      (config: Record<string, unknown>): void;
+      subscribe?: (fn: (cfg: Record<string, unknown>) => void) => () => void;
+    };
+    __frames?: number;
+    __ready?: boolean;
+    __fatal?: string | null;
+    __errors?: string[];
+    __G?: any;
+    __stats?: () => any;
   }
 }
 

@@ -74,6 +74,7 @@ const DOORWAY_SPECS_QUAY = { z0: -22, z1: -17, h: 4.5 };
 
 /**
  * 仓库屋顶高透光采光天窗排布 (Roof Pitch Skylights: ['S'|'N', pitchTier, bayIdx])
+ * @type {Array<['S' | 'N', number, number]>}
  */
 const ROOF_SKYLIGHT_SPECS = [
   ["S", 1, 4],
@@ -1003,6 +1004,9 @@ function buildLabelAtlas(staticRoot, { scale = 0.5, maxW = 2048 } = {}) {
       img,
       w: Math.max(4, Math.ceil(img.width * scale)),
       h: Math.max(4, Math.ceil(img.height * scale)),
+      x: 0,
+      y: 0,
+      version: 0,
     };
   });
 
@@ -1194,8 +1198,9 @@ export async function createLevel(engineCtx) {
   // 统计顶点总面数
   let totalTris = 0;
   mergedMesh.traverse((node) => {
-    if (node.isMesh) {
-      const geo = node.geometry;
+    const meshNode = /** @type {THREE.Mesh} */ (node);
+    if (meshNode.isMesh) {
+      const geo = meshNode.geometry;
       totalTris += (geo.index ? geo.index.count : geo.attributes.position.count) / 3;
     }
   });

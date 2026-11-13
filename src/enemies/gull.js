@@ -1046,13 +1046,4 @@ function createGull(hiveCtx, rigDef, materials, index) {
   return gull;
 }
 
-export {
-  GULL_RIG_SPEC,
-  buildGullPropellerBlade,
-  buildGullRig,
-  GULL_CONFIG,
-  createGull,
-  GULL_CONFIG as Zv,
-  buildGullRig as j_,
-  createGull as Q_,
-};
+export { GULL_RIG_SPEC, buildGullPropellerBlade, buildGullRig, GULL_CONFIG, createGull };

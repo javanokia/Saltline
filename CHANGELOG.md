@@ -6,6 +6,25 @@
 
 ### Added
 
+- 全量 TypeScript 编译期检查覆盖：`tsconfig.typecheck.json` 覆盖全工程 38 个源码文件，实现 **100% 0 报错通过**。
+- 全局异常捕获强化：`src/main.js` 新增 `unhandledrejection` 异步 Promise 异常捕获，杜绝异步模块错误漏检。
+- 相机与调试钩子统一发布/订阅总线：`window.__setShot.subscribe` 提供多模块协同监听，解决调试参数相互覆盖。
+- 生命周期解绑与事件回收：`src/input.js`、`src/debug.js` 引入 `AbortController` 机制解绑 DOM 监听；`src/game.js` 在 `dispose()` 时协同释放输入、调试面板并切断渲染循环 `renderer.setAnimationLoop(null)`。
+
+### Changed
+
+- 剔除 `src/enemies.js`、`src/weapon.js`、`src/weapons/pac9_model.js` 顶部各 423 行全量混淆解构块，净删减 **1,300+ 行死代码**，统一按需采用原生 Three.js 引用。
+- 清理 `src/constants.js`、`src/geo.js`、`src/audio/sounds.js`、`src/enemies/gull.js`、`src/enemies/hound.js` 中 45 个未被外部引用的历史废弃短别名导出。
+- `src/main.js` 中 DevSuite 开发者调试面板挂载增加运行环境门禁，仅在开发模式或显式带有 `debug`/`dev` 参数时激活，生产环境完全隔离。
+
+### Fixed
+
+- 修复 `src/audio/dsp.js` 中 `applyDynamicBiquadFilter` 静态延迟线属性跨调用状态污染问题，多 pass 级联时原地写入滤波缓冲。
+- 修复 `src/types/index.d.ts` 中 `PhysicsWorld` 核心接口签名缺失与 `Window` 全局属性定义。
+- 强化 E2E 自动化回归断言：用例 2 强制断言原版基准帧数一致性，Showcase 用例增加 `window.__errors.length === 0` 零异常校验。
+
+### Added (Previous)
+
 - 新增 ESLint 9 Flat Config、Prettier、EditorConfig 代码规范基线。
 - 新增 husky + lint-staged 预提交检查与 commitlint 提交信息校验。
 - 新增 GitHub Actions CI：lint、format check、typecheck、build 与 E2E 回归。

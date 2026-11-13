@@ -208,6 +208,12 @@ function ll(i, e, t, n, s, o = 0, r = 0) {
   let a = new rn(i, e);
   return (r && a.rotateX(r), o && a.rotateY(o), a.translate(t, n, s), a);
 }
+/**
+ * @param {any} i
+ * @param {any} e
+ * @param {any} t
+ * @param {{ h?: number; post?: number; r?: number; tint?: any; mid?: boolean }} [options]
+ */
 function ns(i, e, t, { h: n = 1.1, post: s = 2.2, r: o = 0.022, tint: r, mid: a = !0 } = {}) {
   t = t.map(al);
   for (let l = 0; l < t.length - 1; l++) {
@@ -2143,7 +2149,7 @@ function Mb(i, e) {
         (Q | 0) % 3 === 0 && N(Q + 2, 0, -16.1, Q + 8, 6.2, 16.1, [0.06, 0.06, 0.07]));
   }
   (z1(i, e, { into: t, mat: n, dz: 66 }),
-    [
+    /** @type {Array<[number, number, boolean, number[]]>} */ ([
       [-132, 1.15, !0, [0.14, 0.17, 0.21]],
       [-186, 1.25, !1, [0.14, 0.17, 0.21]],
       [-252, 1.35, !0, [0.26, 0.12, 0.06]],
@@ -2152,7 +2158,7 @@ function Mb(i, e) {
       [182, 1.3, !0, [0.24, 0.25, 0.27]],
       [250, 1.4, !1, [0.24, 0.25, 0.27]],
       [330, 1.45, !0, [0.26, 0.12, 0.06]],
-    ].forEach(([D, C, G, j], N) => {
+    ]).forEach(([D, C, G, j], N) => {
       let Q = mb(t, n, 23.5, D, { s: C, up: G, tint: j });
       e.add(Bn(Q[0], Q[1], Q[2], 0.45 * C), r, 2.6 + (N % 3) * 0.35, N * 0.37, 0.45);
     }),
@@ -2358,9 +2364,10 @@ function Eb(i, { only: e = null, showcase: t = !1 } = {}) {
   let v = 0,
     g = 0;
   s.traverse((b) => {
-    if (b.isMesh) {
+    const mesh = /** @type {THREE.Mesh} */ (b);
+    if (mesh.isMesh) {
       g++;
-      let m = b.geometry;
+      let m = mesh.geometry;
       v += (m.index ? m.index.count : m.attributes.position.count) / 3;
     }
   });

@@ -788,6 +788,9 @@ class PropCompoundBuilder {
     });
   }
 
+  /**
+   * @param {{ size?: [number, number, number]; colliders?: any[]; grime?: number; surface?: string }} [options]
+   */
   finish({ size, colliders, grime = 1, surface } = {}) {
     const grp = new THREE.Group();
     const noiseOffset = this.seed * 3.71;

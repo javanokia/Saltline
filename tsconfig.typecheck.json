@@ -14,11 +14,5 @@
       "@/*": ["src/*"]
     }
   },
-  "include": [
-    "src/types/index.d.ts",
-    "src/render.js",
-    "src/materials.js",
-    "src/combat.js",
-    "src/weapon.js"
-  ]
+  "include": ["src/types/index.d.ts", "src/**/*.js"]
 }

@@ -10,8 +10,6 @@ import {
   SOUND_ALIASES,
   SURFACE_STEP_MAP,
   SURFACE_IMPACT_MAP,
-  SURFACE_STEP_MAP as Iv,
-  SURFACE_IMPACT_MAP as l_,
 } from "./audio/sounds.js";
 
 const isGenerator = (obj) => obj && typeof obj.next === "function";
@@ -282,9 +280,9 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
 
   bootTimeMs = synthesisElapsedMs;
 
-  let resolveReadyPromise;
+  let resolveReadyPromise = () => {};
   const readyPromise = new Promise((resolve) => {
-    resolveReadyPromise = resolve;
+    resolveReadyPromise = () => resolve(undefined);
   });
 
   /**

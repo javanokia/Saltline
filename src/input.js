@@ -87,6 +87,8 @@ export function createInputManager(engineCtx) {
   let lockErrorCount = 0;
   let mouseButtonMask = 0;
   const modeChangeListeners = [];
+  const eventAbortController = new AbortController();
+  const eventSignal = { signal: eventAbortController.signal };
 
   const inputState = {
     move: { x: 0, y: 0 },
@@ -116,6 +118,13 @@ export function createInputManager(engineCtx) {
     endFrame: endInputFrame,
     requestLock: requestPointerLock,
     exitLock: exitPointerLock,
+
+    dispose() {
+      eventAbortController.abort();
+      if (touchUI && touchUI.root && touchUI.root.parentNode) {
+        touchUI.root.parentNode.removeChild(touchUI.root);
+      }
+    },
 
     setGameplay(active) {
       const boolVal = Boolean(active);
@@ -204,7 +213,8 @@ export function createInputManager(engineCtx) {
     const action = INPUT_KEYS[ev.code];
     if (!action) return;
 
-    const targetTag = ev.target && ev.target.tagName;
+    const targetEl = /** @type {HTMLElement | null} */ (ev.target);
+    const targetTag = targetEl && targetEl.tagName;
     if (targetTag === "INPUT" || targetTag === "SELECT" || targetTag === "TEXTAREA") return;
     if (
       targetTag === "BUTTON" &&

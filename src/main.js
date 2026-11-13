@@ -28,7 +28,7 @@ import {
   STUBS,
 } from "./constants.js";
 import { createMeshWithShadows } from "./geo.js";
-import { initI18n, t, getLanguage } from "./i18n.js";
+import { initI18n, t } from "./i18n.js";
 
 // 导入全套解耦 ESM 核心系统
 import * as render from "./render.js";
@@ -107,6 +107,13 @@ function showFatalError(error) {
 // 捕获未处理的运行时异常
 window.addEventListener("error", (event) => {
   window.__errors.push(String(event.message));
+});
+
+// 捕获未处理的 Promise Rejection 异步异常
+window.addEventListener("unhandledrejection", (event) => {
+  const reason = event.reason;
+  const errMsg = reason instanceof Error ? reason.stack || reason.message : String(reason);
+  window.__errors.push(`[UnhandledRejection] ${errMsg}`);
 });
 
 // 重定向 console.error 进行异常追踪收集
@@ -302,23 +309,26 @@ export async function bootstrapEngine() {
   }
 
   // 2. 组装核心全局上下文 (Engine Context)
-  const engineCtx = {
+  const engineCtx = /** @type {any} */ ({
     THREE,
     params: urlParams,
     events: createEventBus(),
     rng: createSeededRandom(+(urlParams.seed || 4207)),
     time: { t: 0, dt: 0, frame: 0, real: 0 },
     quality: detectQualityPreset(urlParams.q || (urlParams.shot ? "test" : "")),
-  };
+  });
   window.__G = engineCtx;
 
   // 3. 检查是否进入独立沙盒陈列室 (Showcase)
   const showcaseMode = urlParams.show && SHOWCASE_MODULES[urlParams.show] ? urlParams.show : null;
   engineCtx.showcase = showcaseMode;
 
-  // 相机手动校准闭包
+  // 相机手动校准闭包与全局 __setShot 统一分发器
   let forcedShotCamera = null;
+  const shotSubscribers = new Set();
+
   function setShotCamera(cfg) {
+    if (!cfg) return;
     if (cfg.cam) {
       const coords = String(cfg.cam).split(",").map(Number);
       forcedShotCamera = {
@@ -334,8 +344,21 @@ export async function bootstrapEngine() {
     if (cfg.exposure) {
       engineCtx.render.exposure = +cfg.exposure;
     }
+    for (const sub of shotSubscribers) {
+      try {
+        sub(cfg);
+      } catch (err) {
+        console.error("[setShot] subscriber threw:", err);
+      }
+    }
   }
+
+  // 支持通过 window.__setShot 直接触发，并提供订阅方法
   window.__setShot = setShotCamera;
+  window.__setShot.subscribe = (fn) => {
+    shotSubscribers.add(fn);
+    return () => shotSubscribers.delete(fn);
+  };
 
   // 4. 模块异步加载包装器
   async function loadModule(moduleName, label, factoryFn, isCritical = false) {
@@ -501,7 +524,21 @@ export async function bootstrapEngine() {
   }
 
   // 挂载开发者可视化调试套件 (Debug Suite)
-  engineCtx.debug = debug.create(engineCtx);
+  // 门禁：仅在开发模式 (import.meta.env?.DEV) 或显式带有 debug/dev URL 参数时启用
+  const isDebugEnabled = Boolean(
+    /** @type {any} */ (import.meta).env?.DEV ||
+    urlParams.debug !== undefined ||
+    urlParams.dev !== undefined,
+  );
+  if (isDebugEnabled) {
+    engineCtx.debug = debug.create(engineCtx);
+  } else {
+    engineCtx.debug = {
+      update() {},
+      dispose() {},
+      enabled: false,
+    };
+  }
 
   await updateBootProgress(t("boot.stepReady"), 1.0);
   bootOverlayEl?.classList.add("done");

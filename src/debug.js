@@ -687,6 +687,11 @@ export function createDebugSuite(ctx) {
         }
       }
     },
+    dispose() {
+      toggleBtn.remove();
+      panel.remove();
+      ctx.scene.remove(collidersGroup);
+    },
     destroy() {
       toggleBtn.remove();
       panel.remove();

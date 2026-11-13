@@ -15,47 +15,10 @@ import * as THREE from "three";
 import { SUN_CONFIG, SKY_CONFIG } from "./constants.js";
 import { createBoxBevelGeometry } from "./geo.js";
 
-// 子模块统一导入与再导出 (Submodule Imports & Re-exports)
-export {
-  PARTICLE_FLAG_BOUNCE_FLOOR,
-  PARTICLE_FLAG_DIE_ON_FLOOR,
-  PARTICLE_FLAG_STICK_FLOOR,
-  PARTICLE_MODE_BILLBOARD,
-  PARTICLE_MODE_VELOCITY_STRETCH,
-  PARTICLE_MODE_SURFACE_ALIGNED,
-  SMOKE_ATLAS_COLS,
-  SMOKE_ATLAS_ROWS,
-  SPARKS_ATLAS_COLS,
-  SPARKS_ATLAS_ROWS,
-  SPARK_FRAME_SOFT_DOT,
-  SPARK_FRAME_STREAK,
-  SPARK_FRAME_STARBURST1,
-  SPARK_FRAME_STARBURST2,
-  SPARK_FRAME_RIPPLE,
-  SPARK_FRAME_PLASMA,
-  SPARK_FRAME_DROPLET,
-  SPARK_FRAME_TRACER_TIP,
-  DECAL_ATLAS_COLS,
-  DECAL_ATLAS_ROWS,
-  DECAL_TYPE_FRAMES,
-  DECAL_DEFAULT_SIZES,
-  smoothstep,
-  randomRange,
-  createNoiseGenerator,
-  generateSmokeAtlas,
-  generateSparksAtlas,
-  generateDecalsAtlas,
-  GLSL_SOFT_FADE,
-  FX_VERTEX_SHADER,
-  FX_LIT_FRAGMENT_SHADER,
-  FX_ADD_FRAGMENT_SHADER,
-} from "./fx/textures.js";
-
+// 子模块导入 (Submodule Imports)
 import {
   PARTICLE_FLAG_BOUNCE_FLOOR,
   PARTICLE_FLAG_DIE_ON_FLOOR,
-  PARTICLE_FLAG_STICK_FLOOR,
-  PARTICLE_MODE_BILLBOARD,
   PARTICLE_MODE_VELOCITY_STRETCH,
   PARTICLE_MODE_SURFACE_ALIGNED,
   SMOKE_ATLAS_COLS,
@@ -70,45 +33,15 @@ import {
   SPARK_FRAME_PLASMA,
   SPARK_FRAME_DROPLET,
   SPARK_FRAME_TRACER_TIP,
-  DECAL_ATLAS_COLS,
-  DECAL_ATLAS_ROWS,
-  DECAL_TYPE_FRAMES,
-  DECAL_DEFAULT_SIZES,
-  smoothstep,
   randomRange,
-  createNoiseGenerator,
   generateSmokeAtlas,
   generateSparksAtlas,
-  generateDecalsAtlas,
-  GLSL_SOFT_FADE,
-  FX_VERTEX_SHADER,
-  FX_LIT_FRAGMENT_SHADER,
-  FX_ADD_FRAGMENT_SHADER,
 } from "./fx/textures.js";
-
-export { createInstancedParticleMesh, ParticlePool, BulletTracerPool } from "./fx/pools.js";
 
 import { createInstancedParticleMesh, ParticlePool, BulletTracerPool } from "./fx/pools.js";
-
-export {
-  createDebrisGeometry,
-  DebrisPhysicsSystem,
-  createShellCartridgeGeometry,
-  SpentShellEjectionSystem,
-} from "./fx/debris.js";
-
-import {
-  createDebrisGeometry,
-  DebrisPhysicsSystem,
-  createShellCartridgeGeometry,
-  SpentShellEjectionSystem,
-} from "./fx/debris.js";
-
-export { ImpactDecalManager } from "./fx/decals.js";
-
+import { DebrisPhysicsSystem, SpentShellEjectionSystem } from "./fx/debris.js";
 import { ImpactDecalManager } from "./fx/decals.js";
 
-// 全局临时计算缓存 (Scratch Vectors & Matrices)
 const vTempPos = new THREE.Vector3();
 const vTempDir = new THREE.Vector3();
 const vTempNorm = new THREE.Vector3();
@@ -116,11 +49,6 @@ const vTempCamPos = new THREE.Vector3();
 const vTempAim = new THREE.Vector3();
 const vTempReflect = new THREE.Vector3();
 const vTempPoint = new THREE.Vector3();
-const vTempOffset = new THREE.Vector3();
-const vDrawSize = new THREE.Vector2();
-const mTempMatrix = new THREE.Matrix4();
-const qTempQuat = new THREE.Quaternion();
-const eTempEuler = new THREE.Euler();
 const cTempColor = new THREE.Color();
 const aTempColorArr = [1, 1, 1];
 
@@ -2329,22 +2257,33 @@ export function showcaseFX(engineCtx) {
     if (!isFrozen) originalUpdate(dt);
   };
 
-  const hookSetShot = window.__setShot;
-  if (hookSetShot) {
-    window.__setShot = (shotData) => {
-      if (shotData && shotData.fxage !== undefined) {
-        fx.clear();
-        vTracerEnd.set(0, 0.25, 3.5);
-        fx.explosion(vTracerEnd, Number(shotData.fxsize || 1.2));
-        const age = Number(shotData.fxage);
-        for (let t = 0; t < age - 1e-6; t += 1 / 60) {
-          originalUpdate(1 / 60);
-        }
-        originalUpdate(0);
-        isFrozen = true;
+  const handleFxShot = (shotData) => {
+    if (shotData && shotData.fxage !== undefined) {
+      fx.clear();
+      vTracerEnd.set(0, 0.25, 3.5);
+      fx.explosion(vTracerEnd, Number(shotData.fxsize || 1.2));
+      const age = Number(shotData.fxage);
+      for (let t = 0; t < age - 1e-6; t += 1 / 60) {
+        originalUpdate(1 / 60);
       }
-      hookSetShot(shotData);
-    };
+      originalUpdate(0);
+      isFrozen = true;
+    }
+  };
+
+  if (typeof window !== "undefined") {
+    if (
+      typeof window.__setShot === "function" &&
+      typeof window.__setShot.subscribe === "function"
+    ) {
+      window.__setShot.subscribe(handleFxShot);
+    } else if (window.__setShot) {
+      const hookSetShot = window.__setShot;
+      window.__setShot = (shotData) => {
+        handleFxShot(shotData);
+        hookSetShot(shotData);
+      };
+    }
   }
 
   return {

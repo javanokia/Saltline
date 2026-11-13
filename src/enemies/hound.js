@@ -2132,8 +2132,6 @@ function createHound(hiveCtx, rigDef, materials, index) {
   return hound;
 }
 
-const iM = createHound;
-
 export {
   solveLegIK,
   HOUND_RIG_SPEC,
@@ -2142,9 +2140,4 @@ export {
   springDamper,
   DIAGONAL_LEG_PAIRS,
   createHound,
-  solveLegIK as q_,
-  buildHoundRig as Z_,
-  HOUND_CONFIG as Kv,
-  springDamper as xa,
-  createHound as iM,
 };

@@ -201,7 +201,8 @@ async function runTest() {
       if (rawFrames > 30) {
         console.log("🎉 【测试用例 2 通过】: 原版单文件与逆向工程版本表现一致！");
       } else {
-        console.log("ℹ️ 原版单文件已生成基准比对快照");
+        console.error(`❌ 【测试用例 2 失败】: 原版单文件帧数过低 (frames=${rawFrames})`);
+        hasFailures = true;
       }
       await page.close();
     }
@@ -223,16 +224,20 @@ async function runTest() {
 
       const frames = await page.evaluate(() => window.__frames || 0);
       const fatal = await page.evaluate(() => window.__fatal);
-      console.log(`  - 运行帧数: ${frames}, Fatal: ${fatal || "无"}`);
+      const errors = await page.evaluate(() => window.__errors || []);
+      console.log(`  - 运行帧数: ${frames}, Fatal: ${fatal || "无"}, 异常数: ${errors.length}`);
 
       const scPath = path.join(ARTIFACTS_DIR, `showcase_${sc}.png`);
       await page.screenshot({ path: scPath });
       console.log(`  📸 截图: ${scPath}`);
 
-      if (frames > 10 && !fatal) {
-        console.log(`  ✅ Showcase [${sc}] 验证通过`);
+      if (frames > 10 && !fatal && errors.length === 0) {
+        console.log(`  ✅ Showcase [${sc}] 验证通过 (零异常)`);
       } else {
-        console.error(`  ❌ Showcase [${sc}] 验证失败: frames=${frames}, fatal=${fatal}`);
+        console.error(
+          `  ❌ Showcase [${sc}] 验证失败: frames=${frames}, fatal=${fatal}, errors=`,
+          errors,
+        );
         hasFailures = true;
       }
       await page.close();

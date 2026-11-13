@@ -5,7 +5,8 @@
   "description": "几猫国产3A大作 - Fable 5.2 自主研发国产FPS第一人称射击游戏（逆向还原工程）",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
+    "workshop": "vite --host --open /asset-preview/index.html",
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint .",

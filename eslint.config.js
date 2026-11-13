@@ -15,6 +15,7 @@ export default [
       "scripts/extracted_*.js",
       "几猫国产3A大作_V1.html",
       "coverage/**",
+      "asset-preview/**",
     ],
   },
   js.configs.recommended,

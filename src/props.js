@@ -14,7 +14,7 @@
 
 import * as THREE from "three";
 import { createBoxGeometry, createMeshWithShadows } from "./geo.js";
-import { PROP_SIZES, withCachedPrototype } from "./props/builder.js";
+import { PROP_SIZES, withCachedPrototype, prototypeCache } from "./props/builder.js";
 import { buildContainerMesh } from "./props/containers.js";
 import {
   buildJerseyBarrier,
@@ -213,8 +213,9 @@ export const showcase = showcaseProps;
 
 const $g = {
   PROP_SIZES,
+  PROP_BUILDERS,
   create: createPropsManager,
   register: registerPropBuilder,
   showcase: showcaseProps,
 };
-export { $g, PROP_SIZES };
+export { $g, PROP_SIZES, PROP_BUILDERS, withCachedPrototype, prototypeCache };

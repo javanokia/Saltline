@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="zh-CN">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  /><title>Saltline / 资产工坊</title>
+  <link rel="stylesheet" href="style.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "/node_modules/three/build/three.module.js",
+        "three/examples/jsm/": "/node_modules/three/examples/jsm/",
+        "three/addons/": "/node_modules/three/examples/jsm/"
+      }
+    }
+  </script>
+  <body>
+    <header>
+      <a class="brand" href="../index.html">Saltline<span>资产工坊</span></a>
+      <p>雨港里的每一件东西，从代码开始。</p>
+      <span id="status" role="status">正在准备生成器…</span>
+    </header>
+    <nav aria-label="资产类别">
+      <button data-tab="models" class="active">
+        3D 模型 <span id="models-count"></span></button
+      ><button data-tab="textures">
+        材质与贴图 <span id="textures-count"></span></button
+      ><button data-tab="sounds">声音 <span id="sounds-count"></span></button
+      ><button id="toggle-inspector" aria-expanded="false">分析面板</button>
+    </nav>
+    <main>
+      <aside class="library">
+        <label for="search">查找资产</label
+        ><input id="search" type="search" placeholder="搜索名称或关键词…" />
+        <div id="list" role="list" aria-label="资产列表"></div>
+        <div id="empty" hidden>没有匹配的资产，试试其他关键词。</div>
+        <footer>原游戏生成器<br />几何 / GPU 贴图 / PCM 合成</footer>
+      </aside>
+      <section class="workspace">
+        <div class="heading">
+          <div>
+            <p id="kind">模型预览</p>
+            <h1 id="title">集装箱</h1>
+            <code id="asset-id"></code>
+          </div>
+          <div class="heading-actions">
+            <button id="animation" hidden>播放动画</button
+            ><button id="export-glb">导出 GLB</button
+            ><button id="replay">生成回放</button
+            ><button id="dependencies">依赖图</button
+            ><button id="compare">开启对比</button
+            ><button id="source">查看源码</button
+            ><button id="reset">重置视角</button>
+          </div>
+        </div>
+        <div id="viewport">
+          <canvas
+            id="scene"
+            tabindex="0"
+            aria-label="3D 预览，方向键旋转，加减键缩放"
+          ></canvas>
+          <div id="sound-view" hidden>
+            <div class="sound-mark">声音实验室</div>
+            <canvas id="wave" aria-label="音频波形"></canvas>
+            <div class="spectrum-heading">
+              <span>频谱 / dBFS</span
+              ><button id="audio-layer-source">查看合成源码</button>
+            </div>
+            <canvas
+              id="spectrum"
+              aria-label="音频频谱，横轴为赫兹对数刻度，纵轴为 dBFS"
+            ></canvas>
+            <p id="spectrum-stats" class="analysis-hint">
+              试听后显示频谱、RMS 和峰值频率。
+            </p>
+            <canvas
+              id="loop-seam"
+              hidden
+              aria-label="循环音频首尾接缝波形"
+            ></canvas>
+            <p id="seam-stats" class="analysis-hint" hidden></p>
+            <div class="transport">
+              <button id="play">试听音效</button><button id="stop">停止</button>
+            </div>
+            <div class="sound-options">
+              <label
+                >变体
+                <select id="variant"></select></label
+              ><label
+                >音量
+                <input
+                  id="volume"
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value="0.45" /></label
+              ><label><input id="loop" type="checkbox" /> 循环</label>
+            </div>
+            <p id="audio-status" role="status">点击试听后启用声音</p>
+            <section class="audio-layers">
+              <div class="spectrum-heading">
+                <h2>真实合成声层</h2>
+                <button id="analyze-layers">分析声层</button>
+              </div>
+              <p id="layer-note" class="analysis-hint">
+                采集生成器实际混入的片段，不使用频段滤波模拟声层。
+              </p>
+              <div class="layer-actions" hidden id="layer-actions">
+                <button id="layers-all">全选</button
+                ><button id="layers-none">清空</button
+                ><button id="play-layers">试听所选声层</button>
+              </div>
+              <div id="layer-list"></div>
+            </section>
+          </div>
+          <div id="compare-labels" hidden>
+            <span id="baseline-label">A · 固定基准</span
+            ><span id="current-label">B · 当前参数</span>
+          </div>
+          <button id="refresh-baseline" hidden>将当前参数设为 A</button>
+          <div id="view-note">拖动旋转 · 滚轮缩放 · Shift 拖动平移</div>
+          <div id="loading" hidden>正在生成…</div>
+        </div>
+        <div class="toolbar" id="model-tools">
+          <label><input type="checkbox" id="rotate" /> 自动旋转</label
+          ><label><input type="checkbox" id="wire" /> 线框</label
+          ><label><input type="checkbox" id="bones" /> 骨骼</label
+          ><label
+            >湿润
+            <input
+              id="wet"
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value="0.35"
+          /></label
+          ><label id="explode-quick-label"
+            >解构
+            <input
+              id="explode-quick"
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value="0"
+            /><output id="explode-quick-value">0%</output></label
+          >
+        </div>
+        <div class="toolbar" id="texture-tools" hidden>
+          <label
+            >查看
+            <select id="channel">
+              <option value="material">完整材质</option>
+              <option value="albedo">颜色 Albedo</option>
+              <option value="normal">法线 Normal</option>
+              <option value="orm">ORM 打包图</option>
+              <option value="ao">遮蔽 · ORM R</option>
+              <option value="roughness">粗糙度 · ORM G</option>
+              <option value="metalness">金属度 · ORM B</option>
+              <option value="normal-x">法线 X（编码值）</option>
+              <option value="normal-y">法线 Y（编码值）</option>
+              <option value="normal-z">法线 Z（编码值）</option>
+              <option value="albedo-alpha">颜色 A（混合遮罩）</option>
+            </select></label
+          ><label
+            >形状
+            <select id="shape">
+              <option value="sphere">球体</option>
+              <option value="box">方块</option>
+              <option value="plane">平面</option>
+            </select></label
+          >
+          <label
+            >平铺倍率
+            <input
+              id="tile-repeat"
+              type="range"
+              min="1"
+              max="8"
+              step="1"
+              value="1"
+            /><output id="tile-repeat-value">1×</output></label
+          ><label><input id="tile-seams" type="checkbox" /> 标记接缝</label
+          ><label
+            >侧光
+            <input
+              id="light-angle"
+              type="range"
+              min="0"
+              max="360"
+              step="5"
+              value="45"
+            /><output id="light-angle-value">45°</output></label
+          >
+        </div>
+        <section id="replay-controls" hidden aria-label="生成过程回放">
+          <div class="replay-top">
+            <button id="replay-prev">上一步</button
+            ><button id="replay-play">自动回放</button
+            ><button id="replay-next">下一步</button
+            ><label
+              >速度
+              <select id="replay-speed">
+                <option value="0.5">0.5×</option>
+                <option value="1" selected>1×</option>
+                <option value="2">2×</option>
+                <option value="4">4×</option>
+              </select></label
+            ><button id="replay-source">这一步源码</button
+            ><button id="replay-close">退出回放</button>
+          </div>
+          <input
+            id="replay-step"
+            type="range"
+            min="0"
+            max="1"
+            value="0"
+            aria-label="生成步骤"
+          />
+          <p id="replay-label" role="status"></p>
+          <p id="replay-note"></p>
+        </section>
+        <section id="animation-controls" hidden aria-label="模型动画控制">
+          <div class="animation-top">
+            <label
+              >动作
+              <select id="animation-clip"></select></label
+            ><button id="animation-play">暂停</button
+            ><button id="animation-reset">回到开头</button
+            ><label
+              >速度
+              <select id="animation-speed">
+                <option value="0.25">0.25×</option>
+                <option value="0.5">0.5×</option>
+                <option value="1" selected>1×</option>
+                <option value="2">2×</option>
+              </select></label
+            ><label
+              ><input id="animation-loop" type="checkbox" checked />循环</label
+            ><button id="animation-source">动作源码</button
+            ><button id="animation-close">退出动画</button>
+          </div>
+          <div class="animation-timeline">
+            <input
+              id="animation-time"
+              type="range"
+              min="0"
+              max="4"
+              step="0.01"
+              value="0"
+              aria-label="动画时间"
+            /><output id="animation-clock">0.00 / 4.00 s</output>
+          </div>
+          <p id="animation-note"></p>
+        </section>
+      </section>
+      <aside class="inspector">
+        <div class="inspector-tabs" role="group" aria-label="分析面板">
+          <button data-inspector="info" class="active">信息</button
+          ><button data-inspector="parts">零件</button
+          ><button data-inspector="params">参数</button>
+        </div>
+        <div id="info-panel">
+          <h2>资产信息</h2>
+          <dl id="details"></dl>
+          <section id="texture-inspection" hidden>
+            <h2>通道取样</h2>
+            <p id="channel-hint" class="analysis-hint"></p>
+            <p id="texel-readout" class="analysis-hint">
+              点击材质表面，读取该位置的实际 GPU 贴图数值。
+            </p>
+          </section>
+          <div class="export-actions">
+            <button id="info-export-glb" class="export-action-btn">一键导出 GLB 资产</button>
+          </div>
+          <h2>如何生成</h2>
+          <p id="explanation"></p>
+          <div class="source-note">
+            预览复用原作生成函数。模型使用独立棚灯；音效以干声试听，未叠加游戏中的空间混响。
+          </div>
+          <a href="../index.html">打开原游戏 ↗</a>
+        </div>
+        <section id="parts-panel" hidden>
+          <h2>零件选择与拆解</h2>
+          <p class="analysis-hint">
+            点击模型或下方列表选择部件组。合并网格按材质与骨骼拆分，不代表原始建模文件中的独立物体。
+          </p>
+          <label class="control-line"
+            >拆解程度
+            <input
+              id="explode"
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value="0"
+            /><output id="explode-value">0%</output></label
+          >
+          <div class="part-actions">
+            <button id="isolate-part" disabled>只看选中</button
+            ><button id="hide-part" disabled>隐藏选中</button
+            ><button id="restore-parts">显示全部</button>
+          </div>
+          <p id="part-summary" class="analysis-hint">点击部件查看信息</p>
+          <button id="part-source" disabled>查看关联源码</button>
+          <div id="parts-list" aria-label="部件列表"></div>
+        </section>
+        <section id="params-panel" hidden>
+          <h2>参数实验</h2>
+          <p class="analysis-hint" id="params-hint">修改当前资产的生成参数。</p>
+          <form id="parameter-form">
+            <label class="control-line"
+              >随机种子<input
+                id="param-seed"
+                type="number"
+                min="0"
+                max="2147483647"
+                step="1"
+                value="7" /></label
+            ><label class="control-line"
+              >颜色<select id="param-color">
+                <option value="auto">按种子选择</option>
+                <option value="red">红</option>
+                <option value="blue">蓝</option>
+                <option value="green">绿</option>
+                <option value="yellow">黄</option>
+                <option value="orange">橙</option>
+                <option value="white">白</option>
+                <option value="grey">灰</option>
+                <option value="teal">青</option>
+              </select></label
+            ><label class="control-line"
+              >开门程度<input
+                id="param-doors"
+                type="range"
+                min="0"
+                max="1"
+                step="0.1"
+                value="0.25"
+              /><output id="doors-value">25%</output></label
+            ><label class="control-line"
+              >磨损程度<input
+                id="param-wear"
+                type="range"
+                min="0"
+                max="1"
+                step="0.5"
+                value="0.5"
+              /><output id="wear-value">50%</output></label
+            ><label class="control-line"
+              >粗糙度倍率<input
+                id="param-roughness"
+                type="range"
+                min="0"
+                max="2"
+                step="0.05"
+                value="1"
+              /><output id="roughness-value">1.00</output></label
+            ><label class="control-line"
+              >金属度倍率<input
+                id="param-metalness"
+                type="range"
+                min="0"
+                max="2"
+                step="0.05"
+                value="1"
+              /><output id="metalness-value">1.00</output></label
+            ><label class="control-line"
+              >颜色叠乘<input id="param-tint" type="color" value="#ffffff"
+            /></label>
+            <div class="part-actions">
+              <button type="submit">应用到当前视图</button
+              ><button type="button" id="reset-params">恢复默认</button>
+            </div>
+          </form>
+          <button id="params-compare">固定 A 并开始对比</button>
+          <p id="comparison-summary" role="status" class="analysis-hint">
+            尚未开启对比。A 保存基准状态，参数只修改 B。
+          </p>
+        </section>
+      </aside>
+    </main>
+    <dialog id="source-dialog" aria-labelledby="source-title">
+      <div class="source-header">
+        <div>
+          <h2 id="source-title">生成源码</h2>
+          <p>
+            阅读版补充语义命名与中文注释，可切换原始源码核对。代码片段仍需结合游戏上下文阅读。
+          </p>
+        </div>
+        <button id="close-source" aria-label="关闭源码">关闭</button>
+      </div>
+      <div class="source-controls">
+        <label class="source-mode-label"
+          >版本
+          <select id="source-mode">
+            <option value="readable">注释阅读版</option>
+            <option value="original">原始源码</option>
+          </select></label
+        ><label
+          >代码部分
+          <select id="source-section"></select></label
+        ><button id="copy-source">复制代码</button
+        ><button id="download-source">下载全部</button>
+      </div>
+      <pre tabindex="0"><code id="source-code"></code></pre>
+    </dialog>
+    <script src="readable-sources.js"></script>
+    <dialog id="dependency-dialog" aria-labelledby="dependency-title">
+      <div class="source-header">
+        <div>
+          <h2 id="dependency-title">资产依赖图</h2>
+          <p>
+            函数链路来自源码静态引用；材质链路来自当前模型实际使用的材质。点击节点查看源码。
+          </p>
+        </div>
+        <button id="close-dependencies">关闭</button>
+      </div>
+      <div class="graph-controls">
+        <button data-graph="calls" class="active">生成调用</button
+        ><button data-graph="materials">材质链路</button>
+      </div>
+      <div
+        id="dependency-graph"
+        tabindex="0"
+        aria-label="可交互资产依赖图"
+      ></div>
+      <p id="graph-note" class="analysis-hint"></p>
+    </dialog>
+    <script src="dependency-index.js"></script>
+    <script src="analysis.js"></script>
+    <script src="labs.js"></script>
+    <script src="animation.js"></script>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

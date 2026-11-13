@@ -189,7 +189,8 @@ async function runTest() {
       const targetUrl = `${BASE_URL}/几猫国产3A大作_V1.html?bench=1&autostart=1&noaudio=1`;
       console.log(`正在访问: ${targetUrl}`);
       await page.goto(targetUrl, { waitUntil: "load", timeout: 30000 });
-      await sleep(4000);
+      await page.waitForFunction(() => window.__ready === true, { timeout: 20000 });
+      await sleep(3500);
 
       const rawFrames = await page.evaluate(() => window.__frames || 0);
       console.log(`- 原始文件运行帧数: ${rawFrames}`);
@@ -554,6 +555,57 @@ async function runTest() {
       }
 
       await mazePage.close();
+
+      // ----------------------------------------------------------------
+      // 【测试用例 8】: 资产工坊 (Asset Preview / 资产工坊) 全功能自动化验证
+      // ----------------------------------------------------------------
+      console.log("\n----------------------------------------------------------------");
+      console.log("【测试用例 8】: 资产工坊 (Asset Preview) 全量模型/贴图/音频工作台验证");
+      console.log("----------------------------------------------------------------");
+      const workshopPage = await browser.newPage();
+      const workshopErrors = [];
+      workshopPage.on("pageerror", (err) => workshopErrors.push(err.toString()));
+
+      await workshopPage.goto(`${BASE_URL}/asset-preview/index.html`, {
+        waitUntil: "networkidle0",
+      });
+      const workshopTitle = await workshopPage.title();
+      const initialAsset = await workshopPage.$eval("#title", (el) => el.textContent);
+      const modelsCount = Number(await workshopPage.$eval("#models-count", (el) => el.textContent));
+      const texturesCount = Number(
+        await workshopPage.$eval("#textures-count", (el) => el.textContent),
+      );
+      const soundsCount = Number(await workshopPage.$eval("#sounds-count", (el) => el.textContent));
+
+      console.log(`- 资产工坊标题: ${workshopTitle}, 初始资产: ${initialAsset}`);
+      console.log(
+        `- 资产统计: 3D模型=${modelsCount}, 材质贴图=${texturesCount}, 音效声音=${soundsCount}`,
+      );
+
+      const screenshotWorkshop = path.join(ARTIFACTS_DIR, "asset_workshop_preview.png");
+      await workshopPage.screenshot({ path: screenshotWorkshop });
+      console.log(`📸 资产工坊截图: ${screenshotWorkshop}`);
+
+      if (
+        workshopTitle.includes("资产工坊") &&
+        modelsCount > 30 &&
+        texturesCount > 40 &&
+        soundsCount > 50 &&
+        workshopErrors.length === 0
+      ) {
+        console.log("✅ 资产工坊 3D 几何、GPU 贴图与程序化音频全量装配验证通过！");
+        console.log("🎉 【测试用例 8 通过】: 资产工坊完美就绪！");
+      } else {
+        console.error("❌ 资产工坊测试失败:", {
+          workshopTitle,
+          modelsCount,
+          texturesCount,
+          soundsCount,
+          workshopErrors,
+        });
+        hasFailures = true;
+      }
+      await workshopPage.close();
     }
   } finally {
     if (browser) await browser.close();

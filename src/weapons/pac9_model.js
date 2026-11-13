@@ -2497,3 +2497,11 @@ export {
   Kc as countGeometryTris,
   Wv as pac9RainUniform,
 };
+
+export const PAC9_HELPERS = {
+  roundedBox: Rt,
+  chamferBox: xr,
+  wedgeBox: qo,
+  plate: Cn,
+  vertexNoise: sm,
+};

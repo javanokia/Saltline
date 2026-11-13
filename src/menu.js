@@ -134,6 +134,7 @@ export function createMenu(ctx, callbacks) {
         <p class="m-premise">${t("menu.premise")}</p>
         <div class="m-actions">
           <button class="btn primary" data-act="deploy">${t("menu.deploy")}</button>
+          <button class="btn" data-act="workshop">${t("menu.workshop")}</button>
           <button class="btn" data-act="settings">${t("menu.settings")}</button>
           <button class="btn m-only-narrow" data-act="controls">${t("menu.controls")}</button>
         </div>
@@ -522,7 +523,9 @@ export function createMenu(ctx, callbacks) {
     }
 
     const action = btn.dataset.act;
-    if (action === "about") openPanel("about");
+    if (action === "workshop") {
+      window.open("./asset-preview/index.html", "_blank");
+    } else if (action === "about") openPanel("about");
     else if (action === "settings") openPanel("settings");
     else if (action === "controls") openPanel("controls");
     else if (action === "close-panel") closePanel();

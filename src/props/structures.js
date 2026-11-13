@@ -352,7 +352,7 @@ function buildSignPost(engineCtx, options = {}) {
 
   // 铝合金标牌板面 (Aluminum Signboard)
   t.box(matWhite, 0.6, 0.6, 0.02, 0, 1.9, 0.035, { r: 0.005 });
-  const signDecal = getCachedDecalTexture(engineCtx, options.sign || "warning_hazard");
+  const signDecal = getCachedDecalTexture(engineCtx, options.sign || "hazard_general");
   t.decal(signDecal, 0.55, 0.55, 0, 1.9, 0.047, [0, 0, 0]);
 
   return t.group(engineCtx.mats);

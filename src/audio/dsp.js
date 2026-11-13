@@ -70,6 +70,9 @@ function generateWhiteNoise(sampleRate, duration, rng) {
   for (let i = 0; i < buf.length; i++) {
     buf[i] = rng() * 2 - 1;
   }
+  if (audioTagObserver) {
+    audioTagObserver(buf, { kind: "基础噪声", detail: "固定种子随机采样" });
+  }
   return buf;
 }
 
@@ -185,10 +188,23 @@ const createExpDecayEnvelope = (decayTime, attackTime = 0) =>
     ? (t) => (1 - Math.exp(-t / attackTime)) * Math.exp(-t / decayTime)
     : (t) => Math.exp(-t / decayTime);
 
+let audioMixObserver = null;
+let audioTagObserver = null;
+
+/**
+ * @param {{ onMix?: Function | null, onTag?: Function | null }} [options]
+ */
+function setAudioObservers(options = {}) {
+  const { onMix, onTag } = options;
+  audioMixObserver = onMix || null;
+  audioTagObserver = onTag || null;
+}
+
 /**
  * 将源样本混合混入目标缓冲区 (Buffer Splice / Mix)
  */
 function mixBuffer(target, source, startSec, gain, sampleRate) {
+  if (audioMixObserver) audioMixObserver(target, source, startSec, gain, sampleRate, false);
   const startSample = Math.round(startSec * sampleRate);
   const copyLen = Math.min(source.length, target.length - startSample);
   for (let i = Math.max(0, -startSample); i < copyLen; i++) {
@@ -201,6 +217,7 @@ function mixBuffer(target, source, startSec, gain, sampleRate) {
  * 环形循环混音 (Circular Wrapping Mix)
  */
 function mixBufferWrapped(target, source, startSec, gain, sampleRate) {
+  if (audioMixObserver) audioMixObserver(target, source, startSec, gain, sampleRate, true);
   const len = target.length;
   let cursor = Math.round(startSec * sampleRate) % len;
   if (cursor < 0) cursor += len;
@@ -271,7 +288,16 @@ function synthesizeNoiseBurst(sampleRate, rng, duration, decayTime, filterOpts =
 
   applyEnvelope(noise, sampleRate, createExpDecayEnvelope(decayTime, filterOpts.att || 0));
   const peak = getPeakAmplitude(noise);
-  return peak > 0 ? scaleBuffer(noise, 1 / peak) : noise;
+  const res = peak > 0 ? scaleBuffer(noise, 1 / peak) : noise;
+  if (audioTagObserver) {
+    audioTagObserver(res, {
+      kind: filterOpts.hp || filterOpts.lp || filterOpts.bp ? "滤波噪声" : "包络噪声",
+      detail: Object.entries(filterOpts)
+        .map(([k, v]) => `${k}=${v}`)
+        .join(", "),
+    });
+  }
+  return res;
 }
 
 /**
@@ -293,6 +319,9 @@ function synthesizePitchSweepSine(
     phase += (TWO_PI * (endFreq + (startFreq - endFreq) * Math.exp(-t / pitchDecay))) / sampleRate;
     buf[i] = Math.sin(phase) * Math.exp(-t / ampDecay) * (1 - Math.exp(-t / attackTime));
   }
+  if (audioTagObserver) {
+    audioTagObserver(buf, { kind: "衰减扫频冲击", detail: `${startFreq} → ${endFreq} Hz` });
+  }
   return buf;
 }
 
@@ -307,6 +336,9 @@ function synthesizeChirp(sampleRate, duration, startFreq, endFreq, applyWindow =
     const progress = i / len;
     phase += (TWO_PI * startFreq * Math.pow(endFreq / startFreq, progress)) / sampleRate;
     buf[i] = Math.sin(phase) * (applyWindow ? Math.sin(Math.PI * progress) : 1);
+  }
+  if (audioTagObserver) {
+    audioTagObserver(buf, { kind: "扫频音", detail: `${startFreq} → ${endFreq} Hz` });
   }
   return buf;
 }
@@ -338,6 +370,9 @@ function synthesizeModalBank(sampleRate, duration, modalPoles, rng) {
   for (let i = 0; i < attackSamples; i++) {
     buf[i] *= i / attackSamples;
   }
+  if (audioTagObserver) {
+    audioTagObserver(buf, { kind: "共振模态", detail: `${modalPoles.length} 个频率分量` });
+  }
   return buf;
 }
 
@@ -365,6 +400,9 @@ function synthesizeGranularDebris(sampleRate, rng, duration, count, opts = {}) {
   if (opts.hp) applyBiquadFilter(buf, "hp", opts.hp, 0.707, sampleRate);
   if (opts.lp) applyBiquadFilter(buf, "lp", opts.lp, 0.707, sampleRate);
   if (opts.bp) applyBiquadFilter(buf, "bp", opts.bp, opts.q || 1, sampleRate);
+  if (audioTagObserver) {
+    audioTagObserver(buf, { kind: "颗粒 / 短促脉冲", detail: `${count} 组` });
+  }
   return buf;
 }
 
@@ -399,6 +437,7 @@ function buildSeamlessLoop(sampleRate, duration, rng, processFn, padSec = 0.4) {
 function sumTracks(totalLength, ...tracks) {
   const out = new Float32Array(totalLength);
   for (const [buf, gain] of tracks) {
+    if (audioMixObserver) audioMixObserver(out, buf, 0, gain, 0, false);
     const copyLen = Math.min(totalLength, buf.length);
     for (let i = 0; i < copyLen; i++) {
       out[i] += buf[i] * gain;
@@ -457,4 +496,5 @@ export {
   synthesizeChirp,
   synthesizeModalBank,
   synthesizeGranularDebris,
+  setAudioObservers,
 };

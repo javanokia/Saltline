@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { createBoxGeometry, createCylinderGeometry } from "../geo.js";
+import { createBoxGeometry, createCylinderGeometry, createTubeFromPoints } from "../geo.js";
 import {
   PI,
   HALF_PI,
@@ -7,6 +7,10 @@ import {
   PropCompoundBuilder,
   getCachedDecalTexture,
   createChamferedBoxGeometry,
+  createBoxBetweenPoints,
+  createPrismGeometry,
+  normalizePolygonWinding,
+  createSubdividedBoxGeometry,
   createConnectingCylinder,
   createRevolvedGeometry,
   generateBarrelProfilePoints,
@@ -19,24 +23,78 @@ import {
   sampleSimplexNoise3D,
 } from "./builder.js";
 
-function buildVehicleWheel(builder, x, y, z, tireRadius, tireWidth, rimRadius, isFront, prng) {
-  const tireGeo = generateTireTreadProfile(tireWidth, tireRadius, rimRadius, 18);
-  builder.push({ p: [x, y, z], r: [isFront ? HALF_PI : -HALF_PI, 0, 0] });
+function buildVehicleWheel(
+  builder,
+  x,
+  y,
+  width,
+  halfTrack,
+  sideSign,
+  rimRadius,
+  segments,
+  _unused,
+  prng,
+) {
+  const tireGeo = generateTireTreadProfile(y, width, rimRadius, segments);
+  builder.push({
+    p: [x, y, sideSign > 0 ? halfTrack - width / 2 : -(halfTrack - width / 2)],
+    r: [sideSign > 0 ? HALF_PI : -HALF_PI, 0, 0],
+  });
   builder.push({ r: [0, prng() * 6, 0] });
-  builder.add("tire", tireGeo, null, 0.85);
-
-  // 钢制轮毂与轴承螺栓 (Steel Rim & Lug Nuts)
-  const rimGeo = createCylinderGeometry(rimRadius, rimRadius, tireWidth * 0.6, 16);
-  builder.add("steel_dark", rimGeo, null, 0.6);
-  for (let k = 0; k < 6; k++) {
-    const a = k * (PI / 3);
-    const lx = Math.cos(a) * (rimRadius * 0.55);
-    const ly = Math.sin(a) * (rimRadius * 0.55);
+  const noiseSeed = prng() * 20;
+  builder.add("tire", tireGeo, null, (vx, vy, vz) => {
+    const dist = Math.hypot(vx, vz);
+    return dist < rimRadius + 0.01
+      ? 0.45
+      : 0.78 + 0.22 * sampleSimplexNoise3D(Math.atan2(vz, vx) * 3 + noiseSeed, dist * 30, 0);
+  });
+  const rimInset = width * 0.8;
+  const rimHubGeo = createRevolvedGeometry(
+    [
+      [rimRadius + 0.006, rimInset + 0.012],
+      [rimRadius - 0.012, rimInset + 0.016],
+      [rimRadius - 0.03, rimInset - 0.02],
+      [rimRadius * 0.62, rimInset - 0.05],
+      [rimRadius * 0.5, rimInset - 0.02],
+      [rimRadius * 0.42, rimInset - 0.012],
+      [0, rimInset - 0.012],
+    ],
+    14,
+  );
+  builder.add("paint_yellow", rimHubGeo, null, (vx, vy, vz) =>
+    Math.hypot(vx, vz) > rimRadius * 0.7 ? [0.55, 0.5, 0.42] : [0.8, 0.78, 0.7],
+  );
+  builder.add(
+    "steel_dark",
+    createRevolvedGeometry(
+      [
+        [0, width * 0.2],
+        [rimRadius + 0.004, width * 0.2],
+      ],
+      10,
+    ),
+    null,
+    0.4,
+  );
+  builder.add(
+    "steel_dark",
+    createCylinderGeometry(rimRadius * 0.2, rimRadius * 0.24, 0.035, 8),
+    { p: [0, rimInset, 0] },
+    0.7,
+  );
+  for (let p = 0; p < 6; p++) {
+    const angle = (p * Math.PI) / 3;
     builder.add(
       "steel_galv",
-      createCylinderGeometry(0.015, 0.015, 0.02, 6),
-      { p: [lx, ly, tireWidth * 0.32] },
-      0.8,
+      createCylinderGeometry(0.011, 0.012, 0.016, 6),
+      {
+        p: [
+          Math.cos(angle) * rimRadius * 0.33,
+          rimInset - 0.006,
+          Math.sin(angle) * rimRadius * 0.33,
+        ],
+      },
+      prng.range(0.5, 0.8),
     );
   }
   builder.pop();
@@ -604,75 +662,790 @@ function buildCardboardBoxes(engineCtx, options = {}) {
 /**
  * 3.5吨柴油电动平衡重叉车 (3.5T Counterbalanced Industrial Forklift)
  */
+/**
+ * 高精重型工业内燃叉车 (Heavy Industrial Counterbalanced Forklift)
+ */
+// Deconstructed oR:
 function buildForklift(engineCtx, options = {}) {
   const b = new PropCompoundBuilder(engineCtx, "forklift", options.seed || 0);
   const prng = b.rng;
   const forksUp = clamp(+options.forksUp || 0, 0, 1);
   const forkLiftY = forksUp * 1.5;
+  const halfLiftY = forkLiftY / 2;
   const [matBody, tint] = resolveColorPalette(options.color, "yellow");
+  const tintScale = (k = 1) => (typeof tint === "number" ? tint * k : tint.map((v) => v * k));
   const matDark = "steel_dark";
-  const matGalv = "steel_galv";
+  const getLuminance = () => prng.range(0.68, 0.95);
+  const fleetNum = options.number || ["04", "07", "12", "22"][b.seed % 4];
 
-  // 1. 车身底盘与后部铸铁配重块 (Chassis & Cast-Iron Counterweight)
-  b.add(matBody, createChamferedBoxGeometry(1.9, 0.75, 1.15, 0.03), { p: [-0.3, 0.55, 0] }, tint);
-  // 后部流线型重型配重块 (Rear Curved Counterweight)
-  b.add(matBody, createChamferedBoxGeometry(0.65, 0.68, 1.12, 0.08), { p: [-1.15, 0.6, 0] }, tint);
+  const frontRadius = 0.33;
+  const frontWidth = 0.23;
+  const frontX = 0.22;
+  const frontTrack = 0.47;
+  const rearRadius = 0.27;
+  const rearWidth = 0.18;
+  const rearX = -1.1;
+  const rearTrack = 0.46;
 
-  // 2. 驾驶室顶棚防落物保护结构 (FOPS Overhead Guard & Roll Cage)
-  const cageH = 2.15;
-  for (const sx of [-0.95, 0.25]) {
-    for (const sz of [-0.52, 0.52]) {
-      b.add(matDark, createConnectingCylinder([sx, 0.9, sz], [sx, cageH, sz], 0.022, 6));
+  for (const side of [1, -1]) {
+    buildVehicleWheel(b, frontX, frontRadius, frontWidth, frontTrack, side, 0.195, 24, 0, prng);
+    buildVehicleWheel(b, rearX, rearRadius, rearWidth, rearTrack, side, 0.155, 20, 0, prng);
+  }
+
+  b.add(
+    matDark,
+    createConnectingCylinder([frontX, frontRadius, -0.4], [frontX, frontRadius, 0.4], 0.07, 8),
+    null,
+    0.5,
+  );
+  b.add(
+    matDark,
+    createChamferedBoxGeometry(0.12, 0.1, 0.78, 0.01),
+    { p: [rearX, rearRadius, 0] },
+    0.5,
+  );
+  b.add(
+    matDark,
+    createChamferedBoxGeometry(1.95, 0.34, 0.68, 0.02),
+    { p: [-0.425, 0.37, 0] },
+    0.55,
+  );
+
+  for (const side of [1, -1]) {
+    b.add(
+      matBody,
+      createChamferedBoxGeometry(0.6, 0.3, 0.17, 0.02),
+      { p: [-0.47, 0.4, side * 0.42] },
+      tintScale(0.92),
+    );
+    b.add(
+      "diamond_plate",
+      createChamferedBoxGeometry(0.3, 0.012, 0.16, 0.003),
+      { p: [-0.32, 0.556, side * 0.42] },
+      0.7,
+    );
+    b.add(
+      matDark,
+      createCylinderGeometry(0.03, 0.03, 0.02, 8),
+      { p: [-0.62, 0.56, side * 0.42] },
+      0.6,
+    );
+
+    const fenderPts = [];
+    const rIn = frontRadius + 0.035;
+    const rOut = frontRadius + 0.06;
+    for (let s = 0; s <= 7; s++) {
+      const ang = 0.12 + ((Math.PI - 0.5) * s) / 7;
+      fenderPts.push([frontX + Math.cos(ang) * rOut, frontRadius + Math.sin(ang) * rOut]);
     }
-  }
-  b.add(matDark, createBoxGeometry(1.25, 0.04, 1.1), { p: [-0.35, cageH, 0] });
-  for (let z = -0.4; z <= 0.41; z += 0.2) {
-    b.add(matDark, createBoxGeometry(1.2, 0.02, 0.02), { p: [-0.35, cageH - 0.02, z] });
+    for (let s = 7; s >= 0; s--) {
+      const ang = 0.12 + ((Math.PI - 0.5) * s) / 7;
+      fenderPts.push([frontX + Math.cos(ang) * rIn, frontRadius + Math.sin(ang) * rIn]);
+    }
+    b.add(
+      matBody,
+      createPrismGeometry(fenderPts, 0.27, { soft: 0.7 }),
+      { p: [0, 0, side * 0.475] },
+      tintScale(0.95),
+    );
   }
 
-  // 3. 驾驶员座椅与液压方向盘 (Driver Seat & Steering Wheel)
-  b.add("rubber", createChamferedBoxGeometry(0.45, 0.12, 0.48, 0.02), { p: [-0.35, 1.0, 0] });
-  b.add("rubber", createChamferedBoxGeometry(0.1, 0.45, 0.46, 0.02), { p: [-0.55, 1.25, 0] });
-  b.add(matDark, createConnectingCylinder([0.05, 0.9, 0], [0.12, 1.25, 0], 0.018, 6));
-  b.add("rubber", createCylinderGeometry(0.18, 0.18, 0.02, 12), {
-    p: [0.12, 1.27, 0],
-    rot: [0.4, 0, 0],
+  b.add("diamond_plate", createBoxGeometry(0.66, 0.016, 0.68), { p: [0.2, 0.548, 0] }, 0.6);
+  for (const pedZ of [-0.12, 0.1]) {
+    b.add(
+      "rubber",
+      createChamferedBoxGeometry(0.1, 0.02, 0.07, 0.006),
+      { p: [0.33, 0.6, pedZ], r: [0, 0, 0.5] },
+      0.8,
+    );
+  }
+
+  const cwBox = createSubdividedBoxGeometry(0.62, 0.63, 1.12, 0.12, 3, 3, 3);
+  traverseAndMutateVertices(cwBox, (v) => {
+    if (v.y > 0.1) {
+      const fac = (v.y - 0.1) / 0.215;
+      v.x += 0.03 * fac * (v.x < 0 ? 1 : 0);
+    }
+  });
+  b.add(matBody, recomputeNormalsAndBounds(cwBox), { p: [-1.39, 0.915, 0] }, tintScale(0.97));
+  b.add(
+    matBody,
+    createChamferedBoxGeometry(0.56, 0.37, 0.64, 0.05),
+    { p: [-1.4, 0.43, 0] },
+    tintScale(0.85),
+  );
+  b.add(
+    "hazard_stripes",
+    createChamferedBoxGeometry(0.014, 0.085, 0.84, 0.004),
+    { p: [-1.702, 0.77, 0] },
+    0.95,
+  );
+  b.label(fleetNum, { color: "black", font: "stencil", distress: 0.35 }, 0.4, 0.2, {
+    p: [-1.703, 0.96, 0],
+    r: [0, -HALF_PI, 0],
   });
 
-  // 4. 前部双级起升门架 (Duplex Mast Assembly)
-  const mastX = 0.82;
-  for (const sz of [-0.44, 0.44]) {
-    b.add(matDark, createChamferedBoxGeometry(0.14, 2.3, 0.08, 0.01), { p: [mastX, 1.2, sz] });
-  }
-  b.add(matDark, createBoxGeometry(0.1, 0.08, 0.92), { p: [mastX, 0.2, 0] });
-  b.add(matDark, createBoxGeometry(0.1, 0.08, 0.92), { p: [mastX, 2.25, 0] });
-
-  // 5. 锻造钢制货叉与升降滑架 (Forks Carriage & Tines)
-  const carriageY = 0.25 + forkLiftY;
-  b.add(matGalv, createBoxGeometry(0.06, 0.65, 0.86), { p: [mastX + 0.08, carriageY + 0.32, 0] });
-  for (const sz of [-0.26, 0.26]) {
-    // 垂直叉背
-    b.add(matGalv, createChamferedBoxGeometry(0.05, 0.75, 0.12, 0.006), {
-      p: [mastX + 0.12, carriageY + 0.36, sz],
+  for (const side of [1, -1]) {
+    b.add(
+      engineCtx.mats.emissive(0xff2212, 0.16),
+      createChamferedBoxGeometry(0.012, 0.05, 0.11, 0.004),
+      { p: [-1.69, 1.1, side * 0.37] },
+      1,
+      { raw: true },
+    );
+    b.add(
+      matDark,
+      createChamferedBoxGeometry(0.016, 0.066, 0.126, 0.004),
+      { p: [-1.684, 1.1, side * 0.37] },
+      0.4,
+    );
+    b.label("几猫", { color: "black", font: "sans", distress: 0.3 }, 0.42, 0.085, {
+      p: [-1.39, 0.99, side * 0.5625],
+      r: [0, side > 0 ? 0 : Math.PI, 0],
     });
-    // 水平货叉长臂 (1.2m Fork Tine)
-    b.add(matGalv, createChamferedBoxGeometry(1.22, 0.045, 0.12, 0.005), {
-      p: [mastX + 0.72, carriageY + 0.025, sz],
+    b.add(
+      matDark,
+      createChamferedBoxGeometry(0.06, 0.05, 0.02, 0.004),
+      { p: [-1.67, 0.44, side * 0.05] },
+      0.5,
+    );
+  }
+  b.add("steel_worn", createCylinderGeometry(0.02, 0.02, 0.13, 8), { p: [-1.68, 0.44, 0] }, 0.7);
+  b.add(
+    matBody,
+    createChamferedBoxGeometry(0.98, 0.46, 0.94, 0.04),
+    { p: [-0.59, 0.79, 0] },
+    tintScale(),
+  );
+
+  for (const side of [1, -1]) {
+    b.label(fleetNum, { color: "black", font: "stencil", distress: 0.35 }, 0.3, 0.19, {
+      p: [-0.84, 0.8, side * 0.4715],
+      r: [0, side > 0 ? 0 : Math.PI, 0],
     });
+    b.add(matDark, createBoxGeometry(0.34, 0.2, 0.004), { p: [-0.36, 0.8, side * 0.47] }, 0.2);
+    for (let sl = 0; sl < 5; sl++) {
+      b.add(
+        matBody,
+        createBoxGeometry(0.34, 0.03, 0.006),
+        { p: [-0.36, 0.72 + sl * 0.04, side * 0.474], r: [side * 0.5, 0, 0] },
+        tintScale(0.85),
+      );
+    }
   }
 
-  // 6. 前后四实心橡胶工业轮胎 (4 Solid Rubber Industrial Tires)
-  buildVehicleWheel(b, 0.65, 0.36, 0.58, 0.36, 0.24, 0.18, true, prng);
-  buildVehicleWheel(b, 0.65, 0.36, -0.58, 0.36, 0.24, 0.18, true, prng);
-  buildVehicleWheel(b, -0.85, 0.3, 0.52, 0.3, 0.18, 0.15, false, prng);
-  buildVehicleWheel(b, -0.85, 0.3, -0.52, 0.3, 0.18, 0.15, false, prng);
+  b.add(matDark, createChamferedBoxGeometry(0.4, 0.05, 0.4, 0.01), { p: [-0.54, 1.045, 0] }, 0.5);
 
-  return b.finish({ size: [3.4, 2.3, 1.25] });
+  const seatBase = createSubdividedBoxGeometry(0.46, 0.1, 0.46, 0.04, 3, 3, 3);
+  traverseAndMutateVertices(seatBase, (v) => {
+    if (v.y > 0) v.y -= 0.018 * Math.cos(v.x * 5) * Math.cos(v.z * 5);
+  });
+  b.add("rubber", recomputeNormalsAndBounds(seatBase), { p: [-0.53, 1.115, 0] }, 1);
+
+  const seatBack = createSubdividedBoxGeometry(0.1, 0.5, 0.44, 0.04, 3, 4, 3);
+  traverseAndMutateVertices(seatBack, (v) => {
+    if (v.x > 0) v.x -= 0.02 * Math.cos(v.z * 5.5);
+  });
+  b.add("rubber", recomputeNormalsAndBounds(seatBack), { p: [-0.8, 1.39, 0], r: [0, 0, 0.16] }, 1);
+
+  for (const side of [1, -1]) {
+    b.add(
+      matDark,
+      createBoxBetweenPoints(
+        [-0.78, 1.08, side * 0.24],
+        [-0.82, 1.3, side * 0.24],
+        0.03,
+        0.012,
+        0.004,
+      ),
+      null,
+      0.5,
+    );
+  }
+
+  b.add(
+    matBody,
+    createPrismGeometry(
+      [
+        [0.2, 0.55],
+        [0.54, 0.55],
+        [0.54, 1],
+        [0.46, 1.12],
+        [0.3, 1.14],
+        [0.21, 1.02],
+      ],
+      0.7,
+      { soft: 0.5 },
+    ),
+    null,
+    tintScale(),
+  );
+
+  const dashAngle = Math.atan2(0.12, 0.09);
+  b.push({ p: [0.253, 1.082, 0], r: [0, 0, dashAngle] });
+  b.add(matDark, createChamferedBoxGeometry(0.012, 0.13, 0.44, 0.004), { p: [-0.006, 0, 0] }, 0.45);
+  b.add(
+    engineCtx.mats.emissive(0x8fe2f0, 0.3),
+    new THREE.PlaneGeometry(0.09, 0.05),
+    { p: [-0.0135, 0.01, 0.1], r: [0, -HALF_PI, 0] },
+    1,
+    { raw: true, cast: false },
+  );
+  b.decal(engineCtx.mats.decal("csc_plate"), 0.09, { p: [-0.0135, 0, -0.12], r: [0, -HALF_PI, 0] });
+  b.add(
+    "plastic_red",
+    createCylinderGeometry(0.016, 0.016, 0.02, 8),
+    { p: [-0.02, 0, 0.19], r: [0, 0, HALF_PI] },
+    0.9,
+  );
+  b.add(
+    "steel_bare",
+    createCylinderGeometry(0.009, 0.009, 0.02, 6),
+    { p: [-0.018, -0.03, -0.01], r: [0, 0, HALF_PI] },
+    0.9,
+  );
+  b.pop();
+
+  const strBase = [0.3, 1.1, 0.04];
+  const strTop = [0.1, 1.31, 0.04];
+  b.add(matDark, createConnectingCylinder(strBase, strTop, 0.024, 8), null, 0.5);
+  b.push({ p: strTop, r: [0, 0, Math.atan2(strTop[1] - strBase[1], strTop[0] - strBase[0])] });
+  b.add("rubber", new THREE.TorusGeometry(0.165, 0.014, 6, 18), { r: [0, HALF_PI, 0] }, 1);
+  for (let sp = 0; sp < 3; sp++) {
+    const spAng = (sp * Math.PI * 2) / 3 + 0.5;
+    b.add(
+      matDark,
+      createConnectingCylinder(
+        [-0.01, 0, 0],
+        [0, Math.cos(spAng) * 0.16, Math.sin(spAng) * 0.16],
+        0.009,
+        5,
+      ),
+      null,
+      0.5,
+    );
+  }
+  b.add(
+    matDark,
+    createCylinderGeometry(0.035, 0.04, 0.03, 10),
+    { p: [-0.005, 0, 0], r: [0, 0, HALF_PI] },
+    0.5,
+  );
+  b.add(
+    "rubber",
+    createCylinderGeometry(0.016, 0.014, 0.045, 8),
+    { p: [0.03, 0.16, 0.02], r: [0, 0, HALF_PI] },
+    1,
+  );
+  b.pop();
+
+  for (let lv = 0; lv < 3; lv++) {
+    const lvZ = -0.2 - lv * 0.055;
+    const p1 = [0.33, 1.12, lvZ];
+    const p2 = [0.25 - lv * 0.012, 1.3 - lv * 0.01, lvZ - 0.01];
+    b.add("steel_bare", createConnectingCylinder(p1, p2, 0.007, 5), null, 0.8);
+    b.add("rubber", new THREE.SphereGeometry(0.02, 7, 5), { p: p2 }, 1);
+  }
+  {
+    const hb1 = [0.3, 1.1, 0.27];
+    const hb2 = [0.2, 1.24, 0.29];
+    b.add("steel_bare", createConnectingCylinder(hb1, hb2, 0.008, 5), null, 0.8);
+    b.add(
+      "plastic_red",
+      createCylinderGeometry(0.016, 0.016, 0.07, 7),
+      { p: hb2, r: [0, 0, 0.6] },
+      0.9,
+    );
+  }
+
+  const cageTopY = 2.045;
+  const cageColliders = [];
+  for (const side of [1, -1]) {
+    const pFrontLow = [0.47, 1.08, side * 0.4];
+    const pFrontHigh = [0.27, cageTopY, side * 0.46];
+    const pRearLow = [-1, 1, side * 0.44];
+    const pRearHigh = [-0.95, cageTopY, side * 0.46];
+    b.add(
+      matDark,
+      createBoxBetweenPoints(pFrontLow, pFrontHigh, 0.06, 0.05, 0.01),
+      null,
+      getLuminance(),
+    );
+    b.add(
+      matDark,
+      createBoxBetweenPoints(pRearLow, pRearHigh, 0.06, 0.05, 0.01),
+      null,
+      getLuminance(),
+    );
+    b.add(
+      matDark,
+      createBoxBetweenPoints(
+        [0.3, cageTopY, side * 0.46],
+        [-0.98, cageTopY, side * 0.46],
+        0.05,
+        0.06,
+        0.01,
+      ),
+      null,
+      getLuminance(),
+    );
+    b.add(
+      matDark,
+      createChamferedBoxGeometry(0.09, 0.012, 0.08, 0.003),
+      { p: [0.47, 1.085, side * 0.4] },
+      0.5,
+    );
+    b.add(
+      matDark,
+      createChamferedBoxGeometry(0.09, 0.012, 0.08, 0.003),
+      { p: [-1, 1.024, side * 0.44] },
+      0.5,
+    );
+
+    const hlX = 0.36;
+    const hlY = 1.66;
+    b.add(
+      matDark,
+      createSubdividedBoxGeometry(0.085, 0.1, 0.13, 0.02, 3, 3, 3),
+      { p: [hlX + 0.045, hlY, side * 0.47] },
+      0.45,
+    );
+    b.add(
+      engineCtx.mats.emissive(0xffef52, 0.7),
+      createChamferedBoxGeometry(0.006, 0.075, 0.105, 0.002),
+      { p: [hlX + 0.089, hlY, side * 0.47] },
+      1,
+      { raw: true },
+    );
+    b.add(
+      matDark,
+      createConnectingCylinder([0.385, 1.5, side * 0.42], [0.42, 1.52, side * 0.57], 0.008, 5),
+      null,
+      0.5,
+    );
+    b.add(
+      matDark,
+      createChamferedBoxGeometry(0.022, 0.17, 0.1, 0.006),
+      { p: [0.42, 1.52, side * 0.573], r: [0, side * 0.25, 0] },
+      0.5,
+    );
+    b.add(
+      "steel_bare",
+      createBoxGeometry(0.002, 0.15, 0.084),
+      { p: [0.408, 1.52, side * 0.57], r: [0, side * 0.25, 0] },
+      1,
+    );
+
+    cageColliders.push(
+      {
+        min: [-1.03, 1, side > 0 ? 0.41 : -0.5],
+        max: [-0.92, cageTopY, side > 0 ? 0.5 : -0.41],
+        surface: "metal",
+      },
+      {
+        min: [0.24, 1.08, side > 0 ? 0.37 : -0.5],
+        max: [0.5, cageTopY, side > 0 ? 0.5 : -0.37],
+        surface: "metal",
+      },
+    );
+  }
+
+  for (const crossX of [0.28, -0.96]) {
+    b.add(
+      matDark,
+      createChamferedBoxGeometry(0.05, 0.06, 0.92, 0.01),
+      { p: [crossX, cageTopY, 0] },
+      getLuminance(),
+    );
+  }
+  for (let gr = 0; gr < 8; gr++) {
+    b.add(
+      matDark,
+      createChamferedBoxGeometry(0.03, 0.028, 0.9, 0.006),
+      { p: [-0.83 + gr * 0.139, cageTopY + 0.012, 0] },
+      getLuminance(),
+    );
+  }
+
+  b.add(
+    matDark,
+    createTubeFromPoints(
+      [
+        [0.44, 1.2, 0.44],
+        [0.47, 1.25, 0.49],
+        [0.41, 1.55, 0.5],
+        [0.36, 1.6, 0.455],
+      ],
+      0.011,
+      5,
+      false,
+      0.5,
+    ),
+    null,
+    0.5,
+  );
+  b.add(
+    matDark,
+    createCylinderGeometry(0.045, 0.05, 0.03, 10),
+    { p: [-0.86, cageTopY + 0.045, 0.3] },
+    0.5,
+  );
+  b.add(
+    engineCtx.mats.emissive(0xff8812, 0.9),
+    createRevolvedGeometry(
+      [
+        [0.04, 0],
+        [0.04, 0.06],
+        [0.03, 0.082],
+        [0, 0.09],
+      ],
+      10,
+    ),
+    { p: [-0.86, cageTopY + 0.06, 0.3] },
+    1,
+    { raw: true },
+  );
+
+  const lpgX = -1.4;
+  const lpgY = 1.23 + 0.05 + 0.155; // 1.435
+  for (const lpgZ of [-0.2, 0.2]) {
+    b.add(
+      matDark,
+      createChamferedBoxGeometry(0.3, 0.07, 0.04, 0.008),
+      { p: [lpgX, 1.262, lpgZ] },
+      0.5,
+    );
+    b.add(
+      matDark,
+      createCylinderGeometry(0.159, 0.159, 0.035, 16, true),
+      { p: [lpgX, lpgY, lpgZ], r: [HALF_PI, 0, 0] },
+      0.35,
+    );
+  }
+  b.add(
+    "steel_galv",
+    createRevolvedGeometry(
+      [
+        [0, -0.37],
+        [0.08, -0.36],
+        [0.132, -0.33],
+        [0.155, -0.27],
+        [0.155, 0.27],
+        [0.132, 0.33],
+        [0.08, 0.36],
+        [0, 0.37],
+      ],
+      16,
+    ),
+    { p: [lpgX, lpgY, 0], r: [HALF_PI, 0, 0] },
+    (vx, vy, vz) => 0.8 + 0.2 * sampleSimplexNoise3D(vx * 8, vy * 8, vz * 8),
+  );
+  b.add(
+    "steel_galv",
+    createCylinderGeometry(0.09, 0.09, 0.07, 12, true),
+    { p: [lpgX, lpgY, 0.39], r: [HALF_PI, 0, 0] },
+    0.7,
+  );
+  b.add(
+    "steel_galv",
+    createCylinderGeometry(0.02, 0.02, 0.05, 8),
+    { p: [lpgX, lpgY, 0.39], r: [HALF_PI, 0, 0] },
+    0.9,
+  );
+  b.add(
+    "rubber",
+    createTubeFromPoints(
+      [
+        [lpgX, lpgY, 0.41],
+        [lpgX + 0.05, lpgY - 0.02, 0.46],
+        [lpgX + 0.2, lpgY - 0.15, 0.44],
+        [-1.07, 1.1, 0.38],
+        [-1, 0.98, 0.36],
+      ],
+      0.012,
+      5,
+      false,
+      0.5,
+    ),
+    null,
+    1,
+  );
+  b.push({ p: [lpgX, lpgY, 0], r: [0, 0, 0.7] });
+  b.cdecal(engineCtx.mats.decal("hazard_flammable"), 0.157, 0.12, {
+    p: [0, 0, -0.05],
+    r: [-HALF_PI, 0, 0],
+  });
+  b.cdecal(
+    engineCtx.mats.label("液化气", { color: "red", font: "stencil", distress: 0.3 }),
+    0.157,
+    0.16,
+    { p: [0, 0, 0.14], r: [-HALF_PI, 0, 0] },
+  );
+  b.pop();
+
+  const mastX0 = 0.6;
+  const mastX1 = 0.73;
+  const mastColZ = 0.375;
+  const mastBotY = 0.08;
+  const mastTopY = 2.02;
+
+  for (const side of [1, -1]) {
+    const colZ = side * mastColZ;
+    const cRailPts = [
+      [mastX0, colZ],
+      [mastX1, colZ],
+      [mastX1, colZ - side * 0.065],
+      [mastX1 - 0.014, colZ - side * 0.065],
+      [mastX1 - 0.014, colZ - side * 0.014],
+      [mastX0 + 0.014, colZ - side * 0.014],
+      [mastX0 + 0.014, colZ - side * 0.065],
+      [mastX0, colZ - side * 0.065],
+    ];
+    b.add(
+      matDark,
+      createPrismGeometry(
+        normalizePolygonWinding(cRailPts.map((p) => [p[0], -p[1]])),
+        mastTopY - mastBotY,
+        { soft: 0 },
+      ),
+      { p: [0, (mastBotY + mastTopY) / 2, 0], r: [-HALF_PI, 0, 0] },
+      getLuminance(),
+    );
+    b.add(
+      matDark,
+      createChamferedBoxGeometry(0.085, 1.86, 0.036, 0.006),
+      { p: [0.665, 0.13 + halfLiftY + 0.93, side * 0.335] },
+      getLuminance() * 1.25,
+    );
+    b.decal(engineCtx.mats.decal("hazard_general"), 0.1, {
+      p: [0.665, 1.3, side * (mastColZ + 0.002)],
+      r: [0, side > 0 ? 0 : Math.PI, 0],
+    });
+
+    const pTiltBase = [0.36, 0.66, side * 0.3];
+    const pTiltTop = [0.6, 0.86, side * 0.33];
+    const pTiltMid = [0.5, 0.777, side * 0.317];
+    b.add(matDark, createConnectingCylinder(pTiltBase, pTiltMid, 0.034, 8, true), null, 0.55);
+    b.add("steel_bare", createConnectingCylinder(pTiltMid, pTiltTop, 0.018, 6), null, 1);
+
+    const chainZ = side * 0.13;
+    const pulTopY = 1.9 + halfLiftY;
+    const pulRad = 0.055;
+    const chainPts = [
+      [0.725, 0.5 + forkLiftY, chainZ],
+      [0.725, pulTopY, chainZ],
+    ];
+    for (let cp = 0.5; cp < Math.PI; cp += 0.55) {
+      chainPts.push([0.67 + Math.cos(cp) * pulRad, pulTopY + Math.sin(cp) * pulRad, chainZ]);
+    }
+    chainPts.push([0.615, pulTopY, chainZ], [0.615, 1, chainZ]);
+
+    let linkIdx = 0;
+    for (let c = 0; c < chainPts.length - 1; c++) {
+      const pA = chainPts[c];
+      const pB = chainPts[c + 1];
+      const segLen = Math.hypot(pB[0] - pA[0], pB[1] - pA[1]);
+      const segSteps = Math.max(1, Math.round(segLen / 0.058));
+      for (let st = 0; st < segSteps; st++, linkIdx++) {
+        const t0 = st / segSteps;
+        const t1 = (st + 0.86) / segSteps;
+        const lerpPt = (param) => [
+          pA[0] + (pB[0] - pA[0]) * param,
+          pA[1] + (pB[1] - pA[1]) * param,
+          chainZ,
+        ];
+        b.add(
+          "steel_worn",
+          createBoxBetweenPoints(
+            lerpPt(t0),
+            lerpPt(t1),
+            0.011,
+            linkIdx % 2 ? 0.034 : 0.022,
+            0,
+            true,
+          ),
+          null,
+          linkIdx % 2 ? 0.55 : 0.75,
+        );
+      }
+    }
+    b.add(
+      matDark,
+      createCylinderGeometry(pulRad - 0.006, pulRad - 0.006, 0.04, 12),
+      { p: [0.67, pulTopY, chainZ], r: [HALF_PI, 0, 0] },
+      0.7,
+    );
+  }
+
+  b.add(
+    matDark,
+    createChamferedBoxGeometry(0.04, 0.09, 0.78, 0.008),
+    { p: [mastX0 - 0.012, 1.96, 0] },
+    getLuminance(),
+  );
+  b.add(
+    matDark,
+    createChamferedBoxGeometry(0.04, 0.12, 0.78, 0.008),
+    { p: [mastX0 - 0.012, 0.42, 0] },
+    getLuminance(),
+  );
+  b.add(
+    matDark,
+    createChamferedBoxGeometry(0.07, 0.09, 0.66, 0.008),
+    { p: [0.665, 1.99 + halfLiftY, 0] },
+    getLuminance(),
+  );
+  b.add(matDark, createCylinderGeometry(0.048, 0.048, 1.15, 10), { p: [0.645, 0.72, 0] }, 0.6);
+  b.add(matDark, createCylinderGeometry(0.055, 0.055, 0.05, 10), { p: [0.645, 1.3, 0] }, 0.5);
+  b.add(
+    "steel_bare",
+    createCylinderGeometry(0.027, 0.027, 0.64 + halfLiftY, 8, true),
+    { p: [0.645, 1.31 + (0.64 + halfLiftY) / 2, 0] },
+    1,
+  );
+  b.label("最大载重2500千克", { color: "yellow", font: "stencil", distress: 0.3 }, 0.5, 0.05, {
+    p: [mastX0 - 0.033, 0.42, 0],
+    r: [0, -HALF_PI, 0],
+  });
+
+  for (const hZ of [0.21, 0.245]) {
+    b.add(
+      "rubber",
+      createTubeFromPoints(
+        [
+          [0.6, 1.25, hZ],
+          [0.59, 1.65 + halfLiftY * 0.6, hZ],
+          [0.655, 1.86 + halfLiftY, hZ + 0.005],
+          [0.735, 1.6 + halfLiftY * 1.2, hZ],
+          [0.74, 0.56 + forkLiftY, hZ],
+        ],
+        0.011,
+        5,
+        false,
+        0.5,
+      ),
+      null,
+      1,
+    );
+  }
+
+  b.push({ p: [0, forkLiftY, 0] });
+  const carrBaseY = 0.06;
+  for (const cY of [carrBaseY + 0.12, carrBaseY + 0.5]) {
+    b.add(
+      matDark,
+      createChamferedBoxGeometry(0.04, 0.1, 1.02, 0.008),
+      { p: [0.755, cY, 0] },
+      getLuminance(),
+    );
+  }
+  b.add(
+    "hazard_stripes",
+    createBoxGeometry(0.003, 0.06, 0.4),
+    { p: [0.7765, carrBaseY + 0.5, 0] },
+    0.9,
+  );
+
+  for (const side of [1, -1]) {
+    b.add(
+      matDark,
+      createChamferedBoxGeometry(0.03, 0.5, 0.06, 0.006),
+      { p: [0.745, carrBaseY + 0.31, side * 0.3] },
+      getLuminance(),
+    );
+    b.add(
+      matDark,
+      createChamferedBoxGeometry(0.11, 0.36, 0.022, 0.005),
+      { p: [0.685, carrBaseY + 0.31, side * 0.305] },
+      getLuminance(),
+    );
+    b.add(
+      matDark,
+      createChamferedBoxGeometry(0.03, 0.78, 0.04, 0.006),
+      { p: [0.755, carrBaseY + 0.94, side * 0.5] },
+      getLuminance(),
+    );
+    b.add(
+      "steel_worn",
+      createCylinderGeometry(0.04, 0.04, 0.03, 10),
+      { p: [0.67, carrBaseY + 0.2, side * 0.325], r: [HALF_PI, 0, 0] },
+      0.7,
+    );
+  }
+  b.add(
+    matDark,
+    createChamferedBoxGeometry(0.03, 0.04, 1.04, 0.006),
+    { p: [0.755, carrBaseY + 1.33, 0] },
+    getLuminance(),
+  );
+  b.add(
+    matDark,
+    createChamferedBoxGeometry(0.02, 0.03, 1, 0.004),
+    { p: [0.755, carrBaseY + 0.94, 0] },
+    getLuminance(),
+  );
+  for (let gr = -2; gr <= 2; gr++) {
+    b.add(
+      matDark,
+      createChamferedBoxGeometry(0.02, 0.76, 0.02, 0.004),
+      { p: [0.755, carrBaseY + 0.94, gr * 0.165] },
+      getLuminance(),
+    );
+  }
+
+  const forkY0 = 0.035;
+  for (const side of [1, -1]) {
+    const tineProfile = [
+      [0.777, forkY0],
+      [1.45, forkY0],
+      [1.7, forkY0 + 0.006],
+      [1.7, forkY0 + 0.016],
+      [0.87, forkY0 + 0.046],
+      [0.826, forkY0 + 0.075],
+      [0.822, forkY0 + 0.62],
+      [0.777, forkY0 + 0.62],
+    ];
+    b.add(
+      "steel_worn",
+      createPrismGeometry(tineProfile, 0.1, { soft: 0.45 }),
+      { p: [0, 0, side * 0.26] },
+      (vx, vy, vz) => {
+        const wearFac = clamp((vx - 0.8) / 0.9, 0, 1);
+        const scratchNoise = sampleSimplexNoise3D(vx * 14, vz * 30 + side, 0);
+        return (0.5 + 0.5 * wearFac) * (0.8 + 0.2 * scratchNoise);
+      },
+    );
+    b.add(
+      matDark,
+      createChamferedBoxGeometry(0.075, 0.05, 0.112, 0.006),
+      { p: [0.772, carrBaseY + 0.575, side * 0.26] },
+      0.55,
+    );
+    b.add(
+      matDark,
+      createChamferedBoxGeometry(0.03, 0.04, 0.112, 0.006),
+      { p: [0.79, carrBaseY + 0.07, side * 0.26] },
+      0.55,
+    );
+  }
+  b.pop();
+
+  const totalHeight = Math.max(2.2, 0.06 + forkLiftY + 1.36, 2.04 + halfLiftY);
+  return b.finish({
+    size: [3.4, totalHeight, 1.25],
+    colliders: [
+      { min: [-1.7, 0, -0.6], max: [0.58, 1.24, 0.6], surface: "metal" },
+      { min: [-1.56, 1.24, -0.4], max: [-1.22, 1.6, 0.4], surface: "metal" },
+      { min: [-0.88, 1.24, -0.24], max: [-0.7, 1.66, 0.24], surface: "rubber" },
+      { min: [0.56, 0, -0.42], max: [0.78, 2.04 + halfLiftY, 0.42], surface: "metal" },
+      { min: [0.72, forkLiftY, -0.53], max: [0.8, forkLiftY + 1.42, 0.53], surface: "metal" },
+      { min: [0.8, forkLiftY, -0.33], max: [1.7, forkLiftY + 0.1, 0.33], surface: "metal" },
+      { min: [-1.02, 2, -0.5], max: [0.32, 2.1, 0.5], surface: "metal" },
+      ...cageColliders,
+    ],
+  });
 }
 
-/**
- * 静音应急柴油发电机组 (Silent Emergency Diesel Generator Set)
- */
 function buildGenerator(engineCtx, options = {}) {
   const b = new PropCompoundBuilder(engineCtx, "generator", options.seed || 0);
   const [matBody, tint] = resolveColorPalette(options.color, "yellow");

@@ -6,7 +6,6 @@
  */
 
 import * as THREE from "three";
-import * as BufferGeometryUtils from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
 // ============================================================================
 // 一、 基础几何体合并与属性拼接 (BufferGeometry Merging)
@@ -130,7 +129,16 @@ export function mergeGeometries(geometries, useGroups = false) {
     mergedGeom.setAttribute(name, mergedAttr);
   }
 
+  if (geometryMergeObserver) {
+    geometryMergeObserver(mergedGeom, geometries);
+  }
+
   return mergedGeom;
+}
+
+let geometryMergeObserver = null;
+export function setGeometryMergeObserver(fn) {
+  geometryMergeObserver = fn;
 }
 
 // ============================================================================

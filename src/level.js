@@ -806,7 +806,7 @@ function buildPerimeterGate(levelBuilder) {
   place("gate_arm", minX + 0.2, gateZ0 + 0.4, 0, { open: 0.1, seed: 16 });
   place("jersey_barrier", minX + 2.0, gateZ0 - 1.2, 0.1, { seed: 17 });
   place("jersey_barrier", minX + 2.0, gateZ1 + 5.2, -0.15, { seed: 18 });
-  place("sign_post", minX + 4.5, gateZ1 + 4.0, 0, { sign: "warning_hazard", seed: 19 });
+  place("sign_post", minX + 4.5, gateZ1 + 4.0, 0, { sign: "hazard_general", seed: 19 });
   place("floodlight_stand", minX + 5.0, gateZ0 + 1.0, 0.4, { on: true, seed: 20 });
 }
 

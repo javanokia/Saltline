@@ -663,6 +663,7 @@ async function createWeapon(ctx) {
     },
     update,
     reset,
+    previewReset: reset,
     switchWeapon,
     cycleWeapon,
     getWeaponList() {

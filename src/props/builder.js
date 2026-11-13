@@ -686,6 +686,12 @@ class PropMeshAssembler {
   }
 
   decal(decalObj, w, h, x, y, z, rotEuler, aspect) {
+    if (h && typeof h === "object" && ("p" in h || "r" in h)) {
+      const trans = h;
+      const height = typeof x === "number" ? x : w / (decalObj.aspect || 1);
+      const plane = new THREE.PlaneGeometry(w, height);
+      return this.add(decalObj.material, plane, trans, 1);
+    }
     const plane = new THREE.PlaneGeometry(aspect || w * decalObj.aspect, w);
     return this.add(
       decalObj.material,
@@ -706,7 +712,13 @@ class PropMeshAssembler {
   group(mats) {
     const grp = new THREE.Group();
     for (const part of this.parts()) {
-      const mesh = new THREE.Mesh(part.geo, (mats && mats.get(part.mat)) || part.mat);
+      const resolvedMat =
+        part.mat && part.mat.isMaterial
+          ? part.mat
+          : typeof part.mat === "string" && mats && typeof mats.get === "function"
+            ? mats.get(part.mat)
+            : part.mat;
+      const mesh = new THREE.Mesh(part.geo, resolvedMat);
       mesh.castShadow = part.cast;
       mesh.receiveShadow = true;
       grp.add(mesh);
@@ -743,6 +755,13 @@ class PropCompoundBuilder {
     return this.G.mats.get(name, { vertexColors: true, ...(opts || {}) });
   }
 
+  /**
+   * @param {THREE.Material | string} matOrName
+   * @param {THREE.BufferGeometry} geo
+   * @param {any} [trans]
+   * @param {number | number[] | ((vx: number, vy: number, vz: number) => number | number[])} [lumFactor=1]
+   * @param {object} [options]
+   */
   add(matOrName, geo, trans, lumFactor = 1, { raw = false, cast = true } = {}) {
     const m = typeof matOrName === "string" ? this.mat(matOrName) : matOrName;
     if (trans) transformGeometry(geo, trans);
@@ -760,7 +779,7 @@ class PropCompoundBuilder {
 
   decal(decalObj, size, trans, height) {
     const plane = new THREE.PlaneGeometry(size, height || size / (decalObj.aspect || 1));
-    return this.add(decalObj.material, plane, trans, 1, { raw: true, cast: false });
+    return this.add(decalObj.material, plane, trans, 1);
   }
 
   label(text, opts, maxW, maxH, trans) {
@@ -770,8 +789,9 @@ class PropCompoundBuilder {
     return this.add(lbl.material, plane, trans, 1, { raw: true, cast: false });
   }
 
-  cdecal(decalObj, w, h, trans, customH) {
-    const curved = createCurvedCylinderDecal(w, h, customH || h / (decalObj.aspect || 1));
+  cdecal(decalObj, radius, arcWidth, trans, customH) {
+    const height = customH || arcWidth / (decalObj.aspect || 1);
+    const curved = createCurvedCylinderDecal(radius, arcWidth, height);
     return this.add(decalObj.material, curved, trans, 1, { raw: true, cast: false });
   }
 
@@ -995,15 +1015,28 @@ function createOrientedBoxBeam(p0, p1, width, depth, bevel = 0.006, raw = false)
 /**
  * 创建圆柱面贴花 (Curved Cylinder Decal)
  */
-function createCurvedCylinderDecal(w, h, radius, seg = 4) {
-  const geo = new THREE.PlaneGeometry(w, h, seg, 1);
-  const pos = geo.attributes.position;
-  for (let i = 0; i < pos.count; i++) {
-    const px = pos.getX(i);
-    const pz = -Math.sqrt(Math.max(0, radius * radius - px * px)) + radius;
-    pos.setZ(i, pz);
+function createCurvedCylinderDecal(radius, arcWidth, height, seg = 4) {
+  const pos = [],
+    norm = [],
+    uvs = [],
+    idx = [];
+  for (let l = 0; l <= seg; l++) {
+    const angle = ((l / seg - 0.5) * arcWidth) / radius;
+    const s = Math.sin(angle),
+      c = Math.cos(angle);
+    pos.push(radius * s, -height / 2, radius * c, radius * s, height / 2, radius * c);
+    norm.push(s, 0, c, s, 0, c);
+    uvs.push(l / seg, 0, l / seg, 1);
   }
-  geo.computeVertexNormals();
+  for (let l = 0; l < seg; l++) {
+    const c = l * 2;
+    idx.push(c, c + 2, c + 3, c, c + 3, c + 1);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute("normal", new THREE.Float32BufferAttribute(norm, 3));
+  geo.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+  geo.setIndex(idx);
   return geo;
 }
 
@@ -1051,22 +1084,204 @@ function createRevolvedGeometry(profile, seg = 16) {
 /**
  * 轮胎胎面花纹多边形截面轮廓
  */
-function generateTireTreadProfile(width, radius, rimRadius, seg = 20) {
-  const halfW = width / 2;
-  const pts = [
-    new THREE.Vector2(rimRadius, -halfW * 0.7),
-    new THREE.Vector2(rimRadius, halfW * 0.7),
-    new THREE.Vector2(radius * 0.88, halfW),
-    new THREE.Vector2(radius, halfW * 0.9),
-    new THREE.Vector2(radius, -halfW * 0.9),
-    new THREE.Vector2(radius * 0.88, -halfW),
-  ];
-  return new THREE.LatheGeometry(pts, seg);
+
+const scratchVecAB = new THREE.Vector3();
+const scratchQuatAB = new THREE.Quaternion();
+const scratchMatAB = new THREE.Matrix4();
+const UP_DIR_Y = new THREE.Vector3(0, 1, 0);
+
+/**
+ * 两点之间创建定向定向盒 (Oriented Box Beam Between Points)
+ */
+function createBoxBetweenPoints(pA, pB, width, depth, bevel = 0.006, rawBox = false) {
+  scratchVecAB.set(pB[0] - pA[0], pB[1] - pA[1], pB[2] - pA[2]);
+  const len = scratchVecAB.length();
+  scratchVecAB.normalize();
+  const geo = rawBox
+    ? createBoxGeometry(width, len, depth)
+    : createChamferedBoxGeometry(width, len, depth, bevel);
+  scratchQuatAB.setFromUnitVectors(UP_DIR_Y, scratchVecAB);
+  scratchMatAB.compose(
+    new THREE.Vector3((pA[0] + pB[0]) / 2, (pA[1] + pB[1]) / 2, (pA[2] + pB[2]) / 2),
+    scratchQuatAB,
+    new THREE.Vector3(1, 1, 1),
+  );
+  geo.applyMatrix4(scratchMatAB);
+  return geo;
 }
 
 /**
- * 重新计算法线与包围盒
+ * 2D 轮廓多边形拉伸棱柱体 (2D Polygon Extruded Prism Geometry)
  */
+function createPrismGeometry(points2D, depth, { soft = 0.6, caps = true } = {}) {
+  const s = points2D.length;
+  const positions = [];
+  const normals = [];
+  const uvs = [];
+  const indices = [];
+  const halfDepth = depth / 2;
+  const edgeNormals = [];
+  let cumLen = 0;
+  const cumLens = [0];
+
+  for (let d = 0; d < s; d++) {
+    const v = points2D[d];
+    const g = points2D[(d + 1) % s];
+    const dx = g[0] - v[0];
+    const dy = g[1] - v[1];
+    const len = Math.hypot(dx, dy) || 1;
+    edgeNormals.push([dy / len, -dx / len]);
+    cumLen += len;
+    cumLens.push(cumLen);
+  }
+
+  const getVertexNormal = (currIdx, neighborIdx) => {
+    const g = edgeNormals[currIdx];
+    const x = edgeNormals[(neighborIdx + s) % s];
+    if (g[0] * x[0] + g[1] * x[1] > Math.cos(soft)) {
+      const nx = g[0] + x[0];
+      const ny = g[1] + x[1];
+      const m = Math.hypot(nx, ny) || 1;
+      return [nx / m, ny / m];
+    }
+    return g;
+  };
+
+  for (let d = 0; d < s; d++) {
+    const v = points2D[d];
+    const g = points2D[(d + 1) % s];
+    const nStart = getVertexNormal(d, d - 1);
+    const nEnd = getVertexNormal(d, d + 1);
+    const baseIdx = positions.length / 3;
+
+    positions.push(
+      v[0],
+      v[1],
+      halfDepth,
+      v[0],
+      v[1],
+      -halfDepth,
+      g[0],
+      g[1],
+      -halfDepth,
+      g[0],
+      g[1],
+      halfDepth,
+    );
+    normals.push(
+      nStart[0],
+      nStart[1],
+      0,
+      nStart[0],
+      nStart[1],
+      0,
+      nEnd[0],
+      nEnd[1],
+      0,
+      nEnd[0],
+      nEnd[1],
+      0,
+    );
+    uvs.push(
+      cumLens[d],
+      halfDepth,
+      cumLens[d],
+      -halfDepth,
+      cumLens[d + 1],
+      -halfDepth,
+      cumLens[d + 1],
+      halfDepth,
+    );
+    indices.push(baseIdx, baseIdx + 1, baseIdx + 2, baseIdx, baseIdx + 2, baseIdx + 3);
+  }
+
+  if (caps) {
+    const shape = points2D.map((p) => new THREE.Vector2(p[0], p[1]));
+    const capIndices = THREE.ShapeUtils.triangulateShape(shape, []);
+    for (const capSign of [1, -1]) {
+      const capBaseIdx = positions.length / 3;
+      for (const p of points2D) {
+        positions.push(p[0], p[1], capSign * halfDepth);
+        normals.push(0, 0, capSign);
+        uvs.push(p[0], p[1]);
+      }
+      for (const tri of capIndices) {
+        if (capSign > 0)
+          indices.push(capBaseIdx + tri[0], capBaseIdx + tri[1], capBaseIdx + tri[2]);
+        else indices.push(capBaseIdx + tri[0], capBaseIdx + tri[2], capBaseIdx + tri[1]);
+      }
+    }
+  }
+
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geom.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
+  geom.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+  geom.setIndex(indices);
+  return geom;
+}
+
+/**
+ * 确保多边形逆时针方向绕序 (CCW Winding Normalization)
+ */
+function normalizePolygonWinding(pts) {
+  let area2 = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i];
+    const b = pts[(i + 1) % pts.length];
+    area2 += a[0] * b[1] - b[0] * a[1];
+  }
+  return area2 < 0 ? pts.slice().reverse() : pts;
+}
+
+function generateTireTreadProfile(radius, width, rimRadius, seg = 20) {
+  const delta = radius - rimRadius;
+  const o = Math.min(0.011, delta * 0.08);
+  const r = [
+    [rimRadius, width * 0.18],
+    [rimRadius + delta * 0.45, width * 0.035],
+    [radius - delta * 0.2, width * 0.02],
+    [radius - delta * 0.06, width * 0.07],
+    [radius, width * 0.17],
+    [radius, width * 0.17],
+    [radius, width * 0.355],
+    [radius - o, width * 0.385],
+    [radius, width * 0.415],
+    [radius, width * 0.585],
+    [radius - o, width * 0.615],
+    [radius, width * 0.645],
+    [radius, width * 0.83],
+    [radius, width * 0.83],
+    [radius - delta * 0.06, width * 0.93],
+    [radius - delta * 0.2, width * 0.98],
+    [rimRadius + delta * 0.45, width * 0.965],
+    [rimRadius, width * 0.82],
+    [rimRadius, width * 0.82],
+    [rimRadius, width * 0.18],
+  ];
+  const geo = createRevolvedGeometry(r, seg);
+  const uvs = geo.attributes.uv;
+  const count = r.length;
+  const uAcc = [0];
+  for (let v = 1; v < count; v++) {
+    uAcc.push(uAcc[v - 1] + Math.hypot(r[v][0] - r[v - 1][0], r[v][1] - r[v - 1][1]));
+  }
+  const midH = (uAcc[8] + uAcc[9]) / 2;
+  const f = midH - uAcc[4];
+  const p = uAcc[4] - uAcc[0];
+  const d = Math.max(1, Math.round((2 * Math.PI * radius) / 0.5)) * 0.5;
+  for (let v = 0; v < count; v++) {
+    const g = v >= count - 2 ? -(f + p) : uAcc[v] - midH;
+    const x = Math.abs(g);
+    const y =
+      Math.sign(g) * (x <= f + 1e-6 ? (x / f) * 0.126 : 0.126 + Math.min(1, (x - f) / p) * 0.022);
+    for (let b = 0; b <= seg; b++) {
+      uvs.setXY(v * (seg + 1) + b, (b / seg) * d, y);
+    }
+  }
+  return geo;
+}
+
 function recomputeNormalsAndBounds(geo) {
   geo.computeVertexNormals();
   geo.computeBoundingBox();
@@ -1123,16 +1338,44 @@ function traverseAndMutateVertices(geo, mutatorFn) {
 /**
  * 乘以顶点颜色亮度系数
  */
-function applyVertexColorLuminance(geo, factor) {
+/**
+ * 为几何体应用顶点颜色或亮度因子 (支持数值、RGB 数组或顶点着色着色器函数)
+ * @param {THREE.BufferGeometry} geo
+ * @param {number | number[] | ((x: number, y: number, z: number) => number | number[])} [factor=1]
+ */
+function applyVertexColorLuminance(geo, factor = 1) {
   const count = geo.attributes.position.count;
   let colAttr = geo.attributes.color;
   if (!colAttr) {
     colAttr = new THREE.Float32BufferAttribute(new Float32Array(count * 3).fill(1), 3);
     geo.setAttribute("color", colAttr);
   }
+  if (factor === 1 || factor == null) return geo;
   const arr = colAttr.array;
-  for (let i = 0; i < count * 3; i++) {
-    arr[i] *= factor;
+  if (typeof factor === "function") {
+    const pos = geo.attributes.position;
+    for (let c = 0; c < count; c++) {
+      const u = factor(pos.getX(c), pos.getY(c), pos.getZ(c));
+      if (typeof u === "number") {
+        arr[c * 3] *= u;
+        arr[c * 3 + 1] *= u;
+        arr[c * 3 + 2] *= u;
+      } else {
+        arr[c * 3] *= u[0];
+        arr[c * 3 + 1] *= u[1];
+        arr[c * 3 + 2] *= u[2];
+      }
+    }
+    colAttr.needsUpdate = true;
+    return geo;
+  }
+  const r = typeof factor === "number" ? factor : factor[0];
+  const g = typeof factor === "number" ? factor : factor[1];
+  const b = typeof factor === "number" ? factor : factor[2];
+  for (let l = 0; l < count; l++) {
+    arr[l * 3] *= r;
+    arr[l * 3 + 1] *= g;
+    arr[l * 3 + 2] *= b;
   }
   colAttr.needsUpdate = true;
   return geo;
@@ -1156,6 +1399,9 @@ export {
   getCachedDecalTexture,
   withCachedPrototype,
   createChamferedBoxGeometry,
+  createBoxBetweenPoints,
+  createPrismGeometry,
+  normalizePolygonWinding,
   createSubdividedBoxGeometry,
   createConnectingCylinder,
   createOrientedBoxBeam,

@@ -552,7 +552,15 @@ function buildQuayCraneSpreader(mats, trolleyX) {
   return { spreaderMesh: le, tris: P.tris };
 }
 
-function z1(i, e, t = {}) {
+/**
+ * Builds the heavy container quay crane (STS Crane) positioned on the dockside.
+ * Includes motorized bogies, portal legs, machinery house, operator cabin,
+ * overhead boom girder, trolley track, and telescopic spreader.
+ * @param {any} i Engine context
+ * @param {any} e Beacon light manager
+ * @param {object} [t] Optional configuration overrides (into, dz, mat)
+ */
+function buildQuayCrane(i, e, t = {}) {
   let n = !!t.into,
     s = t.dz || 0,
     o = t.into || new io(),
@@ -942,7 +950,10 @@ function z1(i, e, t = {}) {
   B.add(le);
   return { root: B, spreader: le, colliders: x, tris: o.tris + spreaderTris };
 }
-function mb(i, e, t, n, { s = 1, up: o = !1, tint: r = [0.3, 0.36, 0.44] } = {}) {
+/**
+ * Builds a rail-mounted / rubber-tyred gantry crane (RMG/RTG) in the container yard.
+ */
+function buildYardCrane(i, e, t, n, { s = 1, up: o = !1, tint: r = [0.3, 0.36, 0.44] } = {}) {
   let a = [],
     l = (c, u, h, f, p, d) => a.push(Ee(c, u, h, f, p, d));
   for (let c of [-5, 5]) for (let u of [-5.4, 5.4]) l(c - 0.6, 0, u - 0.6, c + 0.6, 24, u + 0.6);
@@ -1067,7 +1078,13 @@ var D1 = class {
     let t = Math.imul(i + 31, 374761393) ^ Math.imul(e + 17, 668265263);
     return ((t = Math.imul(t ^ (t >>> 13), 1274126177)), ((t ^ (t >>> 16)) >>> 0) / 4294967295);
   };
-function vb(i, e) {
+/**
+ * Builds the large ocean-going container cargo ship moored along the saltline wharf.
+ * Assembles hull plating, container hold stacks, superstructure deckhouse, bridge, and radar.
+ * @param {any} i Engine context
+ * @param {any} e Beacon light manager
+ */
+function buildCargoShip(i, e) {
   let t = new io(),
     n = so(i, "hull_paint"),
     s = so(i, "hull_red"),
@@ -1505,7 +1522,13 @@ function vb(i, e) {
     name: "KITTIWAKE",
   };
 }
-function xb(i, e) {
+/**
+ * Builds the rapid patrol cutter moored by the quay pontoon.
+ * Assembles hull, cabin superstructure, navigation mast, life rings, and searchlights.
+ * @param {any} i Engine context
+ * @param {any} e Beacon light manager
+ */
+function buildPatrolBoat(i, e) {
   let t = new io(),
     n = so(i, "plastic_grey"),
     s = so(i, "paint_orange"),
@@ -1710,7 +1733,12 @@ var dv = new Ve(12172214),
     return n * n * (3 - 2 * n);
   },
   bb = (i, e) => 1 - 0.6 * _b(38, 160, Math.hypot(i + 5, e));
-function Mb(i, e) {
+/**
+ * Builds the container storage yard blocks, floodlight towers, substation, and distant scenery.
+ * @param {any} i Engine context
+ * @param {any} e Beacon light manager
+ */
+function buildYardBlocks(i, e) {
   let t = new io(),
     n = so(i, "paint_white"),
     s = uv(90417),
@@ -2148,7 +2176,7 @@ function Mb(i, e) {
       (N(Q - 0.25, 0, -16.2, Q + 0.25, 9.5, 16.2, [0.13, 0.14, 0.15]),
         (Q | 0) % 3 === 0 && N(Q + 2, 0, -16.1, Q + 8, 6.2, 16.1, [0.06, 0.06, 0.07]));
   }
-  (z1(i, e, { into: t, mat: n, dz: 66 }),
+  (buildQuayCrane(i, e, { into: t, mat: n, dz: 66 }),
     /** @type {Array<[number, number, boolean, number[]]>} */ ([
       [-132, 1.15, !0, [0.14, 0.17, 0.21]],
       [-186, 1.25, !1, [0.14, 0.17, 0.21]],
@@ -2159,7 +2187,7 @@ function Mb(i, e) {
       [250, 1.4, !1, [0.24, 0.25, 0.27]],
       [330, 1.45, !0, [0.26, 0.12, 0.06]],
     ]).forEach(([D, C, G, j], N) => {
-      let Q = mb(t, n, 23.5, D, { s: C, up: G, tint: j });
+      let Q = buildYardCrane(t, n, 23.5, D, { s: C, up: G, tint: j });
       e.add(Bn(Q[0], Q[1], Q[2], 0.45 * C), r, 2.6 + (N % 3) * 0.35, N * 0.37, 0.45);
     }),
     c(Ee(-230, -1.6, -384, 30, -0.12, 425), [0.24, 0.24, 0.25]));
@@ -2317,7 +2345,14 @@ uniform float uTime;
   );
 }
 var _R = ["crane", "ship", "boat", "sky"];
-function Eb(i, { only: e = null, showcase: t = !1 } = {}) {
+/**
+ * Assembles the full backdrop scene graph and colliders.
+ * @param {any} i Engine context
+ * @param {object} [opts] Options
+ * @param {string|null} [opts.only] Optional single asset filter ("crane"|"ship"|"boat"|"sky")
+ * @param {boolean} [opts.showcase] Whether running in showcase orbit mode
+ */
+function buildBackdropScene(i, { only: e = null, showcase: t = !1 } = {}) {
   let n = (b) => !e || e === b,
     s = new wt();
   s.name = "backdrop";
@@ -2331,7 +2366,10 @@ function Eb(i, { only: e = null, showcase: t = !1 } = {}) {
     h = null;
   if (
     (n("boat") &&
-      ((a = xb(i, o)), a.root.position.copy(r), (a.root.rotation.y = -Math.PI / 2), s.add(a.root)),
+      ((a = buildPatrolBoat(i, o)),
+      a.root.position.copy(r),
+      (a.root.rotation.y = -Math.PI / 2),
+      s.add(a.root)),
     a && !t)
   ) {
     let b = new io(),
@@ -2340,9 +2378,9 @@ function Eb(i, { only: e = null, showcase: t = !1 } = {}) {
       b.add(m, kr(ua(_t(-3.25, 0.82, 0.95), _t(-4.6, 2.12, 2.3), 0.2, 7), 0.016, 5)),
       a.root.add(b.build({ cast: !1, recv: !1 })));
   }
-  (n("crane") && ((l = z1(i, o)), s.add(l.root)),
-    n("ship") && ((c = vb(i, o)), s.add(c.root)),
-    n("sky") && ((u = Mb(i, o)), s.add(u.root)),
+  (n("crane") && ((l = buildQuayCrane(i, o)), s.add(l.root)),
+    n("ship") && ((c = buildCargoShip(i, o)), s.add(c.root)),
+    n("sky") && ((u = buildYardBlocks(i, o)), s.add(u.root)),
     (n("sky") || n("crane")) && ((h = wb(i, o.uTime, 12)), s.add(h)));
   let f = o.build();
   (f && ((f.name = "backdrop-lamps"), (f.frustumCulled = !1), s.add(f)), i.scene.add(s));
@@ -2406,12 +2444,17 @@ function Eb(i, { only: e = null, showcase: t = !1 } = {}) {
     }
   );
 }
-async function pv(i) {
-  return Eb(i, {});
+async function createBackdropEnvironment(i) {
+  return buildBackdropScene(i, {});
 }
-function MR(i) {
+
+/**
+ * Showcase mode runner for isolated inspection of backdrop assets.
+ * @param {any} i Engine context
+ */
+function showcaseBackdrop(i) {
   let e = i.params && _R.includes(i.params.bshow) ? i.params.bshow : null,
-    t = Eb(i, { only: e, showcase: !0 });
+    t = buildBackdropScene(i, { only: e, showcase: !0 });
   console.log("[backdrop] " + JSON.stringify(t.stats));
   let n = {
     crane: { cam: [0, 1.7, 27], target: [33, 13, 0] },
@@ -2422,15 +2465,26 @@ function MR(i) {
   return { ...(n[e] || n.crane), update: (s) => t.update(s) };
 }
 
-// 语义化主别名与导出
-export const buildQuayCrane = z1;
-export const buildYardCrane = mb;
-export const buildCargoShip = vb;
-export const buildPatrolBoat = xb;
-export const buildYardBlocks = Mb;
-export const createBackdropEnvironment = pv;
-export const showcaseBackdrop = MR;
+// 兼容别名
+const z1 = buildQuayCrane;
+const mb = buildYardCrane;
+const vb = buildCargoShip;
+const xb = buildPatrolBoat;
+const Mb = buildYardBlocks;
+const Eb = buildBackdropScene;
+const pv = createBackdropEnvironment;
+const MR = showcaseBackdrop;
 
-export const create = pv;
-export const showcase = MR;
-export { mv };
+// 语义化标准导出与别名
+export {
+  buildQuayCrane,
+  buildYardCrane,
+  buildCargoShip,
+  buildPatrolBoat,
+  buildYardBlocks,
+  createBackdropEnvironment,
+  showcaseBackdrop,
+  createBackdropEnvironment as create,
+  showcaseBackdrop as showcase,
+  mv,
+};

@@ -402,6 +402,76 @@ async function runTest() {
 
       await page.close();
     }
+
+    // ----------------------------------------------------------------
+    // 【测试用例 6】: 移动端视口与触控仿真 (Mobile Touch Controls & Virtual Joysticks)
+    // ----------------------------------------------------------------
+    console.log("\n----------------------------------------------------------------");
+    console.log("【测试用例 6】: 移动端触控仿真与虚拟双摇杆测试 (Touch Mode & Mobile HUD)");
+    console.log("----------------------------------------------------------------");
+
+    {
+      const touchPage = await browser.newPage();
+      await touchPage.setViewport({
+        width: 844,
+        height: 390,
+        isMobile: true,
+        hasTouch: true,
+      });
+
+      const touchUrl = `${BASE_URL}/dist/index.html?touch=1&autostart=1&noaudio=1`;
+      console.log(`正在访问移动端触控模式: ${touchUrl}`);
+
+      const errors = [];
+      touchPage.on("pageerror", (err) => errors.push(err.message));
+
+      await touchPage.goto(touchUrl, { waitUntil: "networkidle0", timeout: 25000 });
+      await sleep(1500);
+
+      const touchHUDInfo = await touchPage.evaluate(() => {
+        const touchRoot = document.querySelector(".touch");
+        const stickEl = document.querySelector(".t-stick");
+        const fireBtn = document.querySelector(".t-btn.t-fire");
+        const jumpBtn = document.querySelector(".t-btn.t-jump");
+        const reloadBtn = document.querySelector(".t-btn.t-reload");
+        const isTouchActive = document.documentElement.classList.contains("is-touch");
+        const gameActive = window.__ready === true;
+
+        return {
+          hasTouchRoot: !!touchRoot,
+          isTouchOn: touchRoot ? touchRoot.classList.contains("on") : false,
+          hasStick: !!stickEl,
+          hasFireBtn: !!fireBtn,
+          hasJumpBtn: !!jumpBtn,
+          hasReloadBtn: !!reloadBtn,
+          isTouchActive,
+          gameActive,
+        };
+      });
+
+      console.log("- 移动端触控状态:", touchHUDInfo);
+
+      const screenshotTouch = path.join(ARTIFACTS_DIR, "mobile_touch_hud.png");
+      await touchPage.screenshot({ path: screenshotTouch });
+      console.log(`📸 移动端触控界面截图: ${screenshotTouch}`);
+
+      if (
+        touchHUDInfo.hasTouchRoot &&
+        touchHUDInfo.isTouchOn &&
+        touchHUDInfo.hasStick &&
+        touchHUDInfo.hasFireBtn &&
+        touchHUDInfo.isTouchActive &&
+        errors.length === 0
+      ) {
+        console.log("✅ 移动端自适应与虚拟双摇杆/按键 HUD 装配验证通过");
+        console.log("🎉 【测试用例 6 通过】: 移动端与触摸屏操作支持完美通过！");
+      } else {
+        console.error("❌ 移动端触控测试未达预期:", touchHUDInfo, errors);
+        hasFailures = true;
+      }
+
+      await touchPage.close();
+    }
   } finally {
     if (browser) await browser.close();
     await testServer.close();

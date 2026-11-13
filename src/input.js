@@ -452,7 +452,7 @@ export function createInputManager(engineCtx) {
           b.classList.add("active");
           setActionState("touch", action, true);
         },
-        { passive: false },
+        { passive: false, ...eventSignal },
       );
 
       const onTouchEnd = (ev) => {
@@ -472,8 +472,8 @@ export function createInputManager(engineCtx) {
         }
       };
 
-      b.addEventListener("touchend", onTouchEnd, { passive: false });
-      b.addEventListener("touchcancel", onTouchEnd, { passive: false });
+      b.addEventListener("touchend", onTouchEnd, { passive: false, ...eventSignal });
+      b.addEventListener("touchcancel", onTouchEnd, { passive: false, ...eventSignal });
 
       b.addEventListener(
         "touchmove",
@@ -489,7 +489,7 @@ export function createInputManager(engineCtx) {
             }
           }
         },
-        { passive: false },
+        { passive: false, ...eventSignal },
       );
 
       b.addEventListener("contextmenu", (ev) => ev.preventDefault());
@@ -522,13 +522,28 @@ export function createInputManager(engineCtx) {
     if (touchUI) touchUI.stick.classList.remove("on");
   }
 
+  // 环境与 URL 探测：支持 ?touch=1 参数或纯触控设备立即激活触控模式
+  try {
+    const isTouchEnv =
+      Boolean(engineCtx && engineCtx.params && engineCtx.params.touch) ||
+      (typeof window !== "undefined" &&
+        (new URLSearchParams(window.location.search).has("touch") ||
+          ("ontouchstart" in window && navigator.maxTouchPoints > 0) ||
+          window.matchMedia?.("(pointer: coarse)")?.matches));
+    if (isTouchEnv) {
+      activateTouchMode();
+    }
+  } catch {
+    // 忽略安全或离线运行时的 location 访问异常
+  }
+
   window.addEventListener(
     "touchstart",
     () => {
       lastTouchTime = performance.now();
       activateTouchMode();
     },
-    { passive: true, capture: true },
+    { passive: true, capture: true, ...eventSignal },
   );
 
   canvasEl.addEventListener(
@@ -556,7 +571,7 @@ export function createInputManager(engineCtx) {
         }
       }
     },
-    { passive: false },
+    { passive: false, ...eventSignal },
   );
 
   canvasEl.addEventListener(
@@ -586,7 +601,7 @@ export function createInputManager(engineCtx) {
         }
       }
     },
-    { passive: false },
+    { passive: false, ...eventSignal },
   );
 
   const onTouchEndOrCancel = (ev) => {
@@ -599,8 +614,8 @@ export function createInputManager(engineCtx) {
     }
   };
 
-  canvasEl.addEventListener("touchend", onTouchEndOrCancel, { passive: false });
-  canvasEl.addEventListener("touchcancel", onTouchEndOrCancel, { passive: false });
+  canvasEl.addEventListener("touchend", onTouchEndOrCancel, { passive: false, ...eventSignal });
+  canvasEl.addEventListener("touchcancel", onTouchEndOrCancel, { passive: false, ...eventSignal });
 
   // --------------------------------------------------------------------------
   // 4. 标准手柄支持 (Standard Gamepad)

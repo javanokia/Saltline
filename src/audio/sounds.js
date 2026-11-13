@@ -56,12 +56,19 @@ function synthesizeRifleShot(sampleRate, rng, variant) {
     sampleRate,
   );
 
-  // 3. 火药爆轰重低音沉重锤击 (160Hz -> 45Hz 下潜)
+  // 3. 火药爆轰重低音沉重锤击 (160Hz -> 45Hz 下潜) 与 92Hz~36Hz 亚低频瞬态重音
   mixBuffer(
     out,
     synthesizePitchSweepSine(sampleRate, 0.11, 160 * pitchVar, 45 * pitchVar, 0.024, 0.03, 0.003),
     0,
     0.62,
+    sampleRate,
+  );
+  mixBuffer(
+    out,
+    synthesizePitchSweepSine(sampleRate, 0.08, 92 * pitchVar, 36 * pitchVar, 0.018, 0.025, 0.002),
+    0.001,
+    0.78,
     sampleRate,
   );
 
@@ -160,6 +167,34 @@ function synthesizeRifleShot(sampleRate, rng, variant) {
     ),
     delaySec + 0.03,
     0.035,
+    sampleRate,
+  );
+
+  // 7b. 枪机复进闭锁清脆金属撞击瞬态 (Bolt Carrier Slam & Battery Lockup: 4.8kHz)
+  mixBuffer(
+    out,
+    synthesizeNoiseBurst(sampleRate, rng, 0.015, 0.0015, {
+      bp: 4850 * pitchVar,
+      q: 2.5,
+      att: 0.0008,
+    }),
+    delaySec + 0.042,
+    0.34,
+    sampleRate,
+  );
+  mixBuffer(
+    out,
+    synthesizeModalBank(
+      sampleRate,
+      0.035,
+      [
+        [3600 * pitchVar, 0.008, 0.8],
+        [5400 * pitchVar, 0.005, 0.5],
+      ],
+      rng,
+    ),
+    delaySec + 0.042,
+    0.22,
     sampleRate,
   );
 
@@ -592,14 +627,14 @@ const s8 = synthReloadBolt;
 
 /** 抛壳黄铜弹壳多段落地弹跳声 (Shell Casing Bounce) */
 function synthShellBounce(sampleRate, rng, variant) {
-  const buf = createAudioBufferArray(sampleRate, 0.55);
+  const buf = createAudioBufferArray(sampleRate, 0.6);
   const pitchScale = [1.0, 1.09, 0.93][variant % 3];
   let delay = 0;
   let gain = 1.0;
-  const bounceCount = 2 + (variant !== 1 ? 1 : 0);
+  const bounceCount = 3 + (variant & 1);
 
   for (let b = 0; b < bounceCount; b++) {
-    const p = pitchScale * randomRange(rng, 0.96, 1.05);
+    const p = pitchScale * randomRange(rng, 0.96, 1.05) * (1 + b * 0.025);
     mixBuffer(
       buf,
       synthesizeModalBank(
@@ -625,9 +660,27 @@ function synthShellBounce(sampleRate, rng, variant) {
       gain * 0.5,
       sampleRate,
     );
-    delay += randomRange(rng, 0.085, 0.15) * (b ? 0.75 : 1);
-    gain *= randomRange(rng, 0.45, 0.62);
+    delay += randomRange(rng, 0.075, 0.13) * (b ? 0.72 : 1);
+    gain *= randomRange(rng, 0.42, 0.58);
   }
+
+  // 弹壳落地末段微小滚动余震颤音 (Micro-chatter / roll settle)
+  const chatterP = pitchScale * 1.08;
+  mixBuffer(
+    buf,
+    synthesizeModalBank(
+      sampleRate,
+      0.08,
+      [
+        [4300 * chatterP, 0.015, 0.5],
+        [7200 * chatterP, 0.01, 0.3],
+      ],
+      rng,
+    ),
+    delay,
+    0.16,
+    sampleRate,
+  );
   return buf;
 }
 const o8 = synthShellBounce;
@@ -772,11 +825,19 @@ const l8 = synthStepMetal;
 /** 跳跃落地沉重冲击 (Heavy Landing Impact) */
 function synthLand(sampleRate, rng) {
   const buf = createAudioBufferArray(sampleRate, 0.45);
+  // 深沉低频重击 (Deep Sub Impact) 与 82Hz~32Hz 触地低音包络
   mixBuffer(
     buf,
     synthesizePitchSweepSine(sampleRate, 0.14, 124, 44, 0.03, 0.045, 0.002),
     0,
     1.0,
+    sampleRate,
+  );
+  mixBuffer(
+    buf,
+    synthesizePitchSweepSine(sampleRate, 0.09, 82, 32, 0.02, 0.035, 0.002),
+    0.002,
+    0.72,
     sampleRate,
   );
   mixBuffer(
@@ -791,6 +852,22 @@ function synthLand(sampleRate, rng) {
     synthesizeNoiseBurst(sampleRate, rng, 0.2, 0.06, { bp: 1500, q: 0.7, att: 0.01 }),
     0.01,
     0.16,
+    sampleRate,
+  );
+  // 战术装具扣件摩擦抖动层 (Gear / buckle rustle layer)
+  mixBuffer(
+    buf,
+    synthesizeModalBank(
+      sampleRate,
+      0.06,
+      [
+        [2850, 0.015, 0.4],
+        [4300, 0.01, 0.3],
+      ],
+      rng,
+    ),
+    0.018,
+    0.22,
     sampleRate,
   );
   for (const t of [0.022, 0.05, 0.088]) {

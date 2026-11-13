@@ -6,6 +6,11 @@
 
 ### Added
 
+- **移动端与触摸屏全面操作支持**：`src/input.js` 新增自适应环境/URL 探测（`?touch=1`、`pointer: coarse`、`maxTouchPoints > 0`），实现左半屏虚拟移动摇杆（动态外圈触发行走/冲刺）、右半屏滑动视角转向、开火/跳跃/换弹/瞄准独立触控热区；并在 `tests/run_e2e_test.js` 新增【测试用例 6】移动端仿真端到端自动化测试。
+- **程序化音频合成器音质与声学动态增强**：
+  - `src/audio/sounds.js` 为 PAC-9 步枪（`synthesizeRifleShot`）引入 92Hz~36Hz 亚低音冲击（Sub-Bass Punch）与 4.8kHz 枪机复进闭锁清脆金属撞击瞬态（Bolt Slam & Battery Lockup）；
+  - 增强弹壳反弹（`synthShellBounce`）多材质碰撞随机音高颤动与末段微小滚动余震颤音（Micro-chatter）；
+  - 增强跳跃重力落地（`synthLand`）82Hz~32Hz 触地低音包络与战术装具扣件摩擦抖动层（Gear rustle）。
 - 全量 TypeScript 编译期检查覆盖：`tsconfig.typecheck.json` 覆盖全工程 38 个源码文件，实现 **100% 0 报错通过**。
 - 全局异常捕获强化：`src/main.js` 新增 `unhandledrejection` 异步 Promise 异常捕获，杜绝异步模块错误漏检。
 - 相机与调试钩子统一发布/订阅总线：`window.__setShot.subscribe` 提供多模块协同监听，解决调试参数相互覆盖。
@@ -13,6 +18,7 @@
 
 ### Changed
 
+- **场景背景模块语义化与结构治理**：`src/backdrop.js` 彻底重构淘汰 `z1, mb, vb, xb, Mb, Eb, pv, MR` 历史混淆短命名，重构为 `buildQuayCrane`（岸桥起重机）、`buildYardCrane`（龙门吊）、`buildCargoShip`（集装箱远洋货轮）、`buildPatrolBoat`（巡逻艇）、`buildYardBlocks`（货场堆垛与变电站）、`createBackdropEnvironment`（全景装配）与 `showcaseBackdrop`，补充详尽 JSDoc 注解并保留别名兼容。
 - **PAC-9 武器几何装配架构深度模块化**：彻底拆解 `src/weapons/pac9_model.js` 中 1,026 行超大单体装配函数 `w_`，分解为 7 个高内聚子装配函数（机匣与握把、护木与导轨、枪管与枪口装置、枪托与缓冲管、反射式瞄具与机械瞄具、枪机框与拉机柄、弹匣与枪弹），将圈复杂度由 51 降至 <10，并通过端到端几何校验验证其 100% 顶点/法线/索引零畸变。
 - 剔除 `src/enemies.js`、`src/weapon.js`、`src/weapons/pac9_model.js` 顶部各 423 行全量混淆解构块，净删减 **1,300+ 行死代码**，统一按需采用原生 Three.js 引用。
 - 清理 `src/constants.js`、`src/geo.js`、`src/audio/sounds.js`、`src/enemies/gull.js`、`src/enemies/hound.js` 中 45 个未被外部引用的历史废弃短别名导出。

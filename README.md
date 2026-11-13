@@ -6,6 +6,14 @@
 
 ---
 
+## 🌐 在线体验 (Live Demo)
+
+- 🎮 **游戏最新单文件发行版在线游玩**：[https://javanokia.github.io/Saltline/](https://javanokia.github.io/Saltline/)
+- 🕹️ **原始单文件发行版 (V1) 对照试玩**：[https://javanokia.github.io/Saltline/v1.html](https://javanokia.github.io/Saltline/v1.html)
+- 🚀 **GitHub CI/CD 自动化流水线**：每次推送到 `main` 分支均会自动执行全套测试门禁，并在测试全部通过后自动构建并热部署至 GitHub Pages。
+
+---
+
 ## 目录结构
 
 ```

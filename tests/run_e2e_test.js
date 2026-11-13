@@ -74,6 +74,7 @@ function createStaticServer(port = SERVER_PORT) {
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const TIMEOUT_READY = process.env.CI ? 60000 : 25000;
 
 async function runTest() {
   console.log("================================================================");
@@ -93,6 +94,11 @@ async function runTest() {
 
   let browser;
   try {
+    const isLinux = process.platform === "linux";
+    const glFlags = isLinux
+      ? ["--enable-webgl", "--ignore-gpu-blocklist", "--use-gl=angle", "--use-angle=swiftshader"]
+      : ["--use-gl=angle", "--use-angle=metal"];
+
     browser = await puppeteer.launch({
       executablePath: CHROME_PATH,
       headless: "new",
@@ -101,8 +107,8 @@ async function runTest() {
         "--disable-setuid-sandbox",
         "--disable-web-security",
         "--allow-file-access-from-files",
-        "--use-gl=angle",
-        "--use-angle=metal",
+        "--disable-dev-shm-usage",
+        ...glFlags,
         "--window-size=1280,720",
         "--autoplay-policy=no-user-gesture-required",
       ],
@@ -124,7 +130,7 @@ async function runTest() {
       const targetUrl = `${BASE_URL}/dist/index.html?bench=1&autostart=1&noaudio=1`;
       console.log(`正在访问: ${targetUrl}`);
       await page.goto(targetUrl, { waitUntil: "load", timeout: 30000 });
-      await page.waitForFunction(() => window.__ready === true, { timeout: 15000 });
+      await page.waitForFunction(() => window.__ready === true, { timeout: TIMEOUT_READY });
       console.log("✅ 引擎初始化成功，首帧与物理世界装配就绪 (__ready = true)");
 
       await sleep(3500);
@@ -189,7 +195,7 @@ async function runTest() {
       const targetUrl = `${BASE_URL}/几猫国产3A大作_V1.html?bench=1&autostart=1&noaudio=1`;
       console.log(`正在访问: ${targetUrl}`);
       await page.goto(targetUrl, { waitUntil: "load", timeout: 30000 });
-      await page.waitForFunction(() => window.__ready === true, { timeout: 20000 });
+      await page.waitForFunction(() => window.__ready === true, { timeout: TIMEOUT_READY });
       await sleep(3500);
 
       const rawFrames = await page.evaluate(() => window.__frames || 0);
@@ -257,7 +263,7 @@ async function runTest() {
         waitUntil: "load",
         timeout: 30000,
       });
-      await page.waitForFunction(() => window.__ready === true, { timeout: 15000 });
+      await page.waitForFunction(() => window.__ready === true, { timeout: TIMEOUT_READY });
       await sleep(1500);
 
       // 模拟鼠标点击激活与开火
@@ -322,7 +328,7 @@ async function runTest() {
       const zhUrl = `${BASE_URL}/dist/index.html?lang=zh&noaudio=1`;
       console.log(`正在访问: ${zhUrl}`);
       await page.goto(zhUrl, { waitUntil: "load", timeout: 30000 });
-      await page.waitForFunction(() => window.__ready === true, { timeout: 15000 });
+      await page.waitForFunction(() => window.__ready === true, { timeout: TIMEOUT_READY });
       await sleep(500);
 
       const zhInfo = await page.evaluate(() => {
@@ -490,7 +496,7 @@ async function runTest() {
       const mazeUrl = `${BASE_URL}/dist/index.html?map=maze&bench=1&autostart=1&noaudio=1`;
       console.log(`正在访问迷宫地图: ${mazeUrl}`);
       await mazePage.goto(mazeUrl, { waitUntil: "domcontentloaded" });
-      await mazePage.waitForFunction(() => window.__ready === true, { timeout: 15000 });
+      await mazePage.waitForFunction(() => window.__ready === true, { timeout: TIMEOUT_READY });
       await sleep(1000);
 
       const arsenalTestResult = await mazePage.evaluate(async () => {

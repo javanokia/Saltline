@@ -572,6 +572,161 @@ function buildContainerYard(levelBuilder) {
 
   // 4. 堆场高杆照明灯塔 (Lattice Floodlight Mast in Yard)
   place("light_mast", 0.0, 18.0, 0, { on: true, seed: 12 });
+  return { x: 1.5, z: 7.5 };
+}
+
+/**
+ * 组装程序化随机集装箱战术迷宫 (Procedural Container Labyrinth Yard)
+ * @param {object} levelBuilder 场景构建上下文
+ * @param {number} [seed=1337] 随机种子
+ * @returns {{ x: number, z: number }} 中继站 A 放置坐标
+ */
+function buildProceduralContainerMaze(levelBuilder, seed = 1337) {
+  const place = levelBuilder.place;
+  const stack = levelBuilder.stack;
+
+  // 确定性随机发生器
+  let s = seed >>> 0;
+  const rng = () => {
+    s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+    return s / 4294967296;
+  };
+
+  const colors = ["green", "grey", "orange", "blue", "red", "teal", "yellow", "white"];
+  const pickColor = () => colors[Math.floor(rng() * colors.length)];
+
+  // 迷宫纵横主通道轴线坐标网格 (X: -20m ~ 14m, Z: -5m ~ 20m)
+  const rowZ = [-5.12, 1.5, 8.2, 14.8, 20.5];
+  const colX = [-19.5, -13.5, -6.5, 0.5, 7.5, 13.5];
+
+  // 战术保留空地 (通道与中继广场)
+  const isProtectedCorridor = (x, z) => {
+    if (x < -16 && z >= 4 && z <= 8) return true;
+    if (x >= -7 && x <= 0 && z < 0) return true;
+    if (x > 11 && z >= 4 && z <= 10) return true;
+    if (x >= -2 && x <= 3 && z >= 6 && z <= 9) return true;
+    return false;
+  };
+
+  // 生成迷宫集装箱垛墙
+  for (let r = 0; r < rowZ.length; r++) {
+    for (let c = 0; c < colX.length; c++) {
+      const x = colX[c] + (rng() - 0.5) * 0.8;
+      const z = rowZ[r] + (rng() - 0.5) * 0.6;
+
+      if (isProtectedCorridor(x, z)) continue;
+
+      if (rng() < 0.76) {
+        const height = 1 + Math.floor(rng() * 2.8);
+        const is40ft = rng() < 0.45;
+        const lengthType = is40ft ? 40 : 20;
+        const rotY = rng() < 0.35 ? Math.PI / 2 : 0;
+
+        const stackLayers = [];
+        for (let h = 0; h < height; h++) {
+          const isReefer = h === 0 && rng() < 0.25;
+          const openDoors = h === 0 && rng() < 0.2 ? 0.75 : 0;
+          stackLayers.push([
+            lengthType,
+            pickColor(),
+            { reefer: isReefer, doors: openDoors, flip: rng() < 0.5 },
+          ]);
+        }
+        stack(x, z, stackLayers, rotY, 0.3);
+      }
+    }
+  }
+
+  // 搭建中央与制高点连廊战术钢梯
+  levelBuilder.stairs(-0.5, 12.0, 0, 0, { seed: seed + 1 });
+  levelBuilder.catwalk(8.5, 12.0, 0, 2.54, { seed: seed + 2 });
+  for (const cx of [7.2, 10.0]) {
+    for (const cz of [11.5, 12.5]) {
+      levelBuilder.rod("steel_dark", [cx, 0, cz], [cx, 2.54, cz], 0.04);
+    }
+  }
+
+  // 中央中继点周围防御掩体工事
+  place("sandbags", 0.5, 6.2, 0, { courses: 5, seed: seed + 3 });
+  place("sandbags", 2.2, 7.5, Math.PI / 2, { courses: 5, seed: seed + 4 });
+  place("sandbags", 0.5, 8.8, Math.PI, { courses: 4, seed: seed + 5 });
+
+  // 散落战术物资道具
+  place("forklift", -4.2, 5.5, 0.4, { color: "yellow", forksUp: 0.25, seed: seed + 6 });
+  place("generator", 8.0, -1.5, -0.2, { color: "yellow", seed: seed + 7 });
+  place("toolbox_cart", -7.5, 8.2, 1.1, { color: "red", seed: seed + 8 });
+  place("barrel", -2.2, 3.8, 0, { color: "blue", seed: seed + 9 });
+  place("barrel", -1.5, 4.1, 0, { color: "red", lying: true, seed: seed + 10 });
+  place("cable_reel", 10.2, 7.0, 0.8, { seed: seed + 11 });
+  place("dumpster", -15.8, 17.5, 0, { color: "green", seed: seed + 12 });
+  place("tire_stack", -9.0, 15.0, 0, { count: 4, seed: seed + 13 });
+  place("ibc_tote", 5.8, 16.0, 0.15, { seed: seed + 14 });
+  place("tarp_cargo", -10.8, 20.5, 0, { seed: seed + 15 });
+
+  // 迷宫高杆投光灯塔
+  place("light_mast", 0.5, 17.5, 0, { on: true, seed: seed + 16 });
+
+  return { x: 0.5, z: 7.5 };
+}
+
+/**
+ * 组装哨所防卫前哨堡垒布局 (Perimeter Outpost Fortress Yard)
+ * @param {object} levelBuilder 场景构建上下文
+ * @param {number} [seed=1337] 随机种子
+ * @returns {{ x: number, z: number }} 中继站 A 放置坐标
+ */
+function buildOutpostFortress(levelBuilder, seed = 1337) {
+  const place = levelBuilder.place;
+  const stack = levelBuilder.stack;
+
+  // 西侧主防御堡垒围墙
+  stack(
+    -18.5,
+    -4.0,
+    [
+      [40, "teal"],
+      [40, "grey"],
+    ],
+    Math.PI / 2,
+  );
+  stack(
+    -18.5,
+    10.0,
+    [
+      [40, "blue"],
+      [40, "red"],
+    ],
+    Math.PI / 2,
+  );
+
+  // 北侧双层集装箱屏障
+  stack(-12.0, 18.0, [
+    [40, "orange"],
+    [40, "teal"],
+  ]);
+  stack(2.0, 18.0, [
+    [40, "green"],
+    [40, "yellow"],
+  ]);
+
+  // 核心机枪掩体与前哨了望塔
+  levelBuilder.stairs(1.0, 12.0, 0, 0, { seed: seed + 1 });
+  levelBuilder.catwalk(1.0, 15.5, Math.PI / 2, 2.54, { seed: seed + 2 });
+  stack(1.0, 18.0, [
+    [20, "white", { doors: 0.8 }],
+    [20, "blue"],
+  ]);
+
+  // 防御沙袋群与重工业装备
+  place("sandbags", -2.5, 5.0, 0.2, { courses: 5, seed: seed + 3 });
+  place("sandbags", 5.5, 5.0, -0.2, { courses: 5, seed: seed + 4 });
+  place("forklift", -6.0, 4.0, 0.8, { color: "yellow", forksUp: 0.4, seed: seed + 5 });
+  place("generator", 7.5, 3.5, 0, { color: "yellow", seed: seed + 6 });
+  place("barrel", 0.0, 4.0, 0, { color: "red", seed: seed + 7 });
+  place("barrel", 0.6, 4.2, 0, { color: "blue", lying: true, seed: seed + 8 });
+  place("light_mast", -1.0, 16.0, 0, { on: true, seed: seed + 9 });
+
+  return { x: 1.5, z: 7.5 };
 }
 
 // ============================================================================
@@ -1115,29 +1270,60 @@ function buildLabelAtlas(staticRoot, { scale = 0.5, maxW = 2048 } = {}) {
 // ============================================================================
 
 /**
+ * 战术关卡预设地图类型定义
+ */
+export const LEVEL_PRESETS = {
+  berth4: { id: "berth4", name: "四号深水泊位 (Berth 4 Standard)" },
+  maze: { id: "maze", name: "集装箱战术迷宫 (Container Tactical Labyrinth)" },
+  outpost: { id: "outpost", name: "哨所防卫前哨 (Perimeter Outpost Fortress)" },
+};
+
+/**
  * 快速创建 Vector3 辅助函数
  */
 const v3 = (x, y, z) => new THREE.Vector3(x, y, z);
 
 /**
- * 异步初始化四号泊位宏观战术场景
+ * 异步初始化战术场景与关卡
  * @param {object} engineCtx 全局引擎上下文
+ * @param {object} [options={}] 关卡自定配置 (含 map, seed)
  */
-export async function createLevel(engineCtx) {
+export async function createLevel(engineCtx, options = {}) {
   const root = new THREE.Group();
   root.name = "level";
   engineCtx.scene.add(root);
 
   const builder = createLevelBuilderContext(engineCtx);
 
+  const mapType =
+    options.map ||
+    engineCtx.params?.map ||
+    (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("map")) ||
+    "berth4";
+
+  const levelSeed = +(
+    options.seed ||
+    engineCtx.params?.seed ||
+    (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("seed")) ||
+    1337
+  );
+
+  let relayPosA = { x: 1.5, z: 7.5 };
+
   // 1. 建造四大区域 (Build 4 Zones)
-  buildContainerYard(builder);
+  if (mapType === "maze") {
+    relayPosA = buildProceduralContainerMaze(builder, levelSeed);
+  } else if (mapType === "outpost") {
+    relayPosA = buildOutpostFortress(builder, levelSeed);
+  } else {
+    relayPosA = buildContainerYard(builder);
+  }
   buildPerimeterGate(builder);
   const shedData = buildWarehouseShed(builder);
   const quayData = buildDeepwaterQuay(builder);
 
   // 2. 放置 3 处核心战术中继站 (Place 3 Tactical Relay Objectives)
-  const relayNodeA = builder.place("relay_node", 1.5, 7.5, 0.35, { seed: 1 }, 0);
+  const relayNodeA = builder.place("relay_node", relayPosA.x, relayPosA.z, 0.35, { seed: 1 }, 0);
   const relayNodeB = builder.place(
     "relay_node",
     shedData.relayPos.x,
@@ -1400,6 +1586,8 @@ export async function createLevel(engineCtx) {
 
   return {
     root,
+    mapPreset: mapType,
+    seed: levelSeed,
     playerStart: { pos: v3(-32.0, 0, 6.0), yaw: -Math.PI / 2 },
     objectives,
     extraction: { pos: quayData.extraction.clone(), radius: 2.5 },

@@ -377,6 +377,7 @@ export async function bootstrapEngine() {
   }
 
   // 5. 按拓扑顺序依次异步拉起子系统
+  window.__engine = engineCtx;
   await updateBootProgress(t("boot.step1"), 0.04);
   await loadModule("render", "render", () => render.create(engineCtx), true);
   engineCtx.renderer = engineCtx.render.renderer;

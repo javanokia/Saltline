@@ -104,8 +104,8 @@ graph TD
   3. **Voronoi 细胞拓扑**：用于计算集装箱面漆剥落、水渍裂纹与工业涂装防滑凸起。
   4. **MRT（多渲染目标）一次性烘焙**：在离屏帧缓冲中同步输出 Albedo（基础色）、Normal（法线贴图）以及 Packing 贴图（R 通道 Roughness、G 通道 Metalness、B 通道 AO 环境光遮蔽）。
 
-### 3.2 工业级三维资产参数化装配 (Industrial 3D Props)
-- **对应模块**：[src/geo.js](file:///Volumes/M1/3A/src/geo.js), [src/props.js](file:///Volumes/M1/3A/src/props.js), [src/props/](file:///Volumes/M1/3A/src/props/)
+### 3.2 工业级三维资产参数化装配与多关卡迷宫生成 (Industrial 3D Props & Tactical Mazes)
+- **对应模块**：[src/geo.js](file:///Volumes/M1/3A/src/geo.js), [src/props.js](file:///Volumes/M1/3A/src/props.js), [src/props/](file:///Volumes/M1/3A/src/props/), [src/level.js](file:///Volumes/M1/3A/src/level.js)
 - **核心机制**：
   整个泊位包含 270 万多边形，全部由基础几何算子组合装配：
   1. **圆角长方体算子 (`createBoxBevelGeometry`)**：支持 6 个轴向的平滑倒角，杜绝三维工业模型边缘生硬的计算机图形质感。
@@ -113,34 +113,57 @@ graph TD
   3. **ISO 6346 标准集装箱装配器 (`src/props/containers.js`)**：精确构建 20 尺、40 尺标准箱与冷藏箱，具备波纹板周期截面折弯、角铸件（Corner Castings）与锁杆机构。
   4. **重工业特种装备 (`src/props/industrial.js`)**：3.5 吨内燃叉车（带双连级门架与液压油缸）、工业柴油应急发电机（带冷却格栅与仪表盘）、防爆油桶与苫布货垛。
   5. **几何体同态深度合批 (`mergeGeometriesClean`)**：将数千个同材质静态网格合并为单一大网格，将宏观场景的 Draw Call 控制在 150 次以内。
+  6. **战术关卡预设与程序化迷宫 (`src/level.js`)**：
+     - **预设系统 (`LEVEL_PRESETS`)**：支持标准第 4 泊位（`berth4`）、高密集装箱迷宫（`maze`）、前哨要塞（`outpost`），可通过 URL 参数 `?map=maze&seed=1337` 实时切换。
+     - **伪随机集装箱纵横迷宫**：基于确定性 LCG 随机数生成器，构建 $12 \times 8$ 单元格的高危巷战环境，支持 1~3 层多级垂直叠放、中空走廊、高空钢梯连接的空中连廊狙击制高点与中央战术掩体中继广场。
 
 ### 3.3 物理声学合成与 Web Audio DSP 引擎 (Procedural Audio)
 - **对应模块**：[src/audio.js](file:///Volumes/M1/3A/src/audio.js), [src/audio/dsp.js](file:///Volumes/M1/3A/src/audio/dsp.js), [src/audio/sounds.js](file:///Volumes/M1/3A/src/audio/sounds.js)
 - **核心机制**：
-  全游戏无任何音频文件，57 种音效波形与自适应动态配乐纯数学计算生成：
+  全游戏无任何音频文件，60+ 种音效波形与自适应动态配乐纯数学计算生成：
   1. **Direct Form II 双二阶滤波器 (Biquad Filter)**：实现低通、高通、带通与陷波，频率响应精准可调。
   2. **模态加法共振 (Modal Resonance Bank)**：通过并联阻尼正弦衰减振荡器组，精确模拟金属弹壳坠地、集装箱铁板撞击等声学共振峰。
-  3. **6 层复合枪声架构**：
-     - Layer 1: 超音速膛压激波（极陡峭上升沿短脉冲瞬态 Transient）；
-     - Layer 2: 枪膛机械撞针与导气箍运动（高频金属摩擦）；
-     - Layer 3: 扩膛火药爆燃（低频粉红噪声经双曲正切 $\tanh$ 软削波饱和饱和）；
-     - Layer 4: 枪管驻波共鸣；
-     - Layer 5: 港区近距离建筑早期反射；
-     - Layer 6: 远场长尾回音（Tail Decay）。
-  4. **双真实脉冲响应 (IR) 卷积混响**：实时数学合成 2.8s 室外空旷泊位长衰减脉冲响应，以及 1.6s 室内紧凑集装箱早期反射脉冲。
-  5. **5 轨战术动态自适应配乐**：根据战斗紧张度（潜入、探索、交火、警戒、撤离）动态平滑线性插值增益矩阵。
+  3. **多枪械差异化射击声学架构**：
+     - **PAC-9 突击步枪**：6 层复合架构（超音速激波、机械撞针、火药爆燃 $\tanh$ 软削波、管壁共鸣、近场早期反射、远场长尾回音）。
+     - **SG-12 战术霰弹枪**：12 铅径重爆燃低频（45Hz 强震）、宽带高能爆冲瞬态与泵动回膛下拉/推上双重次级机械金属声。
+     - **SMG-45 战术冲锋枪**：超短促 0.11s 快速脉冲、8.2kHz 枪机往复快速撞击闭锁清脆高频。
+     - **SR-99 反器材狙击步枪**：24Hz 地震波级次重低音瞬态、超远距离延迟长衰减多级反射与重型枪栓拉动闭锁声。
+  4. **多表面物理弹壳反弹落地声学**：
+     - **金属表面 (`metal`)**：5.2k / 7.8k / 10.5kHz 极高 Q 模态泛音组合，伴随 28Hz 离散微颤音。
+     - **混凝土表面 (`concrete`)**：中低频刚体钝击碰撞伴随碎石擦碰高通滤波。
+     - **木质表面 (`wood`)**：280Hz / 620Hz 温暖木腔共鸣衰减。
+     - **积水表面 (`water`)**：低通钝击与微小水花气泡溅射。
+  5. **环境降雨微动态声学**：
+     - 铁皮集装箱顶密集雨点敲击微细颗粒动态（`synthRainMetalPatter`）；
+     - 地面积水水洼气泡涌动与水滴滴落（`synthRainPuddleDrips`）。
+  6. **双真实脉冲响应 (IR) 卷积混响**：实时数学合成 2.8s 室外空旷泊位长衰减脉冲响应，以及 1.6s 室内紧凑集装箱早期反射脉冲。
+  7. **5 轨战术动态自适应配乐**：根据战斗紧张度（潜入、探索、交火、警戒、撤离）动态平滑线性插值增益矩阵。
 
-### 3.4 PAC-9 武器动力学与视模装配 (Weapons & Recoil Kinematics)
-- **对应模块**：[src/weapon.js](file:///Volumes/M1/3A/src/weapon.js), [src/weapons/pac9_model.js](file:///Volumes/M1/3A/src/weapons/pac9_model.js)
+### 3.4 现代武库系统动力学与视模装配 (Arsenal & Recoil Kinematics)
+- **对应模块**：[src/weapon.js](file:///Volumes/M1/3A/src/weapon.js), [src/weapons/pac9_model.js](file:///Volumes/M1/3A/src/weapons/pac9_model.js), [src/weapons/arsenal_models.js](file:///Volumes/M1/3A/src/weapons/arsenal_models.js), [src/weapons/weapon_configs.js](file:///Volumes/M1/3A/src/weapons/weapon_configs.js)
 - **核心机制**：
-  1. **53,136 面纯代码建模**：机匣、皮卡汀尼导轨、枪管浮置护木、全息红点瞄具、弹匣释放纽、拉机柄全部由多边形切分组合。
-  2. **4 轴阻尼简谐振子弹簧 (Damped Harmonic Oscillator)**：
+  1. **四大全参数化制式武器视模**：
+     - **PAC-9 (突击步枪)**：53,136 面纯代码建模，全息红点、皮轨与浮置护木；
+     - **SG-12 (战术霰弹枪)**：双管泵动下挂弹仓、散热隔热罩、战术前握把与排气制退口；
+     - **SMG-45 (紧凑冲锋枪)**：折叠枪托构架、微型开放式红点瞄具、垂直战术握把与消焰器；
+     - **SR-99 (反器材狙击步枪)**：超长重型膛线枪管、多室箱型高效枪口制退器、两脚架、高倍可调物镜战术狙击镜。
+  2. **武库参数矩阵与多弹丸散射判定**：
+     | 武器代号 | 槽位 | 弹匣容量 | 射速 (RPM) | 单发伤害 | 弹丸数 (Pellets) | 散布基底 | ADS 视场角 (FOV) |
+     | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+     | **PAC-9** | 1 | 30 | 720 | 28 | 1 | 0.012 | 52° |
+     | **SG-12** | 2 | 8 | 110 | 18 | 8 (独立光线投射) | 0.055 | 60° |
+     | **SMG-45** | 3 | 40 | 950 | 19 | 1 | 0.024 | 56° |
+     | **SR-99** | 4 | 5 | 50 | 180 | 1 | 0.001 | 24° (高倍瞄准) |
+  3. **实时武器轮转与热切换系统**：
+     - 支持键盘数字键 `1` / `2` / `3` / `4` 直接切枪，以及 `Q` 键快速切枪（Quick Switch）；
+     - 切换时携带下落与提拔插值（Sway Down & Lift Up），各武器独立记忆当前弹匣弹药量与备弹储备；
+     - HUD 动态自适应重绘弹药晶格（Bullet Pips）。
+  4. **4 轴独立阻尼简谐振子弹簧 (Damped Harmonic Oscillator)**：
      $$\ddot{x} + 2\zeta\omega_n \dot{x} + \omega_n^2 x = F(t)$$
-     分别驱动机匣轴向后座、枪口俯仰（Pitch）、水平散布（Yaw）与姿态翻滚（Roll），多子步数值积分避免帧率波动发散。
-  3. **双状态换弹逻辑**：
-     - 战术换弹（Tactical Reload, 2.10s）：保留膛内剩余 1 发子弹，仅更换弹匣；
-     - 空仓挂机换弹（Empty Reload, 2.72s）：包含 15 个时间节点的姿态矩阵插值，完整再现左手拉机柄释放复进的机械动作。
-  4. **ADS（瞄准镜瞄准）瞬态动力学**：平滑视场角缩放（FOV 从 $75^\circ$ 收缩到 $48^\circ$），瞄具中心与准星精准重合对齐。
+     为各枪种量身定制振荡器参数（如 SG-12 强后座慢复位、SMG-45 高频微震、SR-99 巨额后坐力与镜头上扬）。
+  5. **双状态换弹逻辑**：
+     - 战术换弹（保留膛内剩余 1 发子弹）；
+     - 空仓挂机换弹（包含 15 个时间节点的姿态矩阵插值，完整再现拉机柄动作）。
 
 ### 3.5 玩家运动控制器与仿生动力学 (Player Locomotion)
 - **对应模块**：[src/player.js](file:///Volumes/M1/3A/src/player.js), [src/input.js](file:///Volumes/M1/3A/src/input.js)

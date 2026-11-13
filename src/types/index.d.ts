@@ -283,6 +283,7 @@ export interface CombatSystem {
 
 /** PAC-9 武器运行时状态，对应 src/weapon.js 返回的 weapon 对象。 */
 export interface WeaponState {
+  id?: string;
   name: string;
   ammo: number;
   magSize: number;
@@ -292,6 +293,8 @@ export interface WeaponState {
   spread: number;
   damage: number;
   rpm: number;
+  adsFov?: number;
+  soundType?: string;
   root: THREE.Group;
   debug: {
     freeze: boolean;
@@ -303,6 +306,10 @@ export interface WeaponState {
   info: { tris: number; meshes: number };
   update(dt: number): void;
   reset(): void;
+  switchWeapon?(targetId: string): boolean;
+  cycleWeapon?(dir?: number): boolean;
+  getWeaponList?(): any[];
+  getActiveWeapon?(): any;
   setVisible(visible: boolean): void;
   muzzleWorld(target?: THREE.Vector3): THREE.Vector3;
   reloadNow(): void;
@@ -382,6 +389,7 @@ declare global {
     __errors?: any[];
     __setShot?: (shotData: any) => void;
     __stats?: () => any;
+    __engine?: EngineContext;
     webkitAudioContext?: typeof AudioContext;
   }
 

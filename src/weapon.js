@@ -28,6 +28,9 @@ import {
   pac9RainUniform,
 } from "./weapons/pac9_model.js";
 
+import { WEAPON_REGISTRY, WEAPON_ORDER } from "./weapons/weapon_configs.js";
+import { buildShotgunMesh, buildSmgMesh, buildSniperMesh } from "./weapons/arsenal_models.js";
+
 // ============================================================================
 // 几猫九式突击步枪 (PAC-9 / KR-7) - 核心动力学与视模运行时系统 (Viewmodel System)
 // ============================================================================
@@ -204,8 +207,10 @@ async function createWeapon(ctx) {
   matPolymerTan.name = "pac9_polymer_tan";
   applyPac9ShaderDetails(matPolymerTan, 2);
 
-  // 组装机匣主体
-  root.add(
+  // 组装 PAC-9 机匣主体与附件组
+  const pac9Group = new wt();
+  pac9Group.name = "weapon_pac9_group";
+  pac9Group.add(
     createMesh(geo.ano, matAnodized),
     createMesh(geo.gun, matPhosphate),
     createMesh(geo.poly, matPolymer),
@@ -214,7 +219,7 @@ async function createWeapon(ctx) {
 
   // 组装往复式枪机组 (Bolt Carrier Group)
   const boltMesh = createMesh(geo.bolt, matPhosphate);
-  root.add(boltMesh);
+  pac9Group.add(boltMesh);
 
   // 组装可拆卸供弹具 (30发弹匣与首发黄铜穿甲弹)
   const magGroup = new wt();
@@ -223,7 +228,7 @@ async function createWeapon(ctx) {
 
   const topRoundMesh = createMesh(geo.round, getProceduralMat("brass"));
   magGroup.add(createMesh(geo.mag, matPolymerTan), topRoundMesh);
-  root.add(magGroup);
+  pac9Group.add(magGroup);
 
   // 组装高精度机匣激光刻字与导轨刻度 (PAC-9 刻标、警示标记、快慢机 AUTO/SEMI/SAFE)
   let markingsMesh = null;
@@ -256,7 +261,7 @@ async function createWeapon(ctx) {
     markingsMesh.castShadow = false;
     markingsMesh.receiveShadow = true;
     markingsMesh.frustumCulled = false;
-    root.add(markingsMesh);
+    pac9Group.add(markingsMesh);
   } catch (err) {
     console.warn("[weapon] markings skipped: " + err);
   }
@@ -270,7 +275,36 @@ async function createWeapon(ctx) {
     PAC9_MODEL_PARAMS.lensF + 0.0025,
   );
   opticSightMesh.frustumCulled = false;
-  root.add(opticSightMesh);
+  pac9Group.add(opticSightMesh);
+
+  root.add(pac9Group);
+
+  // 组装多武器扩展视模 (SG-12 / SMG-45 / SR-99)
+  const shotgunGroup = buildShotgunMesh(ctx.mats);
+  shotgunGroup.visible = false;
+  root.add(shotgunGroup);
+
+  const smgGroup = buildSmgMesh(ctx.mats);
+  smgGroup.visible = false;
+  root.add(smgGroup);
+
+  const sniperGroup = buildSniperMesh(ctx.mats);
+  sniperGroup.visible = false;
+  root.add(sniperGroup);
+
+  const weaponMeshMap = {
+    pac9: pac9Group,
+    sg12: shotgunGroup,
+    smg45: smgGroup,
+    sr99: sniperGroup,
+  };
+
+  const updateMuzzlePosForWeapon = (weaponId) => {
+    if (weaponId === "sr99") muzzleFlashMesh.position.set(0, 0.022, -0.92);
+    else if (weaponId === "sg12") muzzleFlashMesh.position.set(0, 0.024, -0.63);
+    else if (weaponId === "smg45") muzzleFlashMesh.position.set(0, 0.022, -0.37);
+    else muzzleFlashMesh.position.fromArray(PAC9_MODEL_PARAMS.muzzle);
+  };
 
   // 枪口焰粒子与几何体
   const muzzleFlashMesh = createPac9MuzzleFlashMesh();
@@ -553,7 +587,63 @@ async function createWeapon(ctx) {
     noFire: false,
   };
 
+  let activeWeaponId = "pac9";
+  const ammoStates = {
+    pac9: { ammo: WEAPON_REGISTRY.pac9.magCapacity, reserve: WEAPON_REGISTRY.pac9.reserveAmmo },
+    sg12: { ammo: WEAPON_REGISTRY.sg12.magCapacity, reserve: WEAPON_REGISTRY.sg12.reserveAmmo },
+    smg45: { ammo: WEAPON_REGISTRY.smg45.magCapacity, reserve: WEAPON_REGISTRY.smg45.reserveAmmo },
+    sr99: { ammo: WEAPON_REGISTRY.sr99.magCapacity, reserve: WEAPON_REGISTRY.sr99.reserveAmmo },
+  };
+
+  function switchWeapon(targetId) {
+    if (!WEAPON_REGISTRY[targetId] || targetId === activeWeaponId) return false;
+    ammoStates[activeWeaponId].ammo = weapon.ammo;
+    ammoStates[activeWeaponId].reserve = weapon.reserve;
+
+    const fromId = activeWeaponId;
+    activeWeaponId = targetId;
+    const cfg = WEAPON_REGISTRY[targetId];
+
+    for (const [id, mesh] of Object.entries(weaponMeshMap)) {
+      if (mesh) mesh.visible = id === targetId;
+    }
+    updateMuzzlePosForWeapon(targetId);
+
+    weapon.id = cfg.id;
+    weapon.name = cfg.name;
+    weapon.magSize = cfg.magCapacity;
+    weapon.ammo = ammoStates[targetId].ammo;
+    weapon.reserve = ammoStates[targetId].reserve;
+    weapon.spread = cfg.spreadHip;
+    weapon.damage = cfg.baseDamage;
+    weapon.rpm = cfg.fireRateRpm;
+    weapon.adsFov = cfg.adsFov;
+    weapon.soundType = cfg.soundType;
+
+    // 动态调整二阶阻尼简谐弹簧刚度与阻尼
+    state.kZ.k = cfg.recoil.springK;
+    state.kZ.c = cfg.recoil.springC;
+    state.kP.k = cfg.recoil.springK;
+    state.kP.c = cfg.recoil.springC;
+
+    // 换弹状态复位
+    state.reload = null;
+    state.reloadW = 0;
+    state.rackW = 0;
+
+    ctx.events.emit("weapon:switch", { from: fromId, to: targetId, weapon: cfg });
+    ctx.events.emit("weapon:reload", { phase: "bolt" });
+    return true;
+  }
+
+  function cycleWeapon(dir = 1) {
+    const curIdx = WEAPON_ORDER.indexOf(activeWeaponId);
+    const nextIdx = (curIdx + dir + WEAPON_ORDER.length) % WEAPON_ORDER.length;
+    return switchWeapon(WEAPON_ORDER[nextIdx]);
+  }
+
   const weapon = {
+    id: "pac9",
     name: PAC9_MODEL_PARAMS.name,
     ammo: MAG_CAPACITY,
     magSize: MAG_CAPACITY,
@@ -563,6 +653,8 @@ async function createWeapon(ctx) {
     spread: 0.0125,
     damage: BASE_DAMAGE,
     rpm: FIRE_RATE_RPM,
+    adsFov: 52,
+    soundType: "rifle",
     root,
     debug,
     info: {
@@ -571,6 +663,14 @@ async function createWeapon(ctx) {
     },
     update,
     reset,
+    switchWeapon,
+    cycleWeapon,
+    getWeaponList() {
+      return Object.values(WEAPON_REGISTRY);
+    },
+    getActiveWeapon() {
+      return WEAPON_REGISTRY[activeWeaponId];
+    },
     setVisible(v) {
       root.visible = !!v;
     },
@@ -651,7 +751,11 @@ async function createWeapon(ctx) {
   }
 
   function getMuzzleWorldPos(outVec = new Vector3_()) {
-    return localPointToWorld(PAC9_MODEL_PARAMS.muzzle, outVec);
+    let localMuzzle = PAC9_MODEL_PARAMS.muzzle;
+    if (activeWeaponId === "sr99") localMuzzle = [0, 0.022, -0.92];
+    else if (activeWeaponId === "sg12") localMuzzle = [0, 0.024, -0.63];
+    else if (activeWeaponId === "smg45") localMuzzle = [0, 0.022, -0.37];
+    return localPointToWorld(localMuzzle, outVec);
   }
 
   /**
@@ -660,14 +764,19 @@ async function createWeapon(ctx) {
   function triggerReload() {
     if (state.reload || weapon.ammo >= weapon.magSize || weapon.reserve <= 0) return false;
     const isEmpty = weapon.ammo <= 0;
+    const cfg = WEAPON_REGISTRY[activeWeaponId] || WEAPON_REGISTRY.pac9;
     state.reload = {
       t: 0,
-      T: isEmpty ? RELOAD_DURATION_EMPTY : RELOAD_DURATION_TACTICAL,
+      T: isEmpty ? cfg.reloadDurationEmpty : cfg.reloadDurationTactical,
       empty: isEmpty,
       f: {},
     };
     state.autoReload = -1;
-    ctx.events.emit("weapon:reload", { phase: "start", empty: isEmpty });
+    ctx.events.emit("weapon:reload", {
+      phase: "start",
+      empty: isEmpty,
+      weaponType: activeWeaponId,
+    });
     return true;
   }
 
@@ -685,60 +794,67 @@ async function createWeapon(ctx) {
   function fireShot() {
     const player = ctx.player;
     const camera = ctx.camera;
+    const cfg = WEAPON_REGISTRY[activeWeaponId] || WEAPON_REGISTRY.pac9;
 
     weapon.ammo--;
     state.burst++;
     state.lastShot = state.t;
     state.heat = Math.min(1.3, state.heat + 0.05);
 
-    // 弹道锥形随机散布
-    const spread = weapon.spread;
-    const spreadAngle = random() * Math.PI * 2;
-    const spreadRadius = Math.tan(spread) * Math.sqrt(random());
-
-    vRayDir
-      .set(Math.cos(spreadAngle) * spreadRadius, Math.sin(spreadAngle) * spreadRadius, -1)
-      .normalize()
-      .applyQuaternion(camera.quaternion);
+    const pellets = cfg.pellets || 1;
+    const baseSpread = state.adsE > 0.4 ? cfg.spreadAds : cfg.spreadHip;
+    weapon.spread = baseSpread;
 
     vEyePos.copy(player.eye || camera.position);
-
-    // 命中测试 (射线检测)
-    let hitResult = null;
-    try {
-      hitResult = ctx.combat.playerShot(vEyePos, vRayDir, {
-        damage: BASE_DAMAGE,
-        range: MAX_FIRE_RANGE,
-      });
-    } catch (e) {
-      console.warn("[weapon] playerShot calculation error:", e);
-    }
-
-    if (hitResult && hitResult.point) {
-      vHitPos.copy(hitResult.point);
-    } else {
-      vHitPos.copy(vEyePos).addScaledVector(vRayDir, MAX_FIRE_RANGE);
-    }
-
     getMuzzleWorldPos(vMuzzlePos);
 
-    // 触发特效 (弹道曳光与抛壳)
     const fx = ctx.fx;
-    if (fx) {
-      if (fx.tracer) fx.tracer(vMuzzlePos, vHitPos);
-      if (fx.shell) {
-        localPointToWorld(PAC9_MODEL_PARAMS.eject, vEjectPos);
-        vShellVel
-          .set(2 + random() * 1.2, 1.2 + random() * 0.8, 0.5 - random() * 0.6)
-          .applyQuaternion(camera.quaternion);
-        if (player.vel) vShellVel.add(player.vel);
-        fx.shell(vEjectPos, vShellVel);
+
+    for (let p = 0; p < pellets; p++) {
+      const spreadAngle = random() * Math.PI * 2;
+      const spreadRadius = Math.tan(baseSpread) * Math.sqrt(random());
+
+      vRayDir
+        .set(Math.cos(spreadAngle) * spreadRadius, Math.sin(spreadAngle) * spreadRadius, -1)
+        .normalize()
+        .applyQuaternion(camera.quaternion);
+
+      let hitResult = null;
+      try {
+        hitResult = ctx.combat.playerShot(vEyePos, vRayDir, {
+          damage: cfg.baseDamage,
+          range: cfg.maxRange,
+        });
+      } catch (e) {
+        console.warn("[weapon] playerShot calculation error:", e);
       }
+
+      if (hitResult && hitResult.point) {
+        vHitPos.copy(hitResult.point);
+      } else {
+        vHitPos.copy(vEyePos).addScaledVector(vRayDir, cfg.maxRange);
+      }
+
+      if (fx && fx.tracer) {
+        fx.tracer(vMuzzlePos, vHitPos);
+      }
+    }
+
+    // 触发特效 (弹道曳光与抛壳)
+    if (fx && fx.shell) {
+      localPointToWorld(PAC9_MODEL_PARAMS.eject, vEjectPos);
+      vShellVel
+        .set(2 + random() * 1.2, 1.2 + random() * 0.8, 0.5 - random() * 0.6)
+        .applyQuaternion(camera.quaternion);
+      if (player.vel) vShellVel.add(player.vel);
+      fx.shell(vEjectPos, vShellVel);
     }
 
     // 枪口动态点光源闪烁
     if (ctx.render && ctx.render.lightPool && ctx.render.lightPool.flash) {
-      ctx.render.lightPool.flash(vMuzzlePos, 0xffa020, 45, 9, 0.05);
+      const lightRadius = cfg.id === "sr99" ? 14 : cfg.id === "sg12" ? 12 : 9;
+      const lightColor = cfg.id === "sr99" ? 0xffcc40 : 0xffa020;
+      ctx.render.lightPool.flash(vMuzzlePos, lightColor, 50, lightRadius, 0.05);
     }
 
     ctx.events.emit("weapon:fire", {
@@ -746,12 +862,22 @@ async function createWeapon(ctx) {
       dir: vRayDir,
       muzzle: vMuzzlePos,
       ads: state.adsE,
+      weaponType: cfg.id,
+      soundType: cfg.soundType,
     });
 
-    // 后坐力计算与施加给玩家视角
+    // 视模后坐力弹簧冲量施加
     const adsFactor = lerp(1, 0.55, state.adsE) * (player.crouching ? 0.85 : 1);
+    state.kZ.v += cfg.recoil.kickZ;
+    state.kP.v += cfg.recoil.pitch * adsFactor;
+    state.kY.v += (random() - 0.5) * cfg.recoil.yaw * adsFactor;
+    state.kR.v += (random() - 0.5) * cfg.recoil.roll;
+
+    // 施加给玩家视角后坐力晃动
     const burstCount = state.burst;
     const recoilScale = burstCount <= 9 ? 1 : 0.38;
+    const recoilPitchAmount =
+      cfg.recoil.pitch * 0.15 * recoilScale * adsFactor * (0.85 + random() * 0.3);
     const recoilYaw =
       (burstCount < 4
         ? (random() - 0.5) * 0.0022
@@ -759,7 +885,7 @@ async function createWeapon(ctx) {
       adsFactor;
 
     if (player.addRecoil) {
-      player.addRecoil(0.0068 * recoilScale * adsFactor * (0.85 + random() * 0.3), recoilYaw);
+      player.addRecoil(recoilPitchAmount, recoilYaw);
     }
     if (player.addShake) {
       player.addShake(0.12 * adsFactor);
@@ -1020,6 +1146,15 @@ async function createWeapon(ctx) {
     const isSprinting = !!player.sprinting && !wantsFire && !input.ads && !state.reload;
     state.sprintT = damp(state.sprintT, isSprinting ? 1 : 0, 9, dt);
 
+    // 武器槽位切换输入检测 (1: PAC-9, 2: SG-12, 3: SMG-45, 4: SR-99, Q: 快速轮换)
+    if (input.pressed) {
+      if (input.pressed("slot1")) switchWeapon("pac9");
+      else if (input.pressed("slot2")) switchWeapon("sg12");
+      else if (input.pressed("slot3")) switchWeapon("smg45");
+      else if (input.pressed("slot4")) switchWeapon("sr99");
+      else if (input.pressed("quickswitch")) cycleWeapon(1);
+    }
+
     // 换弹按键与空仓自动换弹
     if (input.pressed && input.pressed("reload")) {
       triggerReload();
@@ -1038,9 +1173,10 @@ async function createWeapon(ctx) {
     if (wantsFire && canFire) {
       if (weapon.ammo > 0) {
         let maxShotsPerFrame = 0;
+        const currentRpm = weapon.rpm || FIRE_RATE_RPM;
         while (state.cooldown <= 0 && weapon.ammo > 0 && maxShotsPerFrame < 3) {
           fireShot();
-          state.cooldown += 60 / FIRE_RATE_RPM;
+          state.cooldown += 60 / currentRpm;
           maxShotsPerFrame++;
         }
       } else if (!state.dryDone) {

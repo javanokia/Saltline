@@ -1107,13 +1107,36 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
     }
   };
 
-  on("weapon:fire", () => {
+  on("weapon:fire", (payload) => {
+    const soundType = (payload && payload.soundType) || "rifle";
+    let soundName = "rifle_shot";
+    let gainScale = 1.0;
+    let minTailInterval = 0.28;
+    let tailGain = 1.0;
+
+    if (soundType === "shotgun") {
+      soundName = "shotgun_shot";
+      gainScale = 1.15;
+      minTailInterval = 0.35;
+      tailGain = 1.25;
+    } else if (soundType === "smg") {
+      soundName = "smg_shot";
+      gainScale = 0.92;
+      minTailInterval = 0.12;
+      tailGain = 0.7;
+    } else if (soundType === "sniper") {
+      soundName = "sniper_shot";
+      gainScale = 1.35;
+      minTailInterval = 0.45;
+      tailGain = 1.6;
+    }
+
     rifleVariantCycler = (rifleVariantCycler + 1) & 3;
-    playSound("rifle_shot", { variant: rifleVariantCycler, gain: 1.0, jitter: 0.012 });
+    playSound(soundName, { variant: rifleVariantCycler, gain: gainScale, jitter: 0.012 });
 
     const now = audioCtx.currentTime;
     lastGunshotTime = now;
-    if (now - lastReverbTailTime > 0.28) triggerGunshotReverbTail(1.0);
+    if (now - lastReverbTailTime > minTailInterval) triggerGunshotReverbTail(tailGain);
 
     musicDuckingTarget = Math.min(musicDuckingTarget, 0.55);
     if (combatIntensityAccumulator > 0.3) {
@@ -1134,15 +1157,21 @@ function setupAudioGraph(engineCtx, audioCtx, preheatedCache) {
 
   on("shell:bounce", (payload) => {
     const now = audioCtx.currentTime;
-    if (now - lastBounceTime < 0.04) return;
+    if (now - lastBounceTime < 0.035) return;
     lastBounceTime = now;
-    if (payload.surface === "water") {
+    const surface = (payload && payload.surface) || "concrete";
+
+    if (surface === "water") {
       playSound("impact_water", { pos: formatVector(payload.pos), gain: 0.25, pitch: 1.7 });
+    } else if (surface === "metal") {
+      playSound("shell_bounce_metal", { pos: formatVector(payload.pos), gain: 1.05, pitch: 1.0 });
+    } else if (surface === "wood") {
+      playSound("shell_bounce_wood", { pos: formatVector(payload.pos), gain: 0.9, pitch: 1.0 });
     } else {
-      playSound("shell_bounce", {
+      playSound("shell_bounce_concrete", {
         pos: formatVector(payload.pos),
-        gain: payload.surface === "metal" ? 1.0 : 0.8,
-        pitch: payload.surface === "metal" ? 1.12 : 1.0,
+        gain: 0.85,
+        pitch: 1.0,
       });
     }
   });

@@ -6,6 +6,22 @@
 
 ### Added
 
+- **多武器系统扩展与 3D 程序化视模**：
+  - 新增 `src/weapons/weapon_configs.js` 与 `src/weapons/arsenal_models.js`，基于纯数学几何算子无外部资产构建 4 大制式武器全景装配：
+    1. **PAC-9 Longshore (几猫九式突击步枪)**：30发、720 RPM、高精度全能战术步枪；
+    2. **SG-12 Breacher (重型战术霰弹枪)**：8发、105 RPM、8 弹丸高爆散射、144 近距毁灭爆发伤害、粗重泵动滑块拉栓机械动作；
+    3. **SMG-45 Stinger (高射速战术冲锋枪)**：40发、960 RPM、轻量化钛合金枪机高速往复闭锁金属声、超紧凑室内突击微型红点瞄具；
+    4. **SR-99 Vanguard (高精反器材狙击步枪)**：5发、42 RPM、单发 165 穿甲暴击伤害、24° 高倍战术光学狙击镜、双室反跳制退器与巨震次重低音。
+  - `src/weapon.js` 扩展槽位切换架构（按键 `1`/`2`/`3`/`4` 或 `Q` 快速轮换），支持独立弹药储备记忆、自适应 ADS 视场角过渡、多武器动力学简谐振子弹簧参数与 HUD 实时连动。
+- **战术关卡扩展与程序化随机集装箱迷宫**：
+  - `src/level.js` 引入多关卡地图配置 `LEVEL_PRESETS`（`berth4` 标准深水泊位、`maze` 随机集装箱战术迷宫、`outpost` 哨所防卫前哨堡垒），支持 `?map=maze`、`?map=outpost` 与 `?seed=...` 任意种子参数。
+  - 实现 `buildProceduralContainerMaze` 与 `buildOutpostFortress`：依据伪随机数发生器在露天堆场动态构建 1~3 层错落集装箱回廊、死角掩体、战术钢梯与高空连廊制高点，并动态重定位战术中继站 A 与掩体防御工事。
+- **音频空间声学升级与多材质落地/雨点物理动态**：
+  - `src/audio/sounds.js` 新增 `synthesizeShotgunShot`（12铅径 60Hz->22Hz 重低音下潜激波与 0.16s 战术泵动手感）、`synthesizeSmgShot`（8.2kHz 枪机高速闭锁清脆金属音）、`synthesizeSniperShot`（24Hz 地震波级次重低音爆轰与 .50 口径超音速撕裂）；
+  - 弹壳反弹落地全面细化材质特化声学：`synthShellBounceMetal`（尖锐高 Q 模态谐振衰减 5.2kHz/7.8kHz/10.5kHz 与密集微弹跳颤音）、`synthShellBounceConcrete`（刚体钝击与碎石摩擦）、`synthShellBounceWood`（温暖木质共振）；
+  - 新增雨点敲击金属集装箱表面细微颗粒声（`synthRainMetalPatter`）与水洼水泡气泡声（`synthRainPuddleDrips`）。
+- **E2E 自动化测试套件扩充**：`tests/run_e2e_test.js` 新增【测试用例 7】，全自动测试集装箱随机迷宫（`?map=maze`）装配、四大武器槽位快速切换无缝响应与弹药规格校验。
+
 - **移动端与触摸屏全面操作支持**：`src/input.js` 新增自适应环境/URL 探测（`?touch=1`、`pointer: coarse`、`maxTouchPoints > 0`），实现左半屏虚拟移动摇杆（动态外圈触发行走/冲刺）、右半屏滑动视角转向、开火/跳跃/换弹/瞄准独立触控热区；并在 `tests/run_e2e_test.js` 新增【测试用例 6】移动端仿真端到端自动化测试。
 - **程序化音频合成器音质与声学动态增强**：
   - `src/audio/sounds.js` 为 PAC-9 步枪（`synthesizeRifleShot`）引入 92Hz~36Hz 亚低音冲击（Sub-Bass Punch）与 4.8kHz 枪机复进闭锁清脆金属撞击瞬态（Bolt Slam & Battery Lockup）；

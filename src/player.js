@@ -755,9 +755,10 @@ export function createPlayer(ctx) {
 
     // 动态 FOV 过渡
     if (!ctx.params || !ctx.params.fov) {
+      const adsFovTarget = (ctx.weapon && ctx.weapon.adsFov) || PLAYER_TUNE.fovAds;
       const targetFov = lerp(
         player.baseFov + (player.sprinting ? PLAYER_TUNE.fovSprint : 0),
-        PLAYER_TUNE.fovAds,
+        adsFovTarget,
         player.ads,
       );
       currentFov =

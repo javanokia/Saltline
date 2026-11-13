@@ -205,6 +205,246 @@ function synthesizeRifleShot(sampleRate, rng, variant) {
 const KR = synthesizeRifleShot;
 
 /**
+ * SG-12 重型战术霰弹枪枪声与次级机械泵动物理合成
+ * 包含超大口径火药轰鸣、60Hz->22Hz 重低音下潜激波与 0.16s 战术滑块泵动机械回弹
+ */
+function synthesizeShotgunShot(sampleRate, rng, variant) {
+  const pitchVar = [1.0, 0.94, 1.06, 0.98][variant & 3];
+  const filterVar = [1.0, 1.15, 0.88, 1.08][variant & 3];
+  const out = createAudioBufferArray(sampleRate, 0.48);
+
+  // 1. 12铅径大口径出膛空气爆裂激波 (HP 400Hz, LP 6500Hz)
+  mixBuffer(
+    out,
+    synthesizeNoiseBurst(sampleRate, rng, 0.024, 0.0012, {
+      hp: 420 * filterVar,
+      lp: 6800 * filterVar,
+    }),
+    0,
+    3.2,
+    sampleRate,
+  );
+
+  // 2. 60Hz -> 22Hz 剧烈亚低频爆轰震颤 (Sub-bass Chest Thump)
+  mixBuffer(
+    out,
+    synthesizePitchSweepSine(sampleRate, 0.18, 68 * pitchVar, 22 * pitchVar, 0.035, 0.045, 0.003),
+    0,
+    1.1,
+    sampleRate,
+  );
+
+  // 3. 粗大膛室火药膨胀爆震 (180Hz ~ 2200Hz)
+  mixBuffer(
+    out,
+    synthesizeNoiseBurst(sampleRate, rng, 0.32, 0.045, {
+      hp: 180 * pitchVar,
+      lp: 2400 * pitchVar,
+      att: 0.0015,
+    }),
+    0.0005,
+    1.9,
+    sampleRate,
+  );
+
+  // 4. 多弹丸喷射空气紊流与破片啸叫 (Whistling Turbulence)
+  mixBuffer(
+    out,
+    synthesizeModalBank(
+      sampleRate,
+      0.08,
+      [
+        [1450 * pitchVar, 0.012, 0.8],
+        [2280 * pitchVar, 0.009, 0.6],
+        [3890 * filterVar, 0.006, 0.4],
+      ],
+      rng,
+    ),
+    0.01,
+    0.35,
+    sampleRate,
+  );
+
+  // 5. 次级机械泵动回拉声 (Pump Slide Pull: 0.14s)
+  const pumpPullT = 0.14;
+  mixBuffer(
+    out,
+    synthesizeNoiseBurst(sampleRate, rng, 0.03, 0.003, { bp: 2600 * pitchVar, q: 2.2 }),
+    pumpPullT,
+    0.42,
+    sampleRate,
+  );
+
+  // 6. 次级机械泵动前推闭锁与击铁复位 (Pump Slide Slam Lockup: 0.26s)
+  const pumpLockT = 0.26;
+  mixBuffer(
+    out,
+    synthesizeModalBank(
+      sampleRate,
+      0.07,
+      [
+        [3400 * pitchVar, 0.009, 1.0],
+        [5100 * pitchVar, 0.006, 0.7],
+        [1850 * pitchVar, 0.015, 0.5],
+      ],
+      rng,
+    ),
+    pumpLockT,
+    0.48,
+    sampleRate,
+  );
+  mixBuffer(
+    out,
+    synthesizeNoiseBurst(sampleRate, rng, 0.018, 0.002, { hp: 4200 }),
+    pumpLockT,
+    0.36,
+    sampleRate,
+  );
+
+  return applySoftSaturation(scaleBuffer(out, 0.44), 1.6);
+}
+
+/**
+ * SMG-45 紧凑高射速冲锋枪声与轻量化枪机往复物理合成
+ * 具备 980 RPM 极短出膛爆震、轻量化铝合金枪机 8.2kHz 脆响与紧凑消焰器喷流
+ */
+function synthesizeSmgShot(sampleRate, rng, variant) {
+  const pitchVar = [1.0, 0.97, 1.03, 1.01][variant & 3];
+  const filterVar = [1.0, 1.08, 0.92, 1.05][variant & 3];
+  const out = createAudioBufferArray(sampleRate, 0.24);
+
+  // 1. 短促清脆的高频超音速激波 (HP 3200Hz, 8ms 极短上升沿)
+  mixBuffer(
+    out,
+    synthesizeNoiseBurst(sampleRate, rng, 0.009, 0.0008, { hp: 3200 * filterVar }),
+    0,
+    2.5,
+    sampleRate,
+  );
+
+  // 2. 紧凑型弹药低频瞬态打击 (190Hz -> 65Hz)
+  mixBuffer(
+    out,
+    synthesizePitchSweepSine(sampleRate, 0.07, 190 * pitchVar, 65 * pitchVar, 0.015, 0.02, 0.002),
+    0,
+    0.7,
+    sampleRate,
+  );
+
+  // 3. 紧凑消焰器膛压喷流带通 (HP 850Hz, LP 4600Hz)
+  mixBuffer(
+    out,
+    synthesizeNoiseBurst(sampleRate, rng, 0.14, 0.022, {
+      hp: 850 * pitchVar,
+      lp: 4600 * filterVar,
+      att: 0.001,
+    }),
+    0,
+    1.3,
+    sampleRate,
+  );
+
+  // 4. 高速往复轻质铝钛枪机闭锁金属清脆碰撞 (Bolt Battery Slam: 8.2kHz)
+  mixBuffer(
+    out,
+    synthesizeModalBank(
+      sampleRate,
+      0.045,
+      [
+        [8200 * pitchVar, 0.005, 1.0],
+        [4600 * pitchVar, 0.008, 0.6],
+        [11500, 0.003, 0.4],
+      ],
+      rng,
+    ),
+    0.018,
+    0.42,
+    sampleRate,
+  );
+
+  return applySoftSaturation(scaleBuffer(out, 0.45), 1.4);
+}
+
+/**
+ * SR-99 反器材重型高精狙击步枪声物理合成
+ * 包含 .50 口径超音速冲击波、24Hz 次重低音地震波爆轰、侧向多室制退器喷流与重型枪栓机械回音
+ */
+function synthesizeSniperShot(sampleRate, rng, variant) {
+  const pitchVar = [1.0, 0.93, 1.05, 0.97][variant & 3];
+  const filterVar = [1.0, 1.12, 0.9, 1.06][variant & 3];
+  const out = createAudioBufferArray(sampleRate, 0.62);
+
+  // 1. 超高能量反器材超音速穿甲弹冲击波 (HP 1800Hz, 极陡峭破裂瞬态)
+  mixBuffer(
+    out,
+    synthesizeNoiseBurst(sampleRate, rng, 0.035, 0.001, { hp: 1800 * filterVar }),
+    0,
+    3.8,
+    sampleRate,
+  );
+
+  // 2. 地震波级次重低音超长下潜轰鸣 (110Hz -> 24Hz, 0.26s 超低频震颤)
+  mixBuffer(
+    out,
+    synthesizePitchSweepSine(sampleRate, 0.26, 110 * pitchVar, 24 * pitchVar, 0.045, 0.08, 0.002),
+    0,
+    1.35,
+    sampleRate,
+  );
+
+  // 3. 巨型双室制退器侧向紊流喷火爆鸣 (HP 220, LP 2800)
+  mixBuffer(
+    out,
+    synthesizeNoiseBurst(sampleRate, rng, 0.45, 0.06, {
+      hp: 220 * pitchVar,
+      lp: 2800 * pitchVar,
+      att: 0.001,
+    }),
+    0.0008,
+    2.4,
+    sampleRate,
+  );
+
+  // 4. 重型钛合金机匣与加厚枪管驻波共振群 (Heavy Barrel Resonance)
+  mixBuffer(
+    out,
+    synthesizeModalBank(
+      sampleRate,
+      0.18,
+      [
+        [540 * pitchVar, 0.035, 1.0],
+        [1120 * pitchVar, 0.022, 0.7],
+        [2850 * pitchVar, 0.012, 0.5],
+        [4650 * pitchVar, 0.008, 0.4],
+      ],
+      rng,
+    ),
+    0.025,
+    0.55,
+    sampleRate,
+  );
+
+  // 5. 栓动重型拉机柄金属机械锁闭次级微回音 (Bolt Handle Lock Resonance: 0.16s)
+  mixBuffer(
+    out,
+    synthesizeModalBank(
+      sampleRate,
+      0.08,
+      [
+        [3850 * pitchVar, 0.014, 0.8],
+        [6200 * pitchVar, 0.009, 0.5],
+      ],
+      rng,
+    ),
+    0.16,
+    0.32,
+    sampleRate,
+  );
+
+  return applySoftSaturation(scaleBuffer(out, 0.5), 1.8);
+}
+
+/**
  * 室外开阔集装箱码头混响脉冲响应 (Outdoor Harbor Impulse Response)
  * 模拟开阔泊位、远海空旷扩散反射与大型集装箱堆垛早期反射
  */
@@ -684,6 +924,179 @@ function synthShellBounce(sampleRate, rng, variant) {
   return buf;
 }
 const o8 = synthShellBounce;
+
+/**
+ * 弹壳敲击金属铁板与集装箱面声学物理合成 (Shell Bounce on Metal Surface)
+ * 具备极高 Q 模态谐振衰减 (5.2kHz / 7.8kHz / 10.5kHz) 与密集微弹跳颤音 (Micro-rattle)
+ */
+function synthShellBounceMetal(sampleRate, rng, variant) {
+  const p = [1.0, 1.05, 0.95, 1.08][variant & 3];
+  const buf = createAudioBufferArray(sampleRate, 0.36);
+  let delay = 0.002;
+  let gain = 1.0;
+
+  for (let bounce = 0; bounce < 3; bounce++) {
+    mixBuffer(
+      buf,
+      synthesizeModalBank(
+        sampleRate,
+        0.065,
+        [
+          [5200 * p, 0.025, 1.0],
+          [7800 * p, 0.018, 0.75],
+          [10500 * p, 0.012, 0.5],
+          [3100 * p, 0.03, 0.4],
+        ],
+        rng,
+      ),
+      delay,
+      gain * 0.65,
+      sampleRate,
+    );
+    mixBuffer(
+      buf,
+      synthesizeNoiseBurst(sampleRate, rng, 0.005, 0.0006, { hp: 4200 }),
+      delay,
+      gain * 0.5,
+      sampleRate,
+    );
+    delay += randomRange(rng, 0.055, 0.095);
+    gain *= 0.45;
+  }
+
+  // 终段金属微弱余震颤音
+  mixBuffer(
+    buf,
+    synthesizeModalBank(
+      sampleRate,
+      0.07,
+      [
+        [6400 * p, 0.018, 0.6],
+        [8900 * p, 0.012, 0.4],
+      ],
+      rng,
+    ),
+    delay,
+    0.25,
+    sampleRate,
+  );
+  return buf;
+}
+
+/**
+ * 弹壳敲击混凝土与沥青路面声学物理合成 (Shell Bounce on Concrete Surface)
+ * 具备坚实刚体撞击钝音与碎石微小摩擦声
+ */
+function synthShellBounceConcrete(sampleRate, rng, variant) {
+  const p = [1.0, 0.96, 1.04, 0.98][variant & 3];
+  const buf = createAudioBufferArray(sampleRate, 0.28);
+  let delay = 0.002;
+  let gain = 1.0;
+
+  for (let bounce = 0; bounce < 2; bounce++) {
+    mixBuffer(
+      buf,
+      synthesizeNoiseBurst(sampleRate, rng, 0.018, 0.003, { bp: 1450 * p, q: 1.8 }),
+      delay,
+      gain * 0.85,
+      sampleRate,
+    );
+    mixBuffer(
+      buf,
+      synthesizeNoiseBurst(sampleRate, rng, 0.008, 0.001, { hp: 3600 }),
+      delay,
+      gain * 0.4,
+      sampleRate,
+    );
+    delay += randomRange(rng, 0.07, 0.11);
+    gain *= 0.38;
+  }
+
+  // 砂石划擦微细摩擦
+  mixBuffer(
+    buf,
+    synthesizeNoiseBurst(sampleRate, rng, 0.045, 0.008, { bp: 2800, q: 0.8 }),
+    delay,
+    0.22,
+    sampleRate,
+  );
+  return buf;
+}
+
+/**
+ * 弹壳敲击木托盘与货箱声学物理合成 (Shell Bounce on Wood Surface)
+ */
+function synthShellBounceWood(sampleRate, rng, variant) {
+  const p = [1.0, 0.95, 1.06, 0.98][variant & 3];
+  const buf = createAudioBufferArray(sampleRate, 0.26);
+  let delay = 0.002;
+  let gain = 1.0;
+
+  for (let bounce = 0; bounce < 2; bounce++) {
+    mixBuffer(
+      buf,
+      synthesizeModalBank(
+        sampleRate,
+        0.05,
+        [
+          [520 * p, 0.018, 1.0],
+          [960 * p, 0.014, 0.7],
+          [1650 * p, 0.01, 0.4],
+        ],
+        rng,
+      ),
+      delay,
+      gain * 0.75,
+      sampleRate,
+    );
+    delay += randomRange(rng, 0.08, 0.12);
+    gain *= 0.4;
+  }
+  return buf;
+}
+
+/**
+ * 密集雨点敲击金属集装箱表面细微颗粒声 (Rain Patter on Metal Surface)
+ */
+function* synthRainMetalPatter(sampleRate, rng) {
+  const buf = createAudioBufferArray(sampleRate, 3.0);
+  const len = buf.length;
+
+  for (let i = 0; i < 900; i++) {
+    const pos = Math.floor(rng() * (len - 800));
+    const p = 0.9 + rng() * 0.2;
+    const drop = synthesizeModalBank(
+      sampleRate,
+      0.02,
+      [
+        [5800 * p, 0.004, 0.8],
+        [8200 * p, 0.003, 0.5],
+      ],
+      rng,
+    );
+    mixBuffer(buf, drop, pos / sampleRate, 0.12, sampleRate);
+    if (i % 150 === 0) yield;
+  }
+  return buf;
+}
+
+/**
+ * 雨水滴落积水洼水泡破裂音 (Rain Puddle Drips & Micro-Chirps)
+ */
+function* synthRainPuddleDrips(sampleRate, rng) {
+  const buf = createAudioBufferArray(sampleRate, 3.2);
+  const len = buf.length;
+
+  for (let i = 0; i < 48; i++) {
+    const pos = Math.floor(rng() * (len - 1200));
+    const startF = randomRange(rng, 1400, 2200);
+    const endF = randomRange(rng, 700, 1100);
+    const bubble = synthesizeChirp(sampleRate, 0.018, startF, endF);
+    mixBuffer(buf, bubble, pos / sampleRate, 0.22, sampleRate);
+    if (i % 12 === 0) yield;
+  }
+  return buf;
+}
 
 /** 混凝土路面脚步声 (Concrete Footstep) */
 function synthStepConcrete(sampleRate, rng, variant) {
@@ -2872,6 +3285,36 @@ const pl = SAMPLE_RATE_LOW;
 const SOUND_REGISTRY = {
   // 制式武器与换弹系统
   rifle_shot: { gen: KR, n: 4, sr: ki, peak: 0.97, bus: "near", max: 5, pri: 9, boot: 1 },
+  shotgun_shot: {
+    gen: synthesizeShotgunShot,
+    n: 4,
+    sr: ki,
+    peak: 1.0,
+    bus: "near",
+    max: 4,
+    pri: 9,
+    boot: 1,
+  },
+  smg_shot: {
+    gen: synthesizeSmgShot,
+    n: 4,
+    sr: ki,
+    peak: 0.95,
+    bus: "near",
+    max: 6,
+    pri: 9,
+    boot: 1,
+  },
+  sniper_shot: {
+    gen: synthesizeSniperShot,
+    n: 3,
+    sr: ki,
+    peak: 1.05,
+    bus: "near",
+    max: 3,
+    pri: 9,
+    boot: 1,
+  },
   rifle_tail_out: { gen: QR, n: 2, sr: Xn, peak: 0.5, bus: "dry", max: 3, pri: 8, boot: 1 },
   rifle_tail_in: { gen: e8, n: 2, sr: Xn, peak: 0.62, bus: "dry", max: 3, pri: 8, boot: 1 },
   rifle_dry: { gen: t8, n: 1, sr: ki, peak: 0.5, bus: "near", max: 2, pri: 6, boot: 1 },
@@ -2879,6 +3322,41 @@ const SOUND_REGISTRY = {
   reload_magin: { gen: i8, n: 1, sr: ki, peak: 0.65, bus: "near", max: 2, pri: 6 },
   reload_bolt: { gen: s8, n: 1, sr: ki, peak: 0.8, bus: "near", max: 2, pri: 6 },
   shell_bounce: { gen: o8, n: 3, sr: ki, peak: 0.3, bus: "world", max: 4, pri: 1, ref: 2, roll: 1 },
+  shell_bounce_metal: {
+    gen: synthShellBounceMetal,
+    n: 4,
+    sr: ki,
+    peak: 0.35,
+    bus: "world",
+    max: 5,
+    pri: 2,
+    ref: 2,
+    roll: 1,
+  },
+  shell_bounce_concrete: {
+    gen: synthShellBounceConcrete,
+    n: 3,
+    sr: ki,
+    peak: 0.3,
+    bus: "world",
+    max: 4,
+    pri: 1,
+    ref: 2,
+    roll: 1,
+  },
+  shell_bounce_wood: {
+    gen: synthShellBounceWood,
+    n: 3,
+    sr: ki,
+    peak: 0.32,
+    bus: "world",
+    max: 4,
+    pri: 1,
+    ref: 2,
+    roll: 1,
+  },
+  rain_metal_patter: { gen: synthRainMetalPatter, n: 1, sr: Xn, peak: 0.55, loop: 1 },
+  rain_puddle_drips: { gen: synthRainPuddleDrips, n: 1, sr: Xn, peak: 0.6, loop: 1 },
 
   // 玩家机动与受击
   step_concrete: { gen: r8, n: 4, sr: Xn, peak: 0.45, bus: "near", max: 3, pri: 3, boot: 1 },

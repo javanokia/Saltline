@@ -472,6 +472,89 @@ async function runTest() {
 
       await touchPage.close();
     }
+
+    // ----------------------------------------------------------------
+    // 【测试用例 7】: 战术关卡扩展 (集装箱迷宫 ?map=maze) 与多武器槽位切换
+    // ----------------------------------------------------------------
+    {
+      console.log("\n----------------------------------------------------------------");
+      console.log("【测试用例 7】: 战术关卡扩展 (?map=maze) 与多武器系统槽位切换");
+      console.log("----------------------------------------------------------------");
+
+      const mazePage = await browser.newPage();
+      await mazePage.setViewport({ width: 1280, height: 720 });
+      const errors = [];
+      mazePage.on("pageerror", (err) => errors.push(err.toString()));
+
+      const mazeUrl = `${BASE_URL}/dist/index.html?map=maze&bench=1&autostart=1&noaudio=1`;
+      console.log(`正在访问迷宫地图: ${mazeUrl}`);
+      await mazePage.goto(mazeUrl, { waitUntil: "domcontentloaded" });
+      await mazePage.waitForFunction(() => window.__ready === true, { timeout: 15000 });
+      await sleep(1000);
+
+      const arsenalTestResult = await mazePage.evaluate(async () => {
+        const engine = window.__engine;
+        if (!engine || !engine.weapon || !engine.level) {
+          return { ok: false, msg: "Engine not ready" };
+        }
+
+        const mapPreset = engine.level.mapPreset;
+        const initialWeapon = engine.weapon.id || "pac9";
+        const initialName = engine.weapon.name;
+
+        // 切换至 2 号槽位：SG-12 霰弹枪
+        engine.weapon.switchWeapon("sg12");
+        const sg12Name = engine.weapon.name;
+        const sg12Mag = engine.weapon.magSize;
+
+        // 切换至 3 号槽位：SMG-45 冲锋枪
+        engine.weapon.switchWeapon("smg45");
+        const smg45Name = engine.weapon.name;
+        const smg45Mag = engine.weapon.magSize;
+
+        // 切换至 4 号槽位：SR-99 狙击枪
+        engine.weapon.switchWeapon("sr99");
+        const sr99Name = engine.weapon.name;
+        const sr99Mag = engine.weapon.magSize;
+
+        // 切回 1 号槽位：PAC-9 突击步枪
+        engine.weapon.switchWeapon("pac9");
+        const pac9Name = engine.weapon.name;
+
+        return {
+          ok: true,
+          mapPreset,
+          initialWeapon,
+          initialName,
+          sg12: { name: sg12Name, mag: sg12Mag },
+          smg45: { name: smg45Name, mag: smg45Mag },
+          sr99: { name: sr99Name, mag: sr99Mag },
+          pac9: { name: pac9Name },
+        };
+      });
+
+      console.log("- 关卡与多武器切换测试结果:", arsenalTestResult);
+      const screenshotMaze = path.join(ARTIFACTS_DIR, "tactical_maze_and_arsenal.png");
+      await mazePage.screenshot({ path: screenshotMaze });
+      console.log(`📸 迷宫地图与多武器切换截图: ${screenshotMaze}`);
+
+      if (
+        arsenalTestResult.ok &&
+        arsenalTestResult.mapPreset === "maze" &&
+        arsenalTestResult.sg12.mag === 8 &&
+        arsenalTestResult.smg45.mag === 40 &&
+        arsenalTestResult.sr99.mag === 5 &&
+        errors.length === 0
+      ) {
+        console.log("✅ 战术集装箱随机迷宫与多武器槽位切换验证通过！");
+        console.log("🎉 【测试用例 7 通过】: 战术关卡扩展与多武器系统完美通过！");
+      } else {
+        console.error("❌ 战术关卡与多武器测试未达预期:", arsenalTestResult, errors);
+        hasFailures = true;
+      }
+
+      await mazePage.close();
+    }
   } finally {
     if (browser) await browser.close();
     await testServer.close();

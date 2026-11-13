@@ -1,0 +1,121 @@
+// @ts-check
+/**
+ * @file src/weapons/weapon_configs.js
+ * @description 多武器系统规格、动力学振荡器与弹道配置注册表 (Arsenal Weapon Configurations)
+ */
+
+export const WEAPON_REGISTRY = {
+  pac9: {
+    id: "pac9",
+    name: "几猫九式突击步枪 (PAC-9)",
+    category: "rifle",
+    magCapacity: 30,
+    reserveAmmo: 150,
+    fireRateRpm: 720,
+    baseDamage: 26,
+    maxRange: 300,
+    pellets: 1,
+    spreadHip: 0.015,
+    spreadAds: 0.003,
+    adsFov: 52,
+    soundType: "rifle",
+    reloadDurationTactical: 2.1,
+    reloadDurationEmpty: 2.72,
+    recoil: {
+      kickZ: 0.055,
+      pitch: 0.045,
+      yaw: 0.012,
+      roll: 0.008,
+      springK: 180,
+      springC: 18,
+    },
+    poseHip: { p: [0.118, -0.122, -0.275], r: [0.034, 0.085, -0.03] },
+    poseAds: { p: [0, -0.089, -0.135], r: [0, 0, 0] },
+  },
+  sg12: {
+    id: "sg12",
+    name: "SG-12 战术破门霰弹枪",
+    category: "shotgun",
+    magCapacity: 8,
+    reserveAmmo: 48,
+    fireRateRpm: 105,
+    baseDamage: 18, // 8 * 18 = 144 近距离全中伤害
+    maxRange: 75,
+    pellets: 8,
+    spreadHip: 0.058,
+    spreadAds: 0.035,
+    adsFov: 60,
+    soundType: "shotgun",
+    reloadDurationTactical: 2.5,
+    reloadDurationEmpty: 3.0,
+    recoil: {
+      kickZ: 0.135,
+      pitch: 0.115,
+      yaw: 0.024,
+      roll: 0.018,
+      springK: 130,
+      springC: 13,
+    },
+    poseHip: { p: [0.125, -0.115, -0.26], r: [0.04, 0.075, -0.025] },
+    poseAds: { p: [0, -0.065, -0.14], r: [0, 0, 0] },
+  },
+  smg45: {
+    id: "smg45",
+    name: "SMG-45 战术冲锋枪",
+    category: "smg",
+    magCapacity: 40,
+    reserveAmmo: 200,
+    fireRateRpm: 960,
+    baseDamage: 19,
+    maxRange: 160,
+    pellets: 1,
+    spreadHip: 0.024,
+    spreadAds: 0.007,
+    adsFov: 56,
+    soundType: "smg",
+    reloadDurationTactical: 1.85,
+    reloadDurationEmpty: 2.25,
+    recoil: {
+      kickZ: 0.034,
+      pitch: 0.026,
+      yaw: 0.016,
+      roll: 0.006,
+      springK: 240,
+      springC: 22,
+    },
+    poseHip: { p: [0.112, -0.118, -0.28], r: [0.03, 0.09, -0.035] },
+    poseAds: { p: [0, -0.082, -0.13], r: [0, 0, 0] },
+  },
+  sr99: {
+    id: "sr99",
+    name: "SR-99 反器材高精狙击步枪",
+    category: "sniper",
+    magCapacity: 5,
+    reserveAmmo: 25,
+    fireRateRpm: 42,
+    baseDamage: 165,
+    maxRange: 600,
+    pellets: 1,
+    spreadHip: 0.065,
+    spreadAds: 0.0006,
+    adsFov: 24, // 高倍率战术狙击镜
+    soundType: "sniper",
+    reloadDurationTactical: 3.1,
+    reloadDurationEmpty: 3.6,
+    recoil: {
+      kickZ: 0.175,
+      pitch: 0.145,
+      yaw: 0.008,
+      roll: 0.012,
+      springK: 110,
+      springC: 11,
+    },
+    poseHip: { p: [0.13, -0.125, -0.25], r: [0.045, 0.07, -0.02] },
+    poseAds: { p: [0, -0.095, -0.12], r: [0, 0, 0] },
+  },
+};
+
+/**
+ * 武器列表默认切换顺序
+ */
+export const WEAPON_ORDER = ["pac9", "sg12", "smg45", "sr99"];

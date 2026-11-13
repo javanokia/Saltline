@@ -1508,8 +1508,6 @@ async function createShowcase(ctx) {
   const onShotChange = (opts) => {
     if (opts && opts.wpose) {
       applyPreset(opts.wpose, opts);
-    } else if (setShotCallback) {
-      setShotCallback(opts);
     }
   };
 

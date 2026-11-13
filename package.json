@@ -1,8 +1,8 @@
 {
-  "name": "jm-3a-game",
+  "name": "saltline",
   "version": "1.0.0",
   "private": true,
-  "description": "几猫国产3A大作 - Fable 5.2 自主研发国产FPS第一人称射击游戏（逆向还原工程）",
+  "description": "Saltline (盐线) - 零外部资产 3A 级纯程序化 WebGL 战术射击游戏与逆向工程重构",
   "type": "module",
   "scripts": {
     "dev": "vite --host",

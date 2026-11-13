@@ -16,6 +16,10 @@ export interface GameQualityConfig {
   msaa: number;
   /** 可选程序化贴图分辨率覆盖（URL ?tex= 或质量预设）。 */
   tex?: number;
+  /** 可选平面镜面反射分辨率倍率（URL ?planar= 或质量预设）。 */
+  planar?: number;
+  /** 可选降水雨丝与水花密度倍率（URL ?rain= 或质量预设）。 */
+  rain?: number;
 }
 
 /** 确定性随机数生成器，附带取整、取样与派生能力。 */

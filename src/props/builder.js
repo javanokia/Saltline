@@ -324,7 +324,8 @@ function checkFaceWinding(positions, uvs, startIdx, endIdx, center, invert) {
       ny * ((positions[a + 1] + positions[a + 4] + positions[a + 7]) / 3 - center[1]) +
       nz * ((positions[a + 2] + positions[a + 5] + positions[a + 8]) / 3 - center[2]);
   }
-  if (accum < 0 !== !invert) {
+  const shouldFlip = invert ? accum > 0 : accum < 0;
+  if (shouldFlip) {
     for (let a = startIdx; a < endIdx; a += 9) {
       for (let c = 0; c < 3; c++) {
         const tmp = positions[a + 3 + c];

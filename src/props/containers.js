@@ -980,7 +980,7 @@ function buildContainerMesh(engineCtx, type, options = {}) {
   for (const part of cached.parts) {
     let meshMat = part.mat;
     if (part.mat.body) {
-      meshMat = engineCtx.mats.get(matName, { vertexColors: true });
+      meshMat = engineCtx.mats.get(matName, { vertexColors: true, doubleSide: true });
     }
     const mesh = new THREE.Mesh(part.geo, meshMat);
     mesh.castShadow = part.cast;

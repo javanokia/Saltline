@@ -13,6 +13,7 @@
 
 ### Changed
 
+- **PAC-9 武器几何装配架构深度模块化**：彻底拆解 `src/weapons/pac9_model.js` 中 1,026 行超大单体装配函数 `w_`，分解为 7 个高内聚子装配函数（机匣与握把、护木与导轨、枪管与枪口装置、枪托与缓冲管、反射式瞄具与机械瞄具、枪机框与拉机柄、弹匣与枪弹），将圈复杂度由 51 降至 <10，并通过端到端几何校验验证其 100% 顶点/法线/索引零畸变。
 - 剔除 `src/enemies.js`、`src/weapon.js`、`src/weapons/pac9_model.js` 顶部各 423 行全量混淆解构块，净删减 **1,300+ 行死代码**，统一按需采用原生 Three.js 引用。
 - 清理 `src/constants.js`、`src/geo.js`、`src/audio/sounds.js`、`src/enemies/gull.js`、`src/enemies/hound.js` 中 45 个未被外部引用的历史废弃短别名导出。
 - `src/main.js` 中 DevSuite 开发者调试面板挂载增加运行环境门禁，仅在开发模式或显式带有 `debug`/`dev` 参数时激活，生产环境完全隔离。

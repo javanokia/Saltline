@@ -239,31 +239,45 @@ var fC = (i, e, t, n, s) => [
     handlePos: [-0.026, 0.007, -0.078],
     squeeze: 0.86,
   };
-function w_() {
-  let i = [1, 1, 1],
-    e = [1, 1, 1],
-    t = [5.5, 5.5, 5.7],
-    n = [0.4, 0.4, 0.42],
-    s = [1, 1, 1],
-    o = [0.022, 0.022, 0.023],
-    r = [],
-    a = [],
-    l = [],
-    c = [],
-    u = [],
-    h = [],
-    f = [],
-    p = 9,
-    d = 5,
-    v = 0.6,
-    g = [
-      [-0.1, -0.02],
-      [0.1, -0.02],
-      [0.1, 0.027],
-      [0.093, 0.034],
-      [-0.088, 0.034],
-      [-0.1, 0.024],
-    ];
+/**
+ * Cross-section profile coordinates for the standard NATO/Picatinny top rail.
+ * Shared across the upper receiver top rail and handguard forward rail.
+ */
+const PAC9_TOP_RAIL_PROFILE = [
+  [-0.0102, 0.0398],
+  [0.0102, 0.0398],
+  [0.0106, 0.0408],
+  [0.0084, 0.0435],
+  [-0.0084, 0.0435],
+  [-0.0106, 0.0408],
+];
+
+/**
+ * Sub-assembly 1: Receiver & Pistol Grip
+ * Constructs upper/lower receiver frame, Picatinny top rail section, pistol grip,
+ * trigger guard, fire selector, bolt catch, ejection port deflector, and stippling.
+ */
+function buildReceiverAndGrip(parts, palette, topRailProfile) {
+  const { ano: r, gun: a, poly: l, plain: f } = parts;
+  const {
+    anoTint: i,
+    gunmetalTint: e,
+    pinTint: t,
+    steelTint: n,
+    polyTint: s,
+    anoSurf: p,
+    gunSurf: d,
+    polySurf: v,
+  } = palette;
+  const g = [
+    [-0.1, -0.02],
+    [0.1, -0.02],
+    [0.1, 0.027],
+    [0.093, 0.034],
+    [-0.088, 0.034],
+    [-0.1, 0.024],
+  ];
+  const x = topRailProfile;
   (r.push(xr(g, 0, 0.0205, 0.0014, i, p, [fC(-0.012, -0.01, 0.06, 0.012, 0.003)])),
     r.push(xr(g, -0.0205, 0, 0.0014, i, p, [Dv(0.032, 0.007, 0.112, 0.0075, 4)])),
     a.push(Rt(0.004, 0.036, 0.19, 5e-4, -0.0135, 0.006, 0, n)),
@@ -333,14 +347,6 @@ function w_() {
         0,
       ),
     ));
-  let x = [
-    [-0.0102, 0.0398],
-    [0.0102, 0.0398],
-    [0.0106, 0.0408],
-    [0.0084, 0.0435],
-    [-0.0084, 0.0435],
-    [-0.0106, 0.0408],
-  ];
   for (let F = 0; F < 49; F++) {
     let X = -0.094 + F * 0.01;
     r.push(qo(x, X, X + 0.0048, 8e-4, i, p));
@@ -456,6 +462,25 @@ function w_() {
   }
   (l.push(Rt(0.035, 0.006, 0.05, 0.002, 0, -0.157, -0.087, s, v, [0.13, 0, 0])),
     a.push(Fi(0.003, 0.034, 0, -0.15, -0.085, t, 8)));
+}
+
+/**
+ * Sub-assembly 2: Handguard & Accessory Rails
+ * Constructs free-float M-LOK handguard extrusion, forward Picatinny top rail continuation,
+ * mounting collar/screws, handstop, and angled vertical foregrip core.
+ */
+function buildHandguardAndRails(parts, palette, topRailProfile) {
+  const { ano: r, gun: a, poly: l } = parts;
+  const {
+    anoTint: i,
+    gunmetalTint: e,
+    pinTint: t,
+    polyTint: s,
+    anoSurf: p,
+    gunSurf: d,
+    polySurf: v,
+  } = palette;
+  const x = topRailProfile;
   let b = mi.handguardR,
     m = 0.00885,
     A = 0.0028,
@@ -663,6 +688,23 @@ function w_() {
         v,
       ),
     ));
+}
+
+/**
+ * Sub-assembly 3: Barrel & Muzzle Assembly
+ * Constructs foregrip grip ribs/hardware, cold-hammer match barrel profile,
+ * low-profile gas block, gas tube, and multi-port muzzle brake / flash hider.
+ */
+function buildBarrelAndMuzzle(parts, palette) {
+  const { ano: r, gun: a, poly: l } = parts;
+  const {
+    gunmetalTint: e,
+    pinTint: t,
+    steelTint: n,
+    polyTint: s,
+    gunSurf: d,
+    polySurf: v,
+  } = palette;
   for (let F = 0; F < 6; F++)
     l.push(Rt(0.0292, 0.0022, 0.0315, 8e-4, 0, -0.04 - F * 0.0085, 0.256 - F * 3e-4, s, v));
   (l.push(Rt(0.03, 0.005, 0.04, 0.0015, 0, -0.024, 0.256, s, v)),
@@ -783,6 +825,25 @@ function w_() {
   );
   for (let F of [-1, 1]) a.push(Rt(0.0125, 0.0042, 0.042, 0.0012, 0, F * 0.0096, 0.496, e, d));
   for (let F = 0; F < 3; F++) a.push(Fi(0.0016, 0.0236, 0, 0, 0.4675 + F * 0.0035, n, 6));
+}
+
+/**
+ * Sub-assembly 4: Buttstock & Buffer Tube
+ * Constructs mil-spec receiver extension / buffer tube, castle nut, receiver endplate,
+ * 6-position collapsible buttstock body, cheek riser, and ribbed rubber buttpad.
+ */
+function buildButtstockAndTube(parts, palette) {
+  const { ano: r, gun: a, poly: l, plain: f } = parts;
+  const {
+    anoTint: i,
+    gunmetalTint: e,
+    pinTint: t,
+    polyTint: s,
+    rubberTint: o,
+    anoSurf: p,
+    gunSurf: d,
+    polySurf: v,
+  } = palette;
   (r.push(
     Cn(
       [
@@ -871,6 +932,23 @@ function w_() {
   for (let F = 0; F < 9; F++)
     f.push(Rt(0.031, 0.004, 0.003, 0.001, 0, 0.004 - F * 0.011, -0.3455, o, 0));
   for (let F of [-1, 1]) a.push(Fi(0.0065, 0.003, F * 0.0195, -0.06, -0.318, t, 12));
+}
+
+/**
+ * Sub-assembly 5: Optic Reflex Sight & BUIS
+ * Constructs holographic/reflex red dot sight housing, anti-reflective hood, elevation/windage
+ * adjustment turrets, battery cap, emitter diode module, BUIS backup iron sights, and pressure cable.
+ */
+function buildOpticReflexSight(parts, palette) {
+  const { ano: r, gun: a, plain: f } = parts;
+  const {
+    anoTint: i,
+    gunmetalTint: e,
+    pinTint: t,
+    rubberTint: o,
+    anoSurf: p,
+    gunSurf: d,
+  } = palette;
   let w = mi.sightY,
     S = mi.window,
     z = [0.012, 0.012, 0.013];
@@ -1117,6 +1195,16 @@ function w_() {
     let X = Rt(0.0065, 0.0026, 0.0035, 8e-4, 0, 0, 0, [0.03, 0.03, 0.03], 0);
     (X.rotateZ(Math.PI / 4), X.translate(F[0], F[1], -F[2]), f.push(X));
   }
+}
+
+/**
+ * Sub-assembly 6: Bolt Carrier Group & Charging Handle
+ * Constructs reciprocating bolt carrier group (BCG), gas key, locking lugs,
+ * and ambidextrous rear charging handle with lock latch.
+ */
+function buildBoltCarrier(parts, palette) {
+  const { bolt: c } = parts;
+  const { gunmetalTint: e, gunSurf: d } = palette;
   c.push(
     Cn(
       [
@@ -1164,6 +1252,15 @@ function w_() {
     );
     (F.rotateY(Math.PI / 2), F.translate(-0.031, 0.007, -0.078), c.push(F));
   }
+}
+
+/**
+ * Sub-assembly 7: Magazine & Cartridges
+ * Constructs curved 9x19mm magazine body, feed lips, witness windows/ribs, baseplate,
+ * follower, and detailed visible brass casing 9mm Luger cartridges.
+ */
+function buildMagazineAndAmmo(parts, palette) {
+  const { mag: u, round: h } = parts;
   let D = (F) => 1.5 * Math.pow(Math.max(0, F - 0.07), 2),
     C = (F) => 3 * Math.max(0, F - 0.07),
     G = [1, 1, 1],
@@ -1248,6 +1345,47 @@ function w_() {
         5e-4,
       ),
     ));
+}
+
+/**
+ * Master PAC-9 Weapon Model Geometry Generator.
+ * Coordinates the procedural creation of 7 modular weapon sub-assemblies,
+ * applies unified squeeze matrix transformations, and computes bounding spheres.
+ * @returns {Record<string, import("three").BufferGeometry>} Map of material slot geometries.
+ */
+function buildPac9Geometries() {
+  const palette = {
+    anoTint: [1, 1, 1],
+    gunmetalTint: [1, 1, 1],
+    pinTint: [5.5, 5.5, 5.7],
+    steelTint: [0.4, 0.4, 0.42],
+    polyTint: [1, 1, 1],
+    rubberTint: [0.022, 0.022, 0.023],
+    anoSurf: 9,
+    gunSurf: 5,
+    polySurf: 0.6,
+  };
+
+  const parts = {
+    ano: [],
+    gun: [],
+    poly: [],
+    plain: [],
+    bolt: [],
+    mag: [],
+    round: [],
+  };
+
+  // Modular assembly sequence across 7 weapon sub-assemblies
+  buildReceiverAndGrip(parts, palette, PAC9_TOP_RAIL_PROFILE);
+  buildHandguardAndRails(parts, palette, PAC9_TOP_RAIL_PROFILE);
+  buildBarrelAndMuzzle(parts, palette);
+  buildButtstockAndTube(parts, palette);
+  buildOpticReflexSight(parts, palette);
+  buildBoltCarrier(parts, palette);
+  buildMagazineAndAmmo(parts, palette);
+
+  const { ano: r, gun: a, poly: l, plain: f, bolt: c, mag: u, round: h } = parts;
   let ie = {
     ano: mergeGeometriesClean(r),
     gun: mergeGeometriesClean(a),
@@ -1265,6 +1403,8 @@ function w_() {
   for (let F in ie) ie[F].computeBoundingSphere();
   return ie;
 }
+const w_ = buildPac9Geometries;
+
 var Kc = (i) => (i.index ? i.index.count : i.attributes.position.count) / 3;
 var ti = W,
   vl = Lt,

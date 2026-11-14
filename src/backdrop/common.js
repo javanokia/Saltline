@@ -1,3 +1,4 @@
+// @ts-check
 /**
  * @file src/backdrop/common.js
  * @description 港口远景渲染器通用几何构建算子、批处理容器与航标灯闪烁管理
@@ -13,310 +14,336 @@ import {
   mergeGeometriesClean,
 } from "../geo.js";
 
-const lt = THREE;
-const W = THREE.Vector3;
-const Ve = THREE.Color;
-const wt = THREE.Group;
-const Qe = THREE.Mesh;
-const Lt = THREE.Quaternion;
-const Ye = THREE.Matrix4;
-const on = THREE.Object3D;
-const nt = THREE.BufferGeometry;
-const et = THREE.BufferAttribute;
-const He = THREE.Float32BufferAttribute;
-const Ci = THREE.TorusGeometry;
-const rn = THREE.PlaneGeometry;
-const U0 = THREE.CapsuleGeometry;
-const Na = THREE.OctahedronGeometry;
-const Kr = THREE.TubeGeometry;
-const Jr = THREE.CatmullRomCurve3;
-const Nn = THREE.MeshBasicMaterial;
-const Sn = THREE.DoubleSide;
+export const vec3 = (x, y, z) => new THREE.Vector3(x, y, z);
+export const toVec3 = (v) => (v.isVector3 ? v : new THREE.Vector3(v[0], v[1], v[2]));
 
-const _M = Object.defineProperty;
-const br = (i, e) => {
-  for (var t in e) _M(i, t, { get: e[t], enumerable: true });
-};
+const UP_AXIS = new THREE.Vector3(0, 1, 0);
+const UNIT_SCALE = new THREE.Vector3(1, 1, 1);
+const tempQuat = new THREE.Quaternion();
+const tempMat4 = new THREE.Matrix4();
 
-var _t = (i, e, t) => new W(i, e, t),
-  al = (i) => (i.isVector3 ? i : new W(i[0], i[1], i[2])),
-  hb = new W(0, 1, 0),
-  gR = new W(1, 1, 1),
-  ub = new Lt(),
-  I1 = new Ye();
-function t0(i, e, t) {
-  let n = Math.imul(i, 374761393) ^ Math.imul(e, 668265263) ^ Math.imul(t, 1274126177);
-  return ((n = Math.imul(n ^ (n >>> 13), 1274126177)), ((n ^ (n >>> 16)) >>> 0) / 4294967295);
+export function hashInt3D(ix, iy, iz) {
+  let h = Math.imul(ix, 374761393) ^ Math.imul(iy, 668265263) ^ Math.imul(iz, 1274126177);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
 }
-function rl(i, e, t) {
-  let n = Math.floor(i),
-    s = Math.floor(e),
-    o = Math.floor(t),
-    r = i - n,
-    a = e - s,
-    l = t - o;
-  ((r = r * r * (3 - 2 * r)), (a = a * a * (3 - 2 * a)), (l = l * l * (3 - 2 * l)));
-  let c = (u, h, f) => u + (h - u) * f;
-  return c(
-    c(c(t0(n, s, o), t0(n + 1, s, o), r), c(t0(n, s + 1, o), t0(n + 1, s + 1, o), r), a),
-    c(
-      c(t0(n, s, o + 1), t0(n + 1, s, o + 1), r),
-      c(t0(n, s + 1, o + 1), t0(n + 1, s + 1, o + 1), r),
-      a,
+
+export function valueNoise3D(x, y, z) {
+  const ix = Math.floor(x);
+  const iy = Math.floor(y);
+  const iz = Math.floor(z);
+  let fx = x - ix;
+  let fy = y - iy;
+  let fz = z - iz;
+  fx = fx * fx * (3 - 2 * fx);
+  fy = fy * fy * (3 - 2 * fy);
+  fz = fz * fz * (3 - 2 * fz);
+  const lerp = (a, b, t) => a + (b - a) * t;
+  return lerp(
+    lerp(
+      lerp(hashInt3D(ix, iy, iz), hashInt3D(ix + 1, iy, iz), fx),
+      lerp(hashInt3D(ix, iy + 1, iz), hashInt3D(ix + 1, iy + 1, iz), fx),
+      fy,
     ),
-    l,
+    lerp(
+      lerp(hashInt3D(ix, iy, iz + 1), hashInt3D(ix + 1, iy, iz + 1), fx),
+      lerp(hashInt3D(ix, iy + 1, iz + 1), hashInt3D(ix + 1, iy + 1, iz + 1), fx),
+      fy,
+    ),
+    fz,
   );
 }
-function uv(i) {
-  let e = i >>> 0;
-  return () => ((e = (Math.imul(e, 1664525) + 1013904223) >>> 0), e / 4294967296);
+
+export function createSeededRng(seed) {
+  let state = seed >>> 0;
+  return () => {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    return state / 4294967296;
+  };
 }
-var P1 = [1, 1, 1],
-  fb = [1, 1, 1];
-function hv(i, e, t, n = fb, s = 1) {
-  let o = rl(i * 0.31 + 11.3, e * 0.23 + 5.1, t * 0.31 + 3.7),
-    r = rl(i * 1.7 + 40.2, 9.5, t * 1.7 + 17.9),
-    a = 1 - s * (0.3 - 0.36 * o),
-    l = n[0] * a,
-    c = n[1] * a,
-    u = n[2] * a;
-  if (r > 0.68) {
-    let h =
-      Math.min(1, (r - 0.68) / 0.3) * 0.6 * s * (0.35 + 0.65 * rl(i * 0.9, e * 0.45, t * 0.9));
-    ((l *= 1 + 0.45 * h), (c *= 1 - 0.3 * h), (u *= 1 - 0.6 * h));
+
+const tempTint = [1, 1, 1];
+const DEFAULT_TINT = [1, 1, 1];
+
+export function sampleWeatheringTint(x, y, z, baseTint = DEFAULT_TINT, strength = 1) {
+  const nBroad = valueNoise3D(x * 0.31 + 11.3, y * 0.23 + 5.1, z * 0.31 + 3.7);
+  const nRust = valueNoise3D(x * 1.7 + 40.2, 9.5, z * 1.7 + 17.9);
+  const ao = 1 - strength * (0.3 - 0.36 * nBroad);
+  let r = baseTint[0] * ao;
+  let g = baseTint[1] * ao;
+  let b = baseTint[2] * ao;
+  if (nRust > 0.68) {
+    const rustAmt =
+      Math.min(1, (nRust - 0.68) / 0.3) *
+      0.6 *
+      strength *
+      (0.35 + 0.65 * valueNoise3D(x * 0.9, y * 0.45, z * 0.9));
+    r *= 1 + 0.45 * rustAmt;
+    g *= 1 - 0.3 * rustAmt;
+    b *= 1 - 0.6 * rustAmt;
   }
-  return ((P1[0] = l), (P1[1] = c), (P1[2] = u), P1);
+  tempTint[0] = r;
+  tempTint[1] = g;
+  tempTint[2] = b;
+  return tempTint;
 }
-var db = new WeakSet();
-function so(i, e, t = {}) {
-  let n = i.mats.get(e, { vertexColors: !0, ...t });
-  return (db.add(n), n);
+
+const tintedMaterialSet = new WeakSet();
+
+export function getTintedMaterial(engineCtx, matName, opts = {}) {
+  const mat = engineCtx.mats.get(matName, { vertexColors: true, ...opts });
+  tintedMaterialSet.add(mat);
+  return mat;
 }
-var io = class {
+
+export class BackdropBatchBuilder {
   constructor() {
-    ((this.b = new Map()), (this.tris = 0), (this.remap = null), (this.dz = 0), (this.minSize = 0));
+    this.buckets = new Map();
+    this.tris = 0;
+    this.remap = null;
+    this.dz = 0;
+    this.minSize = 0;
   }
-  add(e, t, n) {
-    if (!t) return;
-    if (Array.isArray(t)) {
-      for (let o of t) this.add(e, o, n);
+
+  add(mat, geoOrList, tint) {
+    if (!geoOrList) return;
+    if (Array.isArray(geoOrList)) {
+      for (const g of geoOrList) this.add(mat, g, tint);
       return;
     }
+    let geo = geoOrList;
     if (this.remap) {
-      let o = this.remap(e, n);
-      if (!o) return;
+      const remapped = this.remap(mat, tint);
+      if (!remapped) return;
       if (this.minSize) {
-        t.computeBoundingBox();
-        let r = t.boundingBox;
-        if (Math.max(r.max.x - r.min.x, r.max.y - r.min.y, r.max.z - r.min.z) < this.minSize)
+        geo.computeBoundingBox();
+        const bb = geo.boundingBox;
+        if (
+          Math.max(bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z) < this.minSize
+        ) {
           return;
+        }
       }
-      ((e = o[0]), (n = o[1]), this.dz && t.translate(0, 0, this.dz));
+      mat = remapped[0];
+      tint = remapped[1];
+      if (this.dz) geo.translate(0, 0, this.dz);
     }
-    db.has(e) && !t.attributes.color && setVertexColors(t, (o, r, a) => hv(o, r, a, n || fb));
-    let s = this.b.get(e.uuid);
-    (s || ((s = { mat: e, geos: [] }), this.b.set(e.uuid, s)),
-      s.geos.push(t),
-      (this.tris += (t.index ? t.index.count : t.attributes.position.count) / 3));
-  }
-  build({ cast: e = !0, recv: t = !0 } = {}) {
-    let n = new wt();
-    for (let s of this.b.values()) {
-      let o = mergeGeometriesClean(s.geos),
-        r = new Qe(o, s.mat),
-        a = s.mat.isMeshBasicMaterial || s.mat.transparent;
-      ((r.castShadow = e && !a), (r.receiveShadow = t && !a), n.add(r));
+    if (tintedMaterialSet.has(mat) && !geo.attributes.color) {
+      setVertexColors(geo, (x, y, z) => sampleWeatheringTint(x, y, z, tint || DEFAULT_TINT));
     }
-    return (this.b.clear(), n);
+    let bucket = this.buckets.get(mat.uuid);
+    if (!bucket) {
+      bucket = { mat, geos: [] };
+      this.buckets.set(mat.uuid, bucket);
+    }
+    bucket.geos.push(geo);
+    this.tris += (geo.index ? geo.index.count : geo.attributes.position.count) / 3;
   }
-};
-function Ee(i, e, t, n, s, o, r = 0) {
-  let a = Math.abs(n - i),
-    l = Math.abs(s - e),
-    c = Math.abs(o - t),
-    u = r > 0 ? createBoxBevelGeometry(a, l, c, r) : createBoxGeometry(a, l, c);
-  return (u.translate((i + n) / 2, (e + s) / 2, (t + o) / 2), u);
-}
-function xt(i, e, t, n, s, o, r, a = 12, l = !1) {
-  let c = createCylinderGeometry(i, e, t, a, l);
-  return (
-    n === "x" ? c.rotateZ(Math.PI / 2) : n === "z" && c.rotateX(Math.PI / 2),
-    c.translate(s, o, r),
-    c
-  );
-}
-function Ke(i, e, t = 0.03, n = 5, s = !1) {
-  ((i = al(i)), (e = al(e)));
-  let o = new W().subVectors(e, i),
-    r = o.length();
-  if (r < 1e-5) return null;
-  let a = createCylinderGeometry(t, t, r, n, !s);
-  return (
-    ub.setFromUnitVectors(hb, o.multiplyScalar(1 / r)),
-    I1.compose(new W().addVectors(i, e).multiplyScalar(0.5), ub, gR),
-    a.applyMatrix4(I1),
-    a
-  );
-}
-function jt(i, e, t = 0.3, n = 0.3, s = 0) {
-  ((i = al(i)), (e = al(e)));
-  let o = new W().subVectors(e, i),
-    r = o.length();
-  o.multiplyScalar(1 / r);
-  let a = new W().crossVectors(o, hb);
-  a.lengthSq() < 1e-6 ? a.set(1, 0, 0) : a.normalize();
-  let l = new W().crossVectors(a, o),
-    c = s > 0 ? createBoxBevelGeometry(t, r, n, s) : createBoxGeometry(t, r, n);
-  return (
-    I1.makeBasis(a, o, l).setPosition((i.x + e.x) / 2, (i.y + e.y) / 2, (i.z + e.z) / 2),
-    c.applyMatrix4(I1),
-    c
-  );
-}
-function kr(i, e = 0.03, t = 5) {
-  let n = [];
-  for (let s = 0; s < i.length - 1; s++) {
-    let o = Ke(i[s], i[s + 1], e, t);
-    o && n.push(o);
+
+  build({ cast = true, recv = true } = {}) {
+    const group = new THREE.Group();
+    for (const bucket of this.buckets.values()) {
+      const merged = mergeGeometriesClean(bucket.geos);
+      const mesh = new THREE.Mesh(merged, bucket.mat);
+      const isUnlitOrAlpha = bucket.mat.isMeshBasicMaterial || bucket.mat.transparent;
+      mesh.castShadow = cast && !isUnlitOrAlpha;
+      mesh.receiveShadow = recv && !isUnlitOrAlpha;
+      group.add(mesh);
+    }
+    this.buckets.clear();
+    return group;
   }
-  return n;
 }
-function ua(i, e, t = 1, n = 10) {
-  ((i = al(i)), (e = al(e)));
-  let s = [];
-  for (let o = 0; o <= n; o++) {
-    let r = o / n,
-      a = new W().lerpVectors(i, e, r);
-    ((a.y -= t * 4 * r * (1 - r)), s.push(a));
+
+export function boxFromBounds(minX, minY, minZ, maxX, maxY, maxZ, bevel = 0) {
+  const w = Math.abs(maxX - minX);
+  const h = Math.abs(maxY - minY);
+  const d = Math.abs(maxZ - minZ);
+  const geo = bevel > 0 ? createBoxBevelGeometry(w, h, d, bevel) : createBoxGeometry(w, h, d);
+  geo.translate((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
+  return geo;
+}
+
+export function orientedCylinder(rTop, rBot, height, axis, x, y, z, segs = 12, openEnded = false) {
+  const geo = createCylinderGeometry(rTop, rBot, height, segs, openEnded);
+  if (axis === "x") geo.rotateZ(Math.PI / 2);
+  else if (axis === "z") geo.rotateX(Math.PI / 2);
+  geo.translate(x, y, z);
+  return geo;
+}
+
+export function cylinderBetween(p0, p1, radius = 0.03, segs = 5, caps = false) {
+  const v0 = toVec3(p0);
+  const v1 = toVec3(p1);
+  const delta = new THREE.Vector3().subVectors(v1, v0);
+  const len = delta.length();
+  if (len < 1e-5) return null;
+  const geo = createCylinderGeometry(radius, radius, len, segs, !caps);
+  const dir = delta.multiplyScalar(1 / len);
+  const dot = UP_AXIS.dot(dir);
+  if (dot > 0.999999) tempQuat.identity();
+  else if (dot < -0.999999) tempQuat.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI);
+  else tempQuat.setFromUnitVectors(UP_AXIS, dir);
+  tempMat4.compose(
+    new THREE.Vector3().addVectors(v0, v1).multiplyScalar(0.5),
+    tempQuat,
+    UNIT_SCALE,
+  );
+  geo.applyMatrix4(tempMat4);
+  return geo;
+}
+
+export function beamBetween(p0, p1, width = 0.3, depth = 0.3, bevel = 0) {
+  const v0 = toVec3(p0);
+  const v1 = toVec3(p1);
+  const delta = new THREE.Vector3().subVectors(v1, v0);
+  const len = delta.length();
+  delta.multiplyScalar(1 / len);
+  const right = new THREE.Vector3().crossVectors(delta, UP_AXIS);
+  if (right.lengthSq() < 1e-6) right.set(1, 0, 0);
+  else right.normalize();
+  const fwd = new THREE.Vector3().crossVectors(right, delta);
+  const geo =
+    bevel > 0
+      ? createBoxBevelGeometry(width, len, depth, bevel)
+      : createBoxGeometry(width, len, depth);
+  tempMat4
+    .makeBasis(right, delta, fwd)
+    .setPosition((v0.x + v1.x) / 2, (v0.y + v1.y) / 2, (v0.z + v1.z) / 2);
+  geo.applyMatrix4(tempMat4);
+  return geo;
+}
+
+export function polylineCylinders(points, radius = 0.03, segs = 5) {
+  const parts = [];
+  for (let i = 0; i < points.length - 1; i++) {
+    const cyl = cylinderBetween(points[i], points[i + 1], radius, segs);
+    if (cyl) parts.push(cyl);
   }
-  return s;
+  return parts;
 }
-function ll(i, e, t, n, s, o = 0, r = 0) {
-  let a = new rn(i, e);
-  return (r && a.rotateX(r), o && a.rotateY(o), a.translate(t, n, s), a);
+
+export function catenaryCurvePoints(p0, p1, sag = 1, segments = 10) {
+  const v0 = toVec3(p0);
+  const v1 = toVec3(p1);
+  const pts = [];
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    const pt = new THREE.Vector3().lerpVectors(v0, v1, t);
+    pt.y -= sag * 4 * t * (1 - t);
+    pts.push(pt);
+  }
+  return pts;
 }
+
+export function placedPlane(w, h, x, y, z, rotY = 0, rotX = 0) {
+  const geo = new THREE.PlaneGeometry(w, h);
+  if (rotX) geo.rotateX(rotX);
+  if (rotY) geo.rotateY(rotY);
+  geo.translate(x, y, z);
+  return geo;
+}
+
 /**
- * @param {any} i
- * @param {any} e
- * @param {any} t
- * @param {{ h?: number; post?: number; r?: number; tint?: any; mid?: boolean }} [options]
+ * @param {{ add: (mat: any, geo: any, tint?: any) => void }} batch
+ * @param {THREE.Material} mat
+ * @param {Array<THREE.Vector3 | number[]>} points
+ * @param {{ h?: number; post?: number; r?: number; tint?: number[]; mid?: boolean }} [options]
  */
-function ns(i, e, t, { h: n = 1.1, post: s = 2.2, r: o = 0.022, tint: r, mid: a = !0 } = {}) {
-  t = t.map(al);
-  for (let l = 0; l < t.length - 1; l++) {
-    let c = t[l],
-      u = t[l + 1],
-      h = c.distanceTo(u),
-      f = Math.max(1, Math.round(h / s));
-    for (let p = l === 0 ? 0 : 1; p <= f; p++) {
-      let d = new W().lerpVectors(c, u, p / f);
-      i.add(e, Ke(d, _t(d.x, d.y + n, d.z), o, 4), r);
+export function addRailingSegments(
+  batch,
+  mat,
+  points,
+  { h = 1.1, post = 2.2, r = 0.022, tint, mid = true } = {},
+) {
+  const vecPts = points.map(toVec3);
+  for (let i = 0; i < vecPts.length - 1; i++) {
+    const a = vecPts[i];
+    const b = vecPts[i + 1];
+    const dist = a.distanceTo(b);
+    const numPosts = Math.max(1, Math.round(dist / post));
+    for (let k = i === 0 ? 0 : 1; k <= numPosts; k++) {
+      const p = new THREE.Vector3().lerpVectors(a, b, k / numPosts);
+      batch.add(mat, cylinderBetween(p, vec3(p.x, p.y + h, p.z), r, 4), tint);
     }
-    (i.add(e, Ke(_t(c.x, c.y + n, c.z), _t(u.x, u.y + n, u.z), o * 1.15, 5), r),
-      a && i.add(e, Ke(_t(c.x, c.y + n * 0.5, c.z), _t(u.x, u.y + n * 0.5, u.z), o * 0.9, 4), r));
+    batch.add(
+      mat,
+      cylinderBetween(vec3(a.x, a.y + h, a.z), vec3(b.x, b.y + h, b.z), r * 1.15, 5),
+      tint,
+    );
+    if (mid) {
+      batch.add(
+        mat,
+        cylinderBetween(vec3(a.x, a.y + h * 0.5, a.z), vec3(b.x, b.y + h * 0.5, b.z), r * 0.9, 4),
+        tint,
+      );
+    }
   }
 }
-function pb() {
-  let i = { value: 0 },
-    e = new Nn({ vertexColors: !0, fog: !1 });
-  ((e.onBeforeCompile = (n) => {
-    ((n.uniforms.uTime = i),
-      (n.vertexShader =
-        `attribute vec3 blink;
+
+export function createBeaconBlinkSystem() {
+  const uTime = { value: 0 };
+  const mat = new THREE.MeshBasicMaterial({ vertexColors: true, fog: false });
+  mat.onBeforeCompile = (shader) => {
+    shader.uniforms.uTime = uTime;
+    shader.vertexShader =
+      `attribute vec3 blink;
 uniform float uTime;
 varying float vBlink;
 ` +
-        n.vertexShader.replace(
-          "#include <begin_vertex>",
-          `#include <begin_vertex>
+      shader.vertexShader.replace(
+        "#include <begin_vertex>",
+        `#include <begin_vertex>
  float bph = fract(uTime / max(blink.x, 0.001) + blink.y);
  vBlink = blink.x <= 0.0 ? 1.0 : mix(0.02, 1.0, smoothstep(0.0, 0.06, bph) * (1.0 - smoothstep(blink.z, blink.z + 0.12, bph)));`,
-        )),
-      (n.fragmentShader =
-        `varying float vBlink;
+      );
+    shader.fragmentShader =
+      `varying float vBlink;
 ` +
-        n.fragmentShader.replace(
-          "#include <color_fragment>",
-          `#include <color_fragment>
+      shader.fragmentShader.replace(
+        "#include <color_fragment>",
+        `#include <color_fragment>
  diffuseColor.rgb *= vBlink;`,
-        )));
-  }),
-    (e.customProgramCacheKey = () => "saltline-blink"));
-  let t = [];
+      );
+  };
+  mat.customProgramCacheKey = () => "saltline-blink";
+
+  const geos = [];
   return {
-    uTime: i,
-    mat: e,
-    add(n, s, o = 0, r = 0, a = 0.5) {
-      if (!n) return;
-      let l = n.index ? n.toNonIndexed() : n,
-        c = l.attributes.position.count,
-        u = new Float32Array(c * 3),
-        h = new Float32Array(c * 3);
-      for (let p = 0; p < c; p++)
-        ((u[p * 3] = s[0]),
-          (u[p * 3 + 1] = s[1]),
-          (u[p * 3 + 2] = s[2]),
-          (h[p * 3] = o),
-          (h[p * 3 + 1] = r),
-          (h[p * 3 + 2] = a));
-      let f = new nt();
-      (f.setAttribute("position", l.attributes.position),
-        f.setAttribute("color", new et(u, 3)),
-        f.setAttribute("blink", new et(h, 3)),
-        t.push(f));
+    uTime,
+    mat,
+    add(rawGeo, color, period = 0, phase = 0, duty = 0.5) {
+      if (!rawGeo) return;
+      const nonIdx = rawGeo.index ? rawGeo.toNonIndexed() : rawGeo;
+      const count = nonIdx.attributes.position.count;
+      const colors = new Float32Array(count * 3);
+      const blinks = new Float32Array(count * 3);
+      for (let i = 0; i < count; i++) {
+        colors[i * 3] = color[0];
+        colors[i * 3 + 1] = color[1];
+        colors[i * 3 + 2] = color[2];
+        blinks[i * 3] = period;
+        blinks[i * 3 + 1] = phase;
+        blinks[i * 3 + 2] = duty;
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", nonIdx.attributes.position);
+      geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+      geo.setAttribute("blink", new THREE.BufferAttribute(blinks, 3));
+      geos.push(geo);
     },
     build() {
-      if (!t.length) return null;
-      let n = new Qe(mergeGeometries(t.splice(0), !1), e);
-      return ((n.castShadow = !1), (n.receiveShadow = !1), n);
+      if (!geos.length) return null;
+      const mesh = new THREE.Mesh(mergeGeometries(geos.splice(0), false), mat);
+      mesh.castShadow = false;
+      mesh.receiveShadow = false;
+      return mesh;
     },
   };
 }
-var Bn = (i, e, t, n = 0.12) => {
-  let s = new Na(n, 0);
-  return (s.translate(i, e, t), s);
-};
 
-export {
-  THREE,
-  W,
-  Ve,
-  wt,
-  Qe,
-  Lt,
-  Ye,
-  on,
-  nt,
-  et,
-  He,
-  Ci,
-  rn,
-  U0,
-  Na,
-  Kr,
-  Jr,
-  Nn,
-  Sn,
-  _t,
-  al,
-  hb,
-  gR,
-  ub,
-  I1,
-  t0,
-  rl,
-  uv,
-  hv,
-  so,
-  io,
-  Ee,
-  xt,
-  Ke,
-  jt,
-  kr,
-  ua,
-  ll,
-  ns,
-  pb,
-  Bn,
+export const beaconOctahedron = (x, y, z, radius = 0.12) => {
+  const geo = new THREE.OctahedronGeometry(radius, 0);
+  geo.translate(x, y, z);
+  return geo;
 };

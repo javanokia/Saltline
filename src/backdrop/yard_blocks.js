@@ -3,55 +3,34 @@
  * @description 堆场后方集装箱阵列 (Yard Blocks) 与场桥 (RTG Cranes) 程序化装配
  */
 
+import * as THREE from "three";
 import {
-  THREE,
-  W,
-  Ve,
-  wt,
-  Qe,
-  Lt,
-  Ye,
-  on,
-  nt,
-  et,
-  He,
-  Ci,
-  rn,
-  U0,
-  Na,
-  Kr,
-  Jr,
-  Nn,
-  Sn,
-  _t,
-  al,
-  hb,
-  gR,
-  ub,
-  I1,
-  t0,
-  rl,
-  uv,
-  hv,
-  so,
-  io,
-  Ee,
-  xt,
-  Ke,
-  jt,
-  kr,
-  ua,
-  ll,
-  ns,
-  pb,
-  Bn,
+  vec3,
+  toVec3,
+  hashInt3D,
+  valueNoise3D,
+  createSeededRng,
+  sampleWeatheringTint,
+  getTintedMaterial,
+  BackdropBatchBuilder,
+  boxFromBounds,
+  orientedCylinder,
+  cylinderBetween,
+  beamBetween,
+  polylineCylinders,
+  catenaryCurvePoints,
+  placedPlane,
+  addRailingSegments,
+  createBeaconBlinkSystem,
+  beaconOctahedron,
 } from "./common.js";
+
 import { buildQuayCrane } from "./quay_crane.js";
 import { setVertexColors } from "../geo.js";
 
-var dv = new Ve(12172214),
+var dv = new THREE.Color(12172214),
   k1 = (i, e = 1) => {
-    let t = new Ve(i);
+    let t = new THREE.Color(i);
     return [(e * t.r) / dv.r, (e * t.g) / dv.g, (e * t.b) / dv.b];
   },
   yb = [
@@ -78,42 +57,42 @@ var dv = new Ve(12172214),
 
 function buildYardCrane(i, e, t, n, { s = 1, up: o = !1, tint: r = [0.3, 0.36, 0.44] } = {}) {
   let a = [],
-    l = (c, u, h, f, p, d) => a.push(Ee(c, u, h, f, p, d));
+    l = (c, u, h, f, p, d) => a.push(boxFromBounds(c, u, h, f, p, d));
   for (let c of [-5, 5]) for (let u of [-5.4, 5.4]) l(c - 0.6, 0, u - 0.6, c + 0.6, 24, u + 0.6);
   for (let c of [-5.4, 5.4])
     (l(-5, 12.5, c - 0.45, 5, 13.5, c + 0.45),
       l(-5, 23, c - 0.4, 5, 23.8, c + 0.4),
-      a.push(jt([-5, 13.5, c], [5, 23, c], 0.4, 0.4)));
+      a.push(beamBetween([-5, 13.5, c], [5, 23, c], 0.4, 0.4)));
   for (let c of [-5, 5])
     (l(c - 0.45, 12.5, -5.4, c + 0.45, 13.5, 5.4),
       l(c - 0.45, 22.8, -5.4, c + 0.45, 23.8, 5.4),
       l(c - 0.45, 3.6, -5.4, c + 0.45, 4.6, 5.4));
   (l(-11.5, 21.2, -2.3, 6.3, 22.8, 2.3), l(-10.9, 22.8, -2.9, -3.1, 26, 2.9));
   for (let c of [-1, 1])
-    (a.push(jt([5, 23.8, c * 5.4], [4.1, 30, c * 1.5], 0.6, 0.6)),
-      a.push(jt([-5, 23.8, c * 5.4], [4.1, 30, c * 1.5], 0.5, 0.5)));
+    (a.push(beamBetween([5, 23.8, c * 5.4], [4.1, 30, c * 1.5], 0.6, 0.6)),
+      a.push(beamBetween([-5, 23.8, c * 5.4], [4.1, 30, c * 1.5], 0.5, 0.5)));
   (l(3.6, 29.6, -2, 4.6, 30.4, 2),
     o
-      ? (a.push(jt([6.6, 22, 0], [10.5, 52, 0], 4.6, 1.6)),
-        a.push(jt([4.1, 30, 0], [9.4, 44, 0], 0.3, 0.3)))
+      ? (a.push(beamBetween([6.6, 22, 0], [10.5, 52, 0], 4.6, 1.6)),
+        a.push(beamBetween([4.1, 30, 0], [9.4, 44, 0], 0.3, 0.3)))
       : (l(6.6, 21.2, -2.3, 38.5, 22.8, 2.3),
-        a.push(jt([4.1, 30, 0], [20.5, 24.3, 0], 0.3, 0.3)),
-        a.push(jt([4.1, 30, 0], [34.5, 24.3, 0], 0.3, 0.3)),
+        a.push(beamBetween([4.1, 30, 0], [20.5, 24.3, 0], 0.3, 0.3)),
+        a.push(beamBetween([4.1, 30, 0], [34.5, 24.3, 0], 0.3, 0.3)),
         l(15, 18.3, 2.4, 19.5, 22.2, 4.4)));
   for (let c of a) (c.scale(s, s, s), c.translate(t, 0, n), i.add(e, c, r));
   return o ? [t + 10.5 * s, 52.6 * s, n] : [t + 4.1 * s, 31 * s, n];
 }
 
 function buildYardBlocks(i, e) {
-  let t = new io(),
-    n = so(i, "paint_white"),
-    s = uv(90417),
+  let t = new BackdropBatchBuilder(),
+    n = getTintedMaterial(i, "paint_white"),
+    s = createSeededRng(90417),
     o = [5.5, 4.3, 2.9],
     r = [8, 0.45, 0.25],
     a = [0, 0, 0];
   function l(D, C, G, j, N = 1) {
-    let Q = rl(C * 0.23 + 1.3, G * 0.31, j * 0.23 + 7.7),
-      K = rl(C * 1.9 + 4.1, 2.2, j * 1.9 + 9.3),
+    let Q = valueNoise3D(C * 0.23 + 1.3, G * 0.31, j * 0.23 + 7.7),
+      K = valueNoise3D(C * 1.9 + 4.1, 2.2, j * 1.9 + 9.3),
       ie = N * (0.56 + 0.52 * Q) * (0.62 + 0.38 * _b(0, 5, G)),
       F = D[0] * ie,
       X = D[1] * ie,
@@ -222,7 +201,7 @@ function buildYardBlocks(i, e) {
       $ % 8 >= 1 && $ % 8 <= 5 && F.push({ z: re, blk: Math.floor($ / 8), first: $ === 1 });
     let X = F.map((re, $) =>
         D.map((ue, me) => {
-          let ee = rl(ue * 0.04 + 3, 0.5, re.z * 0.05 + 7),
+          let ee = valueNoise3D(ue * 0.04 + 3, 0.5, re.z * 0.05 + 7),
             B = Math.round(0.2 + ee * 5.4 + (s() - 0.5) * 2.4);
           return (!re.first && s() < 0.07 && (B = 0), Math.max(re.first ? 2 : 0, Math.min(5, B)));
         }),
@@ -362,11 +341,11 @@ function buildYardBlocks(i, e) {
     y(m, -36.4, -110, { faceZ: 1, ribs: !0, doorRows: 12 }),
     y(m, 33.9, 110, { faceZ: -1, ribs: !0, doorRows: 12 }));
   {
-    let D = new nt();
-    (D.setAttribute("position", new He(u, 3)),
-      D.setAttribute("normal", new He(h, 3)),
-      D.setAttribute("uv", new He(f, 2)),
-      D.setAttribute("color", new He(p, 3)),
+    let D = new THREE.BufferGeometry();
+    (D.setAttribute("position", new THREE.Float32BufferAttribute(u, 3)),
+      D.setAttribute("normal", new THREE.Float32BufferAttribute(h, 3)),
+      D.setAttribute("uv", new THREE.Float32BufferAttribute(f, 2)),
+      D.setAttribute("color", new THREE.Float32BufferAttribute(p, 3)),
       t.add(n, D));
   }
   let A = k1(5922920, 0.85),
@@ -381,25 +360,25 @@ function buildYardBlocks(i, e) {
       let re = C + ne * 9.5;
       for (let $ of [-1, 1]) {
         let ue = D + $ * 7.5;
-        (c(Ee(ue - 1.5, 0.05, re - 0.28, ue + 1.5, 0.8, re + 0.28), _),
-          c(Ee(ue - 0.36, 0.8, re - 0.36, ue + 0.36, 19.1, re + 0.36), K),
-          c(Ee(ue - 0.4, 6.9, re - 0.4, ue + 0.4, 7, re + 0.4), ie),
-          c(Ee(ue - 0.4, 13, re - 0.4, ue + 0.4, 13.1, re + 0.4), ie),
-          c(jt([ue, 14.6, re], [ue - $ * 3.2, 19.1, re], 0.3, 0.3), K));
+        (c(boxFromBounds(ue - 1.5, 0.05, re - 0.28, ue + 1.5, 0.8, re + 0.28), _),
+          c(boxFromBounds(ue - 0.36, 0.8, re - 0.36, ue + 0.36, 19.1, re + 0.36), K),
+          c(boxFromBounds(ue - 0.4, 6.9, re - 0.4, ue + 0.4, 7, re + 0.4), ie),
+          c(boxFromBounds(ue - 0.4, 13, re - 0.4, ue + 0.4, 13.1, re + 0.4), ie),
+          c(beamBetween([ue, 14.6, re], [ue - $ * 3.2, 19.1, re], 0.3, 0.3), K));
       }
-      (c(Ee(D - 9.3, 0.8, re - 0.4, D + 9.3, 1.7, re + 0.4), K),
-        c(Ee(D - 8, 19.1, re - 0.45, D + 8, 20.2, re + 0.45), K),
-        c(Ee(D - 2.4, 1.7, re - 0.5, D + 0.8, 3.9, re + 0.5), w));
+      (c(boxFromBounds(D - 9.3, 0.8, re - 0.4, D + 9.3, 1.7, re + 0.4), K),
+        c(boxFromBounds(D - 8, 19.1, re - 0.45, D + 8, 20.2, re + 0.45), K),
+        c(boxFromBounds(D - 2.4, 1.7, re - 0.5, D + 0.8, 3.9, re + 0.5), w));
     }
     for (let ne of [-1, 1]) {
       let re = D + ne * 3.3,
         $ = C - 9.5 - 5.6,
         ue = C + 9.5 + 5.6;
-      c(Ee(re - 0.45, 20.2, $, re + 0.45, 21.9, ue), K);
+      c(boxFromBounds(re - 0.45, 20.2, $, re + 0.45, 21.9, ue), K);
       for (let me = $ + 4.4; me < ue; me += 4.4)
-        c(Ee(re - 0.48, 20.15, me - 0.03, re + 0.48, 21.95, me + 0.03), ie);
-      (c(Ee(re + ne * 0.45, 21, $, re + ne * 1.3, 21.05, ue), M),
-        ns(
+        c(boxFromBounds(re - 0.48, 20.15, me - 0.03, re + 0.48, 21.95, me + 0.03), ie);
+      (c(boxFromBounds(re + ne * 0.45, 21, $, re + ne * 1.3, 21.05, ue), M),
+        addRailingSegments(
           z,
           null,
           [
@@ -408,23 +387,24 @@ function buildYardBlocks(i, e) {
           ],
           { post: 3.3, r: 0.035, mid: !1, tint: E },
         ),
-        c(Ke([re, 20.2, C - 9.5 + 0.5], [re, 20.2, C + 9.5 - 0.5], 0.05, 4), _));
+        c(cylinderBetween([re, 20.2, C - 9.5 + 0.5], [re, 20.2, C + 9.5 - 0.5], 0.05, 4), _));
     }
     for (let ne of [C - 9.5 - 5.4, C + 9.5 + 5.4])
-      c(Ee(D - 3.3, 20.4, ne - 0.25, D + 3.3, 21.7, ne + 0.25), K);
+      c(boxFromBounds(D - 3.3, 20.4, ne - 0.25, D + 3.3, 21.7, ne + 0.25), K);
     let F = C + j;
-    (c(Ee(D - 4, 21.9, F - 2.3, D + 4, 22.5, F + 2.3), E),
-      c(Ee(D - 2.6, 22.5, F - 1.7, D + 1.4, 24.5, F + 1.7), w),
-      c(Ee(D + 1.8, 22.5, F - 0.9, D + 3.4, 23.3, F + 0.9), _),
-      c(Ee(D + 4.3, 17.2, F - 1, D + 6.1, 19.5, F + 1), w),
-      c(Ee(D + 4.4, 18.2, F - 1.02, D + 6.12, 19.2, F + 1.02), [0.08, 0.1, 0.12]));
+    (c(boxFromBounds(D - 4, 21.9, F - 2.3, D + 4, 22.5, F + 2.3), E),
+      c(boxFromBounds(D - 2.6, 22.5, F - 1.7, D + 1.4, 24.5, F + 1.7), w),
+      c(boxFromBounds(D + 1.8, 22.5, F - 0.9, D + 3.4, 23.3, F + 0.9), _),
+      c(boxFromBounds(D + 4.3, 17.2, F - 1, D + 6.1, 19.5, F + 1), w),
+      c(boxFromBounds(D + 4.4, 18.2, F - 1.02, D + 6.12, 19.2, F + 1.02), [0.08, 0.1, 0.12]));
     for (let ne of [-0.9, 0.9])
-      c(Ee(D + 4.9, 19.5, F + ne - 0.06, D + 5.05, 21.9, F + ne + 0.06), E);
+      c(boxFromBounds(D + 4.9, 19.5, F + ne - 0.06, D + 5.05, 21.9, F + ne + 0.06), E);
     let X = 21.9 - N;
     for (let ne of [-2.2, 2.2])
-      for (let re of [-0.8, 0.8]) c(Ke([D + ne, 21.9, F + re], [D + ne, X, F + re], 0.03, 4), _);
-    (c(Ee(D - 6.1, X - 0.4, F - 1.22, D + 6.1, X, F + 1.22), E),
-      c(Ee(D - 2.4, X, F - 0.9, D + 2.4, X + 0.5, F + 0.9), E));
+      for (let re of [-0.8, 0.8])
+        c(cylinderBetween([D + ne, 21.9, F + re], [D + ne, X, F + re], 0.03, 4), _);
+    (c(boxFromBounds(D - 6.1, X - 0.4, F - 1.22, D + 6.1, X, F + 1.22), E),
+      c(boxFromBounds(D - 2.4, X, F - 0.9, D + 2.4, X + 0.5, F + 0.9), E));
     {
       let ne = D - 7.5 - 0.5,
         re = C - 9.5,
@@ -433,24 +413,29 @@ function buildYardBlocks(i, e) {
         let me = re + (ue % 2 ? 1.9 : -1.9),
           ee = re + (ue % 2 ? -1.9 : 1.9),
           B = Math.min(20.2, $ + 3.1);
-        (c(jt([ne, $, me], [ne, B, ee], 0.6, 0.07), M),
-          c(Ke([ne - 0.3, $ + 1, me], [ne - 0.3, B + 1, ee], 0.03, 4), E),
-          c(Ee(ne - 0.35, B - 0.04, ee - 0.5, ne + 0.35, B, ee + 0.5), M),
+        (c(beamBetween([ne, $, me], [ne, B, ee], 0.6, 0.07), M),
+          c(cylinderBetween([ne - 0.3, $ + 1, me], [ne - 0.3, B + 1, ee], 0.03, 4), E),
+          c(boxFromBounds(ne - 0.35, B - 0.04, ee - 0.5, ne + 0.35, B, ee + 0.5), M),
           ($ = B));
       }
       for (let ue of [-2.4, 2.4])
-        c(Ee(ne - 0.3, 1.7, re + ue - 0.05, ne - 0.2, 20.2, re + ue + 0.05), ie);
-      (c(xt(1.25, 1.25, 0.5, "z", D + 7.5 + 1, 3.3, C + 9.5 + 0.9, 12), E),
-        c(xt(0.5, 0.5, 0.6, "z", D + 7.5 + 1, 3.3, C + 9.5 + 0.9, 8), _));
+        c(boxFromBounds(ne - 0.3, 1.7, re + ue - 0.05, ne - 0.2, 20.2, re + ue + 0.05), ie);
+      (c(orientedCylinder(1.25, 1.25, 0.5, "z", D + 7.5 + 1, 3.3, C + 9.5 + 0.9, 12), E),
+        c(orientedCylinder(0.5, 0.5, 0.6, "z", D + 7.5 + 1, 3.3, C + 9.5 + 0.9, 8), _));
       for (let ue of [-0.2, 0.2])
         c(
-          Ke([D + 7.5 + 0.45, 1.7, C - 9.5 + ue], [D + 7.5 + 0.45, 20.2, C - 9.5 + ue], 0.022, 4),
+          cylinderBetween(
+            [D + 7.5 + 0.45, 1.7, C - 9.5 + ue],
+            [D + 7.5 + 0.45, 20.2, C - 9.5 + ue],
+            0.022,
+            4,
+          ),
           M,
         );
     }
-    (e.add(Bn(D, 24.9, F, 0.3), r, 3.1, s(), 0.4),
-      e.add(Bn(D - 3.3, 20, C - 4, 0.24), o, 0),
-      e.add(Bn(D + 3.3, 20, C + 4, 0.24), o, 0));
+    (e.add(beaconOctahedron(D, 24.9, F, 0.3), r, 3.1, s(), 0.4),
+      e.add(beaconOctahedron(D - 3.3, 20, C - 4, 0.24), o, 0),
+      e.add(beaconOctahedron(D + 3.3, 20, C + 4, 0.24), o, 0));
   }
   let z = { add: (D, C, G) => c(C, G) },
     H = k1(6172444, 0.7);
@@ -477,15 +462,19 @@ function buildYardBlocks(i, e) {
     [-120, 60, 34],
     [10.5, 49, 26],
   ]) {
-    (c(xt(0.14, 0.3, G, "y", D, G / 2, C, 6), M), c(xt(1.5, 1.5, 0.18, "y", D, G - 0.5, C, 8), _));
+    (c(orientedCylinder(0.14, 0.3, G, "y", D, G / 2, C, 6), M),
+      c(orientedCylinder(1.5, 1.5, 0.18, "y", D, G - 0.5, C, 8), _));
     for (let [j, N] of [
       [-1.4, 0],
       [1.4, 0],
       [0, -1.4],
       [0, 1.4],
     ])
-      (c(Ee(D + j - 0.25, G - 0.95, C + N - 0.25, D + j + 0.25, G - 0.6, C + N + 0.25), _),
-        e.add(Bn(D + j, G - 1.05, C + N, 0.2), o, 0));
+      (c(
+        boxFromBounds(D + j - 0.25, G - 0.95, C + N - 0.25, D + j + 0.25, G - 0.6, C + N + 0.25),
+        _,
+      ),
+        e.add(beaconOctahedron(D + j, G - 1.05, C + N, 0.2), o, 0));
   }
   for (let [D, C, G] of [
     [-158, -30, 62],
@@ -498,7 +487,10 @@ function buildYardBlocks(i, e) {
       [0, 1.265],
     ];
     for (let [Q, K] of N)
-      c(Ke([D + Q, 0, C + K], [D + Q * 0.3, G, C + K * 0.3], 0.07, 4), [0.42, 0.14, 0.1]);
+      c(
+        cylinderBetween([D + Q, 0, C + K], [D + Q * 0.3, G, C + K * 0.3], 0.07, 4),
+        [0.42, 0.14, 0.1],
+      );
     for (let Q = 3, K = 0; Q < G; Q += 6, K++)
       for (let ie = 0; ie < 3; ie++) {
         let F = N[ie],
@@ -506,7 +498,7 @@ function buildYardBlocks(i, e) {
           ne = 1 - (0.7 * Q) / G,
           re = 1 - (0.7 * Math.min(G, Q + 6)) / G;
         c(
-          Ke(
+          cylinderBetween(
             [D + F[0] * ne, Q, C + F[1] * ne],
             [D + X[0] * re, Math.min(G, Q + 6), C + X[1] * re],
             0.04,
@@ -517,13 +509,18 @@ function buildYardBlocks(i, e) {
       }
     for (let Q of [0.5, 2.6, 4.7])
       c(
-        Ke([D, G * 0.72, C], [D + Math.cos(Q) * G * 0.5, 0, C + Math.sin(Q) * G * 0.5], 0.025, 3),
+        cylinderBetween(
+          [D, G * 0.72, C],
+          [D + Math.cos(Q) * G * 0.5, 0, C + Math.sin(Q) * G * 0.5],
+          0.025,
+          3,
+        ),
         _,
       );
-    (c(Ke([D, G, C], [D, G + 5, C], 0.04, 3), _),
-      c(Ee(D - 0.9, G * 0.8, C - 0.25, D + 0.9, G * 0.8 + 1.6, C + 0.25), w),
-      e.add(Bn(D, G + 0.4, C, 0.35), r, 2.4, s(), 0.45),
-      e.add(Bn(D, G * 0.55, C, 0.28), r, 0));
+    (c(cylinderBetween([D, G, C], [D, G + 5, C], 0.04, 3), _),
+      c(boxFromBounds(D - 0.9, G * 0.8, C - 0.25, D + 0.9, G * 0.8 + 1.6, C + 0.25), w),
+      e.add(beaconOctahedron(D, G + 0.4, C, 0.35), r, 2.4, s(), 0.45),
+      e.add(beaconOctahedron(D, G * 0.55, C, 0.28), r, 0));
   }
   for (let [D, C, G] of [
     [-178, -70, 90],
@@ -533,7 +530,12 @@ function buildYardBlocks(i, e) {
   ]) {
     let j = Math.abs(C) > 120,
       N = (Q, K, ie, F, X, ne, re) =>
-        c(j ? Ee(D + Q, K, C + ie, D + F, X, C + ne) : Ee(D + ie, K, C + Q, D + ne, X, C + F), re);
+        c(
+          j
+            ? boxFromBounds(D + Q, K, C + ie, D + F, X, C + ne)
+            : boxFromBounds(D + ie, K, C + Q, D + ne, X, C + F),
+          re,
+        );
     (N(-G / 2, 0, -16, G / 2, 9.5, 16, [0.2, 0.22, 0.24]),
       N(-G / 2, 9.5, -16.4, G / 2, 9.9, 16.4, [0.12, 0.12, 0.13]),
       N(-G / 2, 9.9, -10, G / 2, 12.2, 10, [0.17, 0.18, 0.2]),
@@ -554,24 +556,31 @@ function buildYardBlocks(i, e) {
       [330, 1.45, !0, [0.26, 0.12, 0.06]],
     ]).forEach(([D, C, G, j], N) => {
       let Q = buildYardCrane(t, n, 23.5, D, { s: C, up: G, tint: j });
-      e.add(Bn(Q[0], Q[1], Q[2], 0.45 * C), r, 2.6 + (N % 3) * 0.35, N * 0.37, 0.45);
+      e.add(beaconOctahedron(Q[0], Q[1], Q[2], 0.45 * C), r, 2.6 + (N % 3) * 0.35, N * 0.37, 0.45);
     }),
-    c(Ee(-230, -1.6, -384, 30, -0.12, 425), [0.24, 0.24, 0.25]));
+    c(boxFromBounds(-230, -1.6, -384, 30, -0.12, 425), [0.24, 0.24, 0.25]));
   function q(D, C, G, j, N, Q, K) {
-    (c(Ee(D, -1.6, G, C, N, j), Q), c(Ee(D, -1.6, G, C, 0.8, j + 0.2), [0.42, 0.14, 0.1]));
+    (c(boxFromBounds(D, -1.6, G, C, N, j), Q),
+      c(boxFromBounds(D, -1.6, G, C, 0.8, j + 0.2), [0.42, 0.14, 0.1]));
     let ie = j - G,
       F = G + ie * K;
-    (c(Ee(D + 2, N, F - 7, C - 2, N + 17, F + 7), [0.72, 0.73, 0.7]),
-      c(Ee((D + C) / 2 - 3, N + 17, F - 5, (D + C) / 2 + 3, N + 24, F + 1), [0.2, 0.3, 0.45]));
+    (c(boxFromBounds(D + 2, N, F - 7, C - 2, N + 17, F + 7), [0.72, 0.73, 0.7]),
+      c(
+        boxFromBounds((D + C) / 2 - 3, N + 17, F - 5, (D + C) / 2 + 3, N + 24, F + 1),
+        [0.2, 0.3, 0.45],
+      ));
     for (let X = G + 12; X < j - 12; X += 13.2) {
       if (Math.abs(X + 6 - F) < 14) continue;
       let ne = 2.6 * (2 + Math.floor(s() * 4)),
         re = L1[Math.floor(s() * L1.length)];
-      c(Ee(D + 1, N, X, (D + C) / 2 - 0.2, N + ne, X + 12.2), re);
+      c(boxFromBounds(D + 1, N, X, (D + C) / 2 - 0.2, N + ne, X + 12.2), re);
       let $ = L1[Math.floor(s() * L1.length)];
-      c(Ee((D + C) / 2 + 0.2, N, X, C - 1, N + ne - 2.6 * Math.floor(s() * 2), X + 12.2), $);
+      c(
+        boxFromBounds((D + C) / 2 + 0.2, N, X, C - 1, N + ne - 2.6 * Math.floor(s() * 2), X + 12.2),
+        $,
+      );
     }
-    e.add(Bn((D + C) / 2, N + 26, F, 0.4), [5, 4.6, 3.8], 0);
+    e.add(beaconOctahedron((D + C) / 2, N + 26, F, 0.4), [5, 4.6, 3.8], 0);
   }
   (q(34, 62, 140, 345, 11, [0.1, 0.13, 0.2], 0.78),
     q(34, 58, -360, -205, 10, [0.2, 0.08, 0.07], 0.2),
@@ -579,20 +588,20 @@ function buildYardBlocks(i, e) {
     q(600, 626, 160, 300, 9, [0.16, 0.12, 0.1], 0.2));
   for (let D = 340; D > -66; D -= 12.5) {
     let C = 398 + Math.sin(D * 0.013) * 14 + (s() - 0.5) * 3,
-      G = Ee(-6 - s() * 2, -1.6, -7, 6 + s() * 2, 2.2 + s() * 1.2, 7);
+      G = boxFromBounds(-6 - s() * 2, -1.6, -7, 6 + s() * 2, 2.2 + s() * 1.2, 7);
     (G.rotateY((s() - 0.5) * 0.5), G.translate(C, 0, D), c(G, [0.2, 0.21, 0.22]));
   }
   {
-    (c(xt(5, 6, 3.6, "y", 399, 0.2, -72, 10), [0.3, 0.3, 0.3]),
-      c(xt(1.7, 2.3, 6, "y", 399, 5, -72, 10), [0.85, 0.85, 0.82]),
-      c(xt(1.5, 1.7, 4, "y", 399, 10, -72, 10), [0.62, 0.14, 0.1]),
-      c(xt(1.3, 1.5, 4, "y", 399, 14, -72, 10), [0.85, 0.85, 0.82]),
-      c(xt(2, 2, 0.3, "y", 399, 16.1, -72, 10), [0.3, 0.3, 0.32]),
-      c(xt(0.2, 1.3, 1.2, "y", 399, 18.9, -72, 8), [0.25, 0.25, 0.27]));
+    (c(orientedCylinder(5, 6, 3.6, "y", 399, 0.2, -72, 10), [0.3, 0.3, 0.3]),
+      c(orientedCylinder(1.7, 2.3, 6, "y", 399, 5, -72, 10), [0.85, 0.85, 0.82]),
+      c(orientedCylinder(1.5, 1.7, 4, "y", 399, 10, -72, 10), [0.62, 0.14, 0.1]),
+      c(orientedCylinder(1.3, 1.5, 4, "y", 399, 14, -72, 10), [0.85, 0.85, 0.82]),
+      c(orientedCylinder(2, 2, 0.3, "y", 399, 16.1, -72, 10), [0.3, 0.3, 0.32]),
+      c(orientedCylinder(0.2, 1.3, 1.2, "y", 399, 18.9, -72, 8), [0.25, 0.25, 0.27]));
     for (let G = 0; G < 6; G++) {
       let j = (G / 6) * 6.283;
       c(
-        Ee(
+        boxFromBounds(
           399 + Math.cos(j) * 1.1 - 0.06,
           16.2,
           -72 + Math.sin(j) * 1.1 - 0.06,
@@ -603,10 +612,10 @@ function buildYardBlocks(i, e) {
         [0.25, 0.25, 0.27],
       );
     }
-    e.add(Bn(399, 17.25, -72, 0.85), [16, 15, 11], 6, 0, 0.09);
+    e.add(beaconOctahedron(399, 17.25, -72, 0.85), [16, 15, 11], 6, 0, 0.09);
   }
   let U = 300;
-  c(Ee(U - 330, -1.6, -520, U + 330, 2.2, -430), [0.16, 0.17, 0.18]);
+  c(boxFromBounds(U - 330, -1.6, -520, U + 330, 2.2, -430), [0.16, 0.17, 0.18]);
   for (let [D, C, G, j] of [
     [-150, -452, 17, 15],
     [-112, -458, 17, 15],
@@ -617,17 +626,23 @@ function buildYardBlocks(i, e) {
     [136, -462, 14, 19],
     [210, -456, 22, 12],
   ])
-    (c(xt(G, G, j, "y", U + D, 2.2 + j / 2, C, 14), [0.62, 0.63, 0.62]),
-      c(xt(G * 0.2, G, j * 0.12, "y", U + D, 2.2 + j * 1.06, C, 14), [0.52, 0.53, 0.53]));
+    (c(orientedCylinder(G, G, j, "y", U + D, 2.2 + j / 2, C, 14), [0.62, 0.63, 0.62]),
+      c(
+        orientedCylinder(G * 0.2, G, j * 0.12, "y", U + D, 2.2 + j * 1.06, C, 14),
+        [0.52, 0.53, 0.53],
+      ));
   for (let [D, C, G, j] of [
     [-32, -470, 96, 3.2],
     [168, -475, 70, 2.6],
   ]) {
-    c(xt(j * 0.62, j, G, "y", U + D, 2.2 + G / 2, C, 10), [0.5, 0.5, 0.5]);
+    c(orientedCylinder(j * 0.62, j, G, "y", U + D, 2.2 + G / 2, C, 10), [0.5, 0.5, 0.5]);
     for (let N of [0.82, 0.94])
-      c(xt(j * 0.66, j * 0.7, G * 0.05, "y", U + D, 2.2 + G * N, C, 10), [0.6, 0.15, 0.1]);
-    (e.add(Bn(U + D, 3.2 + G, C, 0.9), r, 2.2, s(), 0.5),
-      e.add(Bn(U + D + j, 2.2 + G * 0.55, C, 0.7), r, 2.2, s(), 0.5));
+      c(
+        orientedCylinder(j * 0.66, j * 0.7, G * 0.05, "y", U + D, 2.2 + G * N, C, 10),
+        [0.6, 0.15, 0.1],
+      );
+    (e.add(beaconOctahedron(U + D, 3.2 + G, C, 0.9), r, 2.2, s(), 0.5),
+      e.add(beaconOctahedron(U + D + j, 2.2 + G * 0.55, C, 0.7), r, 2.2, s(), 0.5));
   }
   for (let [D, C, G, j, N] of [
     [-230, -455, 70, 16, 30],
@@ -637,10 +652,13 @@ function buildYardBlocks(i, e) {
     [270, -450, 60, 12, 30],
     [150, -448, 26, 28, 14],
   ])
-    c(Ee(U + D - G / 2, 2.2, C - N / 2, U + D + G / 2, 2.2 + j, C + N / 2), [0.34, 0.36, 0.38]);
+    c(
+      boxFromBounds(U + D - G / 2, 2.2, C - N / 2, U + D + G / 2, 2.2 + j, C + N / 2),
+      [0.34, 0.36, 0.38],
+    );
   for (let D = 0; D < 26; D++)
     e.add(
-      Bn(U - 300 + s() * 600, 6 + s() * 26, -436 + s() * 6, 0.55),
+      beaconOctahedron(U - 300 + s() * 600, 6 + s() * 26, -436 + s() * 6, 0.55),
       s() > 0.3 ? o : [3, 3.4, 3.8],
       0,
     );

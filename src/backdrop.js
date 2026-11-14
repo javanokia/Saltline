@@ -4,7 +4,14 @@
  */
 
 import * as THREE from "three";
-import { W, wt, on, io, kr, ua, _t, pb } from "./backdrop/common.js";
+import {
+  vec3,
+  BackdropBatchBuilder,
+  polylineCylinders,
+  catenaryCurvePoints,
+  createBeaconBlinkSystem,
+} from "./backdrop/common.js";
+
 import { buildQuayCrane, z1 } from "./backdrop/quay_crane.js";
 import { buildCargoShip, vb } from "./backdrop/cargo_ship.js";
 import { buildPatrolBoat, xb } from "./backdrop/patrol_boat.js";
@@ -28,10 +35,10 @@ var _R = ["crane", "ship", "boat", "sky"];
  */
 function buildBackdropScene(i, { only: e = null, showcase: t = !1 } = {}) {
   let n = (b) => !e || e === b,
-    s = new wt();
+    s = new THREE.Group();
   s.name = "backdrop";
-  let o = pb(),
-    r = new W(31.5, -1.6, 21);
+  let o = createBeaconBlinkSystem(),
+    r = new THREE.Vector3(31.5, -1.6, 21);
   t && r.set(24, 0.34, 15);
   let a = null,
     l = null,
@@ -46,10 +53,24 @@ function buildBackdropScene(i, { only: e = null, showcase: t = !1 } = {}) {
       s.add(a.root)),
     a && !t)
   ) {
-    let b = new io(),
+    let b = new BackdropBatchBuilder(),
       m = i.mats.get("rope");
-    (b.add(m, kr(ua(_t(3.2, 0.95, 0.05), _t(4.6, 2.12, 2.3), 0.22, 7), 0.016, 5)),
-      b.add(m, kr(ua(_t(-3.25, 0.82, 0.95), _t(-4.6, 2.12, 2.3), 0.2, 7), 0.016, 5)),
+    (b.add(
+      m,
+      polylineCylinders(
+        catenaryCurvePoints(vec3(3.2, 0.95, 0.05), vec3(4.6, 2.12, 2.3), 0.22, 7),
+        0.016,
+        5,
+      ),
+    ),
+      b.add(
+        m,
+        polylineCylinders(
+          catenaryCurvePoints(vec3(-3.25, 0.82, 0.95), vec3(-4.6, 2.12, 2.3), 0.2, 7),
+          0.016,
+          5,
+        ),
+      ),
       a.root.add(b.build({ cast: !1, recv: !1 })));
   }
   (n("crane") && ((l = buildQuayCrane(i, o)), s.add(l.root)),
@@ -102,7 +123,7 @@ function buildBackdropScene(i, { only: e = null, showcase: t = !1 } = {}) {
     {
       update: y,
       root: s,
-      boat: a ? a.root : new on(),
+      boat: a ? a.root : new THREE.Object3D(),
       crane: l ? l.root : null,
       ship: c ? c.root : null,
       skyline: u ? u.root : null,
@@ -111,7 +132,7 @@ function buildBackdropScene(i, { only: e = null, showcase: t = !1 } = {}) {
       colliders: p,
       spreader: l ? l.spreader : null,
       boatBase: r,
-      extractionPoint: new W(30, 0, 20),
+      extractionPoint: new THREE.Vector3(30, 0, 20),
       shipName: "KITTIWAKE",
       craneId: "SALTLINE 04",
       stats: { tris: Math.round(v), drawCalls: g },

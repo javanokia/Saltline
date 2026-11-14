@@ -12,18 +12,10 @@ import {
   surfaceShaderPrelude,
   surfaceShaderEntry,
   surfaceShaderLibrary,
-  heightToNormalFragmentShader,
   normalMapFragmentShader,
   srgbCopyFragmentShader,
 } from "./materials/shaders.js";
-import {
-  createDecalFactory,
-  stencilFontStack,
-  sansFontStack,
-  monoFontStack,
-  PALETTE,
-  rgba,
-} from "./materials/decals.js";
+import { createDecalFactory } from "./materials/decals.js";
 import {
   TEXTURE_SPECS,
   MATERIAL_SPECS,
@@ -38,68 +30,27 @@ import {
   aoMapFragmentPatch,
 } from "./materials/specs.js";
 
-// Three.js 紧凑别名
-const Vector3 = THREE.Vector3;
-const Vector2 = THREE.Vector2;
-const Vector4 = THREE.Vector4;
-const Color = THREE.Color;
-const Group = THREE.Group;
-const Mesh = THREE.Mesh;
-const PlaneGeometry = THREE.PlaneGeometry;
-const SphereGeometry = THREE.SphereGeometry;
-const OrthographicCamera = THREE.OrthographicCamera;
-const Scene = THREE.Scene;
-const WebGLRenderTarget = THREE.WebGLRenderTarget;
-const MeshStandardMaterial = THREE.MeshStandardMaterial;
-const MeshBasicMaterial = THREE.MeshBasicMaterial;
-const RawShaderMaterial = THREE.RawShaderMaterial;
-const CanvasTexture = THREE.CanvasTexture;
-const ShaderChunk = THREE.ShaderChunk;
-const GLSL3 = THREE.GLSL3;
-const DoubleSide = THREE.DoubleSide;
-const LinearMipmapLinearFilter = THREE.LinearMipmapLinearFilter;
-const NearestFilter = THREE.NearestFilter;
-const LinearFilter = THREE.LinearFilter;
-const RepeatWrapping = THREE.RepeatWrapping;
-const SRGBColorSpace = THREE.SRGBColorSpace;
-const NoColorSpace = THREE.NoColorSpace;
-
-var MaterialsModule = {};
-const defineProperty = Object.defineProperty;
-const defineGetters = (i, e) => {
-  for (var t in e) defineProperty(i, t, { get: e[t], enumerable: true });
-};
-defineGetters(MaterialsModule, {
-  applyPatch: () => applyMaterialPatch,
-  create: () => buildMaterialsManager,
-  showcase: () => buildMaterialsShowcase,
+const MaterialsModule = {};
+Object.defineProperties(MaterialsModule, {
+  applyPatch: { get: () => applyMaterialPatch, enumerable: true },
+  create: { get: () => buildMaterialsManager, enumerable: true },
+  showcase: { get: () => buildMaterialsShowcase, enumerable: true },
 });
 
-function applyMaterialPatch(material, uniforms) {
-  (Object.assign(material.uniforms, uniforms),
-    (material.vertexShader = material.vertexShader
-      .replace(
-        "#include <common>",
-        `#include <common>
-` + triplanarVertexCommon,
-      )
-      .replace(
-        "#include <project_vertex>",
-        `#include <project_vertex>
-` + triplanarVertexMain,
-      )),
-    (material.fragmentShader = material.fragmentShader
-      .replace(
-        "#include <common>",
-        `#include <common>
-` + surfaceFragmentCommon,
-      )
-      .replace("#include <map_fragment>", surfaceMapFragment)
-      .replace("#include <roughnessmap_fragment>", surfaceRoughnessFragment)
-      .replace("#include <metalnessmap_fragment>", surfaceMetalnessFragment)
-      .replace("#include <normal_fragment_maps>", surfaceNormalFragment)
-      .replace("#include <aomap_fragment>", aoMapFragmentPatch)));
+export function applyMaterialPatch(material, uniforms) {
+  Object.assign(material.uniforms, uniforms);
+  material.vertexShader = material.vertexShader
+    .replace("#include <common>", "#include <common>\n" + triplanarVertexCommon)
+    .replace("#include <project_vertex>", "#include <project_vertex>\n" + triplanarVertexMain);
+  material.fragmentShader = material.fragmentShader
+    .replace("#include <common>", "#include <common>\n" + surfaceFragmentCommon)
+    .replace("#include <map_fragment>", surfaceMapFragment)
+    .replace("#include <roughnessmap_fragment>", surfaceRoughnessFragment)
+    .replace("#include <metalnessmap_fragment>", surfaceMetalnessFragment)
+    .replace("#include <normal_fragment_maps>", surfaceNormalFragment)
+    .replace("#include <aomap_fragment>", aoMapFragmentPatch);
 }
+
 /**
  * 创建程序化 PBR 材质管理器：GPU 贴图集生成、材质缓存、雨水湿润补丁、
  * 贴花/铭牌/编号图集与展示厅支持。
@@ -107,254 +58,338 @@ function applyMaterialPatch(material, uniforms) {
  * @returns {Promise<import('./types').MaterialsManager>}
  */
 async function buildMaterialsManager(engineContext) {
-  let e = engineContext.renderer || (engineContext.render && engineContext.render.renderer),
-    t = engineContext.params || {},
-    n = +(t.tex || 0) || (engineContext.quality && engineContext.quality.tex) || 1024,
-    s = Math.min(n, 1024),
-    o = Math.min(8, e.capabilities.getMaxAnisotropy ? e.capabilities.getMaxAnisotropy() : 1),
-    r = { wet: { value: t.wet !== void 0 ? +t.wet : 1 } },
-    a = { sets: 0, bytes: 0, ms: 0 },
-    l = new OrthographicCamera(-1, 1, 1, -1, 0, 1),
-    c = new Scene(),
-    u = new Mesh(new PlaneGeometry(2, 2));
-  ((u.frustumCulled = !1), c.add(u));
-  let h = new Map(),
-    f = new Map(),
-    p = new Map(),
-    d = 0,
-    v = null,
-    g = (O, q) =>
-      new RawShaderMaterial({
-        glslVersion: GLSL3,
-        vertexShader: fullscreenVertexShader,
-        fragmentShader: O,
-        uniforms: q,
-        depthTest: !1,
-        depthWrite: !1,
-      });
-  function x() {
-    return (
-      v ||
-        (v = {
-          normal: g(normalMapFragmentShader, {
-            tH: { value: null },
-            uK: { value: new Vector2() },
-            uTexel: { value: 0 },
-          }),
-          copy: g(srgbCopyFragmentShader, { tA: { value: null }, uSq: { value: 0 } }),
-        }),
-      v
-    );
-  }
-  function y(O, q) {
-    ((u.material = q), e.setRenderTarget(O), e.render(c, l));
-  }
-  function b(O, q) {
-    let U = new WebGLRenderTarget(O, O, {
-      depthBuffer: !1,
-      generateMipmaps: !0,
-      minFilter: LinearMipmapLinearFilter,
-      magFilter: LinearFilter,
-      wrapS: RepeatWrapping,
-      wrapT: RepeatWrapping,
-      anisotropy: o,
-      colorSpace: q ? SRGBColorSpace : NoColorSpace,
+  const renderer =
+    engineContext.renderer || (engineContext.render && engineContext.render.renderer);
+  const params = engineContext.params || {};
+  const requestedTexSize =
+    +(params.tex || 0) || (engineContext.quality && engineContext.quality.tex) || 1024;
+  const maxBaseSize = Math.min(requestedTexSize, 1024);
+  const maxAnisotropy = Math.min(
+    8,
+    renderer.capabilities.getMaxAnisotropy ? renderer.capabilities.getMaxAnisotropy() : 1,
+  );
+  const sharedUniforms = { wet: { value: params.wet !== undefined ? +params.wet : 1 } };
+  const statsCounters = { sets: 0, bytes: 0, ms: 0 };
+
+  const orthoCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  const quadScene = new THREE.Scene();
+  const quadMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2));
+  quadMesh.frustumCulled = false;
+  quadScene.add(quadMesh);
+
+  const mrtCache = new Map();
+  const bakerShaderCache = new Map();
+  const textureSetCache = new Map();
+  let lastGenTimestamp = 0;
+  let helperShaders = null;
+
+  const createBakerShader = (fragmentShader, uniforms) =>
+    new THREE.RawShaderMaterial({
+      glslVersion: THREE.GLSL3,
+      vertexShader: fullscreenVertexShader,
+      fragmentShader,
+      uniforms,
+      depthTest: false,
+      depthWrite: false,
     });
-    return ((a.bytes += O * O * 4 * 1.34), U);
-  }
-  function m(O) {
-    let q = Math.round(s * O.size);
-    return (O.hero && n >= 2048 && (q = 2048), Math.max(32, q));
-  }
-  function A(O) {
-    let q = p.get(O);
-    if (q) return q;
-    let U = TEXTURE_SPECS[O],
-      T = performance.now(),
-      D = m(U),
-      C = Array.isArray(U.tile) ? U.tile : [U.tile, U.tile],
-      G = h.get(D);
-    G ||
-      ((G = new WebGLRenderTarget(D, D, {
-        count: 3,
-        depthBuffer: !1,
-        generateMipmaps: !1,
-        minFilter: NearestFilter,
-        magFilter: NearestFilter,
-        wrapS: RepeatWrapping,
-        wrapT: RepeatWrapping,
-      })),
-      h.set(D, G));
-    let j = f.get(U.fn);
-    j ||
-      ((j = g(surfaceShaderPrelude + surfaceShaderLibrary[U.fn] + surfaceShaderEntry, {
-        uP: { value: new Vector4() },
-        uSeed: { value: 0 },
-        uTexel: { value: 0 },
-      })),
-      f.set(U.fn, j));
-    let N = U.p || [];
-    (j.uniforms.uP.value.set(N[0] || 0, N[1] || 0, N[2] || 0, N[3] || 0),
-      (j.uniforms.uSeed.value = U.seed || 0),
-      (j.uniforms.uTexel.value = 1 / D));
-    let Q = x(),
-      K = e.getRenderTarget(),
-      autoClear = e.autoClear,
-      F = e.xr.enabled,
-      X = e.shadowMap.autoUpdate;
-    ((e.autoClear = !0), (e.xr.enabled = !1), (e.shadowMap.autoUpdate = !1), y(G, j));
-    let albedoTarget = b(D, !0),
-      ormTarget = b(D, !1),
-      $ = b(D, !1);
-    ((Q.copy.uniforms.tA.value = G.textures[0]),
-      (Q.copy.uniforms.uSq.value = 1),
-      y(albedoTarget, Q.copy),
-      (Q.copy.uniforms.tA.value = G.textures[1]),
-      (Q.copy.uniforms.uSq.value = 0),
-      y(ormTarget, Q.copy),
-      (Q.normal.uniforms.tH.value = G.textures[2]),
-      (Q.normal.uniforms.uTexel.value = 1 / D),
-      Q.normal.uniforms.uK.value.set((U.bump * 0.001 * D) / C[0], (U.bump * 0.001 * D) / C[1]),
-      y($, Q.normal),
-      e.setRenderTarget(K),
-      (e.autoClear = autoClear),
-      (e.xr.enabled = F),
-      (e.shadowMap.autoUpdate = X));
-    for (let target of [albedoTarget, ormTarget, $])
-      (target.texture.repeat.set(1 / C[0], 1 / C[1]), (target.texture.name = "sl_" + O));
-    return (
-      (q = {
-        key: O,
-        albedo: albedoTarget.texture,
-        orm: ormTarget.texture,
-        normal: $.texture,
-        tile: C,
-        size: D,
-        targets: [albedoTarget, ormTarget, $],
-      }),
-      p.set(O, q),
-      a.sets++,
-      (a.ms += performance.now() - T),
-      (d = performance.now()),
-      q
-    );
-  }
-  function _() {
-    for (let O of h.values()) O.dispose();
-    h.clear();
-    for (let O of f.values()) O.dispose();
-    f.clear();
-  }
-  let M = new Map(),
-    E = new Set();
-  function w(O, q = {}) {
-    let U =
-        O +
-        "|" +
-        (q.vertexColors ? "v" : "") +
-        (q.triplanar ? "t" + (q.scale || 1) : "") +
-        (q.doubleSide ? "d" : "") +
-        (q.interior ? "i" : "") +
-        (q.color !== void 0 ? "c" + q.color : ""),
-      T = M.get(U);
-    if (T) return T;
-    let D = MATERIAL_SPECS[O];
-    D ||
-      (E.has(O) || (E.add(O), console.warn(`[mats] unknown material "${O}" \u2014 using fallback`)),
-      (D = FALLBACK_MATERIAL_SPEC));
-    let C;
-    try {
-      C = A(D.set);
-    } catch (K) {
-      return (
-        E.has("gen:" + D.set) ||
-          (E.add("gen:" + D.set),
-          console.error(`[mats] texture set "${D.set}" failed: ${(K && K.message) || K}`)),
-        (T = new MeshStandardMaterial({
-          color: q.color !== void 0 ? q.color : D.tint ? D.color : 8421504,
-          roughness: 0.6,
-          metalness: 0,
-          vertexColors: !!q.vertexColors,
-        })),
-        (T.name = O),
-        M.set(U, T),
-        T
-      );
+
+  function getHelperShaders() {
+    if (!helperShaders) {
+      helperShaders = {
+        normal: createBakerShader(normalMapFragmentShader, {
+          tH: { value: null },
+          uK: { value: new THREE.Vector2() },
+          uTexel: { value: 0 },
+        }),
+        copy: createBakerShader(srgbCopyFragmentShader, {
+          tA: { value: null },
+          uSq: { value: 0 },
+        }),
+      };
     }
-    let G = !!q.triplanar,
-      j = !D.transparent && !D.alphaCut;
-    ((T = new MeshStandardMaterial({
-      map: C.albedo,
-      normalMap: C.normal,
-      roughnessMap: C.orm,
-      metalnessMap: C.orm,
-      aoMap: C.orm,
-      color: q.color !== void 0 ? q.color : D.color,
-      roughness: D.rough,
-      metalness: D.metal,
-      vertexColors: !!q.vertexColors,
-    })),
-      T.normalScale.set(D.nrm, D.nrm),
-      (T.name = O),
-      (q.doubleSide || D.side === 2) && (T.side = DoubleSide),
-      D.transparent && ((T.transparent = !0), (T.depthWrite = !1), (T.envMapIntensity = 1.4)),
-      D.alphaCut && (T.alphaTest = 0.5),
-      (T.defines = { ...T.defines, SL_TINT: D.tint }),
-      G && (T.defines.SL_TRIPLANAR = ""),
-      j && (T.defines.SL_FX = ""),
-      D.alphaCut && !G && (T.defines.SL_ACUT = ""));
-    let N = {
-      uSlWet: r.wet,
-      uSlWetP: { value: new Vector4(...D.wet) },
-      uSlMacro: { value: new Vector4(...D.macro) },
-      uSlUv: { value: new Vector3(1, 1, G ? (q.scale || 1) / C.tile[0] : C.size) },
-      uSlX: { value: new Vector2(q.interior ? 0.12 : 1, 0) },
+    return helperShaders;
+  }
+
+  function renderToTarget(target, shaderMat) {
+    quadMesh.material = shaderMat;
+    renderer.setRenderTarget(target);
+    renderer.render(quadScene, orthoCam);
+  }
+
+  function allocateChannelTarget(size, isSrgb) {
+    const rt = new THREE.WebGLRenderTarget(size, size, {
+      depthBuffer: false,
+      generateMipmaps: true,
+      minFilter: THREE.LinearMipmapLinearFilter,
+      magFilter: THREE.LinearFilter,
+      wrapS: THREE.RepeatWrapping,
+      wrapT: THREE.RepeatWrapping,
+      anisotropy: maxAnisotropy,
+      colorSpace: isSrgb ? THREE.SRGBColorSpace : THREE.NoColorSpace,
+    });
+    statsCounters.bytes += size * size * 4 * 1.34;
+    return rt;
+  }
+
+  function resolveTexResolution(spec) {
+    let size = Math.round(maxBaseSize * spec.size);
+    if (spec.hero && requestedTexSize >= 2048) size = 2048;
+    return Math.max(32, size);
+  }
+
+  function getOrBakeTextureSet(setKey) {
+    const cached = textureSetCache.get(setKey);
+    if (cached) return cached;
+
+    const spec = TEXTURE_SPECS[setKey];
+    const startMs = performance.now();
+    const res = resolveTexResolution(spec);
+    const tile = Array.isArray(spec.tile) ? spec.tile : [spec.tile, spec.tile];
+
+    let mrt = mrtCache.get(res);
+    if (!mrt) {
+      mrt = new THREE.WebGLRenderTarget(res, res, {
+        count: 3,
+        depthBuffer: false,
+        generateMipmaps: false,
+        minFilter: THREE.NearestFilter,
+        magFilter: THREE.NearestFilter,
+        wrapS: THREE.RepeatWrapping,
+        wrapT: THREE.RepeatWrapping,
+      });
+      mrtCache.set(res, mrt);
+    }
+
+    let genMat = bakerShaderCache.get(spec.fn);
+    if (!genMat) {
+      genMat = createBakerShader(
+        surfaceShaderPrelude + surfaceShaderLibrary[spec.fn] + surfaceShaderEntry,
+        {
+          uP: { value: new THREE.Vector4() },
+          uSeed: { value: 0 },
+          uTexel: { value: 0 },
+        },
+      );
+      bakerShaderCache.set(spec.fn, genMat);
+    }
+
+    const pArr = spec.p || [];
+    genMat.uniforms.uP.value.set(pArr[0] || 0, pArr[1] || 0, pArr[2] || 0, pArr[3] || 0);
+    genMat.uniforms.uSeed.value = spec.seed || 0;
+    genMat.uniforms.uTexel.value = 1 / res;
+
+    const helpers = getHelperShaders();
+    const prevTarget = renderer.getRenderTarget();
+    const prevAutoClear = renderer.autoClear;
+    const prevXr = renderer.xr.enabled;
+    const prevShadowAuto = renderer.shadowMap.autoUpdate;
+
+    renderer.autoClear = true;
+    renderer.xr.enabled = false;
+    renderer.shadowMap.autoUpdate = false;
+    renderToTarget(mrt, genMat);
+
+    const albedoTarget = allocateChannelTarget(res, true);
+    const ormTarget = allocateChannelTarget(res, false);
+    const normalTarget = allocateChannelTarget(res, false);
+
+    helpers.copy.uniforms.tA.value = mrt.textures[0];
+    helpers.copy.uniforms.uSq.value = 1;
+    renderToTarget(albedoTarget, helpers.copy);
+
+    helpers.copy.uniforms.tA.value = mrt.textures[1];
+    helpers.copy.uniforms.uSq.value = 0;
+    renderToTarget(ormTarget, helpers.copy);
+
+    helpers.normal.uniforms.tH.value = mrt.textures[2];
+    helpers.normal.uniforms.uTexel.value = 1 / res;
+    helpers.normal.uniforms.uK.value.set(
+      (spec.bump * 0.001 * res) / tile[0],
+      (spec.bump * 0.001 * res) / tile[1],
+    );
+    renderToTarget(normalTarget, helpers.normal);
+
+    renderer.setRenderTarget(prevTarget);
+    renderer.autoClear = prevAutoClear;
+    renderer.xr.enabled = prevXr;
+    renderer.shadowMap.autoUpdate = prevShadowAuto;
+
+    for (const target of [albedoTarget, ormTarget, normalTarget]) {
+      target.texture.repeat.set(1 / tile[0], 1 / tile[1]);
+      target.texture.name = "sl_" + setKey;
+    }
+
+    const entry = {
+      key: setKey,
+      albedo: albedoTarget.texture,
+      orm: ormTarget.texture,
+      normal: normalTarget.texture,
+      tile,
+      size: res,
+      targets: [albedoTarget, ormTarget, normalTarget],
     };
-    ((T.userData.sl = N),
-      (T.userData.set = C.key),
-      (T.userData.tile = C.tile),
-      q.interior && (T.userData.interior = !0),
-      (T.onBeforeCompile = (K) => applyMaterialPatch(K, N)));
-    let Q = "sl2|" + D.tint + (G ? "t" : "") + (j ? "f" : "") + (D.alphaCut ? "a" : "");
-    return ((T.customProgramCacheKey = () => Q), M.set(U, T), T);
+    textureSetCache.set(setKey, entry);
+    statsCounters.sets++;
+    statsCounters.ms += performance.now() - startMs;
+    lastGenTimestamp = performance.now();
+    return entry;
   }
-  function S(O = 16777215, q = 4) {
-    let U = "em|" + O + "|" + q;
-    if (M.has(U)) return M.get(U);
-    let T = new MeshBasicMaterial({ color: new Color(O).multiplyScalar(q), toneMapped: !0 });
-    return ((T.name = "emissive"), M.set(U, T), T);
+
+  function disposeTemporaryBakers() {
+    for (const rt of mrtCache.values()) rt.dispose();
+    mrtCache.clear();
+    for (const sh of bakerShaderCache.values()) sh.dispose();
+    bakerShaderCache.clear();
   }
-  let z = createDecalFactory(engineContext, o);
+
+  const materialCache = new Map();
+  const warnedMissing = new Set();
+
+  function getMaterial(name, opts = {}) {
+    const cacheKey =
+      name +
+      "|" +
+      (opts.vertexColors ? "v" : "") +
+      (opts.triplanar ? "t" + (opts.scale || 1) : "") +
+      (opts.doubleSide ? "d" : "") +
+      (opts.interior ? "i" : "") +
+      (opts.color !== undefined ? "c" + opts.color : "");
+    const existing = materialCache.get(cacheKey);
+    if (existing) return existing;
+
+    let spec = MATERIAL_SPECS[name];
+    if (!spec) {
+      if (!warnedMissing.has(name)) {
+        warnedMissing.add(name);
+        console.warn(`[mats] unknown material "${name}" — using fallback`);
+      }
+      spec = FALLBACK_MATERIAL_SPEC;
+    }
+
+    let texSet;
+    try {
+      texSet = getOrBakeTextureSet(spec.set);
+    } catch (err) {
+      if (!warnedMissing.has("gen:" + spec.set)) {
+        warnedMissing.add("gen:" + spec.set);
+        console.error(`[mats] texture set "${spec.set}" failed: ${(err && err.message) || err}`);
+      }
+      const fallbackMat = new THREE.MeshStandardMaterial({
+        color: opts.color !== undefined ? opts.color : spec.tint ? spec.color : 0x808080,
+        roughness: 0.6,
+        metalness: 0,
+        vertexColors: !!opts.vertexColors,
+      });
+      fallbackMat.name = name;
+      materialCache.set(cacheKey, fallbackMat);
+      return fallbackMat;
+    }
+
+    const isTriplanar = !!opts.triplanar;
+    const hasSurfaceFx = !spec.transparent && !spec.alphaCut;
+    const mat = new THREE.MeshStandardMaterial({
+      map: texSet.albedo,
+      normalMap: texSet.normal,
+      roughnessMap: texSet.orm,
+      metalnessMap: texSet.orm,
+      aoMap: texSet.orm,
+      color: opts.color !== undefined ? opts.color : spec.color,
+      roughness: spec.rough,
+      metalness: spec.metal,
+      vertexColors: !!opts.vertexColors,
+    });
+    mat.normalScale.set(spec.nrm, spec.nrm);
+    mat.name = name;
+    if (opts.doubleSide || spec.side === 2) mat.side = THREE.DoubleSide;
+    if (spec.transparent) {
+      mat.transparent = true;
+      mat.depthWrite = false;
+      mat.envMapIntensity = 1.4;
+    }
+    if (spec.alphaCut) mat.alphaTest = 0.5;
+
+    mat.defines = { ...mat.defines, SL_TINT: spec.tint };
+    if (isTriplanar) mat.defines.SL_TRIPLANAR = "";
+    if (hasSurfaceFx) mat.defines.SL_FX = "";
+    if (spec.alphaCut && !isTriplanar) mat.defines.SL_ACUT = "";
+
+    const slUniforms = {
+      uSlWet: sharedUniforms.wet,
+      uSlWetP: { value: new THREE.Vector4(...spec.wet) },
+      uSlMacro: { value: new THREE.Vector4(...spec.macro) },
+      uSlUv: {
+        value: new THREE.Vector3(
+          1,
+          1,
+          isTriplanar ? (opts.scale || 1) / texSet.tile[0] : texSet.size,
+        ),
+      },
+      uSlX: { value: new THREE.Vector2(opts.interior ? 0.12 : 1, 0) },
+    };
+    mat.userData.sl = slUniforms;
+    mat.userData.set = texSet.key;
+    mat.userData.tile = texSet.tile;
+    if (opts.interior) mat.userData.interior = true;
+    mat.onBeforeCompile = (shader) => applyMaterialPatch(shader, slUniforms);
+
+    const progKey =
+      "sl2|" +
+      spec.tint +
+      (isTriplanar ? "t" : "") +
+      (hasSurfaceFx ? "f" : "") +
+      (spec.alphaCut ? "a" : "");
+    mat.customProgramCacheKey = () => progKey;
+    materialCache.set(cacheKey, mat);
+    return mat;
+  }
+
+  function getEmissiveMaterial(hexColor = 0xffffff, intensity = 4) {
+    const key = "em|" + hexColor + "|" + intensity;
+    const cached = materialCache.get(key);
+    if (cached) return cached;
+    const mat = new THREE.MeshBasicMaterial({
+      color: new THREE.Color(hexColor).multiplyScalar(intensity),
+      toneMapped: true,
+    });
+    mat.name = "emissive";
+    materialCache.set(key, mat);
+    return mat;
+  }
+
+  const decalFactory = createDecalFactory(engineContext, maxAnisotropy);
   return {
-    get: w,
-    emissive: S,
-    decal: z.decal,
-    label: z.label,
-    number: z.number,
+    get: getMaterial,
+    emissive: getEmissiveMaterial,
+    decal: decalFactory.decal,
+    label: decalFactory.label,
+    number: decalFactory.number,
     names: Object.keys(MATERIAL_SPECS),
-    decalNames: z.names,
-    uniforms: r,
-    update(O) {
-      h.size && performance.now() - d > 4e3 && _();
+    decalNames: decalFactory.names,
+    uniforms: sharedUniforms,
+    update() {
+      if (mrtCache.size && performance.now() - lastGenTimestamp > 4000) {
+        disposeTemporaryBakers();
+      }
     },
-    prewarm(O) {
-      for (let q of O || Object.keys(MATERIAL_SPECS)) w(q);
+    prewarm(list) {
+      for (const name of list || Object.keys(MATERIAL_SPECS)) getMaterial(name);
     },
     stats() {
       return {
-        sets: a.sets,
-        textureMB: +(a.bytes / 1048576).toFixed(1),
-        genMs: +a.ms.toFixed(0),
-        decalMB: +(z.bytes() / 1048576).toFixed(1),
+        sets: statsCounters.sets,
+        textureMB: +(statsCounters.bytes / 1048576).toFixed(1),
+        genMs: +statsCounters.ms.toFixed(0),
+        decalMB: +(decalFactory.bytes() / 1048576).toFixed(1),
       };
     },
-    tileOf(O) {
-      let q = MATERIAL_SPECS[O];
-      return q ? TEXTURE_SPECS[q.set].tile : 1;
+    tileOf(name) {
+      const spec = MATERIAL_SPECS[name];
+      return spec ? TEXTURE_SPECS[spec.set].tile : 1;
     },
   };
 }
-var TRIPLANAR_SHOWCASE_MATERIALS = new Set([
+
+const TRIPLANAR_SHOWCASE_MATERIALS = new Set([
   "gunmetal",
   "anodized_black",
   "polymer_black",
@@ -365,99 +400,145 @@ var TRIPLANAR_SHOWCASE_MATERIALS = new Set([
   "armor_white",
   "armor_orange",
 ]);
+
 function createScaledSphereGeometry(radius) {
-  let e = new SphereGeometry(radius, 48, 32),
-    t = e.attributes.uv;
-  for (let n = 0; n < t.count; n++)
-    t.setXY(n, t.getX(n) * 2 * Math.PI * radius, t.getY(n) * Math.PI * radius);
-  return e;
-}
-function createScaledPlaneGeometry(width, height) {
-  let t = new PlaneGeometry(width, height),
-    n = t.attributes.uv;
-  for (let s = 0; s < n.count; s++) n.setXY(s, n.getX(s) * width, n.getY(s) * height);
-  return t;
-}
-function buildMaterialsShowcase(engineContext) {
-  let e = engineContext.mats,
-    t = new Group();
-  engineContext.scene.add(t);
-  let n = engineContext.params.only
-      ? String(engineContext.params.only).split(",").filter(Boolean)
-      : null,
-    s = !n || n.includes("decals"),
-    o = n ? n.filter((g) => g !== "decals") : e.names,
-    r = n ? Math.max(1, o.length) : 10,
-    a = 1.9,
-    l = 3.6,
-    c = createScaledSphereGeometry(0.42),
-    u = createScaledPlaneGeometry(1.5, 1.5),
-    h = createScaledPlaneGeometry(1.5, 1.5).rotateX(-Math.PI / 2),
-    f = (g, x, y, b, m) => {
-      let A = new Mesh(g, x);
-      return (A.position.set(y, b, m), (A.castShadow = A.receiveShadow = !0), t.add(A), A);
-    };
-  o.forEach((g, x) => {
-    let y = ((x % r) - (r - 1) / 2) * a,
-      b = -Math.floor(x / r) * l,
-      m = e.get(g, g.startsWith("glass") || g === "chainlink" ? { doubleSide: !0 } : {});
-    (f(u, m, y, 0.76, b),
-      f(h, m, y, 0.012, b + 1.1),
-      f(
-        c,
-        TRIPLANAR_SHOWCASE_MATERIALS.has(g) ? e.get(g, { triplanar: !0 }) : m,
-        y,
-        0.46,
-        b + 1.25,
-      ));
-  });
-  let p,
-    d,
-    v = r * a;
-  if (
-    (n && o.length
-      ? ((p = [0.25 * v, 1.5, 2.6 + v * 0.42]), (d = [0, 0.62, 0.5]))
-      : ((p = [0, 9.5, 12]), (d = [0, 0, -7])),
-    s)
-  ) {
-    let g = n && !o.length ? 0 : v / 2 + 5.5,
-      x = 8.4,
-      y = 3.3,
-      b = f(createScaledPlaneGeometry(x, y), e.get("paint_blue"), g, y / 2, -1),
-      m = f(createScaledPlaneGeometry(x, y), e.get("concrete"), g, y / 2, -1.01);
-    m.position.x += x;
-    let A = e.decalNames,
-      _ = -x / 2 + 0.25,
-      M = y - 0.75,
-      E = 0.62,
-      w = (z, H, O) => {
-        let q = H * z.aspect;
-        if (_ + q > x * 1.5 - 0.2) return;
-        _ < x / 2 && _ + q > x / 2 - 0.15 && (_ = x / 2 + 0.25);
-        let U = new Mesh(new PlaneGeometry(q, H), z.material);
-        (U.position.set(g + _ + q / 2, M + H / 2, -0.996),
-          (U.renderOrder = 2),
-          t.add(U),
-          (_ += q + 0.14));
-      };
-    ([A.slice(0, 9), A.slice(9, 17), A.slice(17)].forEach((z, H) => {
-      ((_ = -x / 2 + 0.25), (M = y - 0.75 - H * 0.78), z.forEach((O) => w(e.decal(O), E)));
-    }),
-      (_ = -x / 2 + 0.25),
-      (M = y - 0.75 - 3 * 0.78 - 0.05),
-      w(e.label("SALTLINE TERMINAL  B4-0271", { color: "white" }), 0.3),
-      w(e.label("MAX GROSS 30480 KG", { color: "yellow", distress: 0.6 }), 0.22),
-      w(e.label("DANGER", { color: "red", distress: 0.2 }), 0.3),
-      w(e.label("KEEP CLEAR", { color: "black", font: "sans" }), 0.25),
-      w(e.number(4), 0.3),
-      w(e.number(7), 0.3),
-      n && !o.length && ((p = [x / 2, 1.7, 7.2]), (d = [x / 2, 1.6, -1])));
+  const geo = new THREE.SphereGeometry(radius, 48, 32);
+  const uv = geo.attributes.uv;
+  for (let i = 0; i < uv.count; i++) {
+    uv.setXY(i, uv.getX(i) * 2 * Math.PI * radius, uv.getY(i) * Math.PI * radius);
   }
-  return (
-    engineContext.params.wet !== void 0 && (e.uniforms.wet.value = +engineContext.params.wet),
-    console.log("[mats] " + JSON.stringify(e.stats())),
-    { cam: p, target: d, update() {} }
-  );
+  return geo;
+}
+
+function createScaledPlaneGeometry(width, height) {
+  const geo = new THREE.PlaneGeometry(width, height);
+  const uv = geo.attributes.uv;
+  for (let i = 0; i < uv.count; i++) {
+    uv.setXY(i, uv.getX(i) * width, uv.getY(i) * height);
+  }
+  return geo;
+}
+
+function buildMaterialsShowcase(engineContext) {
+  const mats = engineContext.mats;
+  const group = new THREE.Group();
+  engineContext.scene.add(group);
+
+  const filterList = engineContext.params.only
+    ? String(engineContext.params.only).split(",").filter(Boolean)
+    : null;
+  const showDecals = !filterList || filterList.includes("decals");
+  const matNames = filterList ? filterList.filter((name) => name !== "decals") : mats.names;
+  const cols = filterList ? Math.max(1, matNames.length) : 10;
+  const colSpacing = 1.9;
+  const rowSpacing = 3.6;
+
+  const sphereGeo = createScaledSphereGeometry(0.42);
+  const wallGeo = createScaledPlaneGeometry(1.5, 1.5);
+  const floorGeo = createScaledPlaneGeometry(1.5, 1.5).rotateX(-Math.PI / 2);
+
+  const placeMesh = (geo, mat, x, y, z) => {
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(x, y, z);
+    mesh.castShadow = mesh.receiveShadow = true;
+    group.add(mesh);
+    return mesh;
+  };
+
+  matNames.forEach((name, idx) => {
+    const x = ((idx % cols) - (cols - 1) / 2) * colSpacing;
+    const z = -Math.floor(idx / cols) * rowSpacing;
+    const mat = mats.get(
+      name,
+      name.startsWith("glass") || name === "chainlink" ? { doubleSide: true } : {},
+    );
+    placeMesh(wallGeo, mat, x, 0.76, z);
+    placeMesh(floorGeo, mat, x, 0.012, z + 1.1);
+    placeMesh(
+      sphereGeo,
+      TRIPLANAR_SHOWCASE_MATERIALS.has(name) ? mats.get(name, { triplanar: true }) : mat,
+      x,
+      0.46,
+      z + 1.25,
+    );
+  });
+
+  let camPos;
+  let targetPos;
+  const totalWidth = cols * colSpacing;
+
+  if (filterList && matNames.length) {
+    camPos = [0.25 * totalWidth, 1.5, 2.6 + totalWidth * 0.42];
+    targetPos = [0, 0.62, 0.5];
+  } else {
+    camPos = [0, 9.5, 12];
+    targetPos = [0, 0, -7];
+  }
+
+  if (showDecals) {
+    const boardX = filterList && !matNames.length ? 0 : totalWidth / 2 + 5.5;
+    const boardW = 8.4;
+    const boardH = 3.3;
+    placeMesh(
+      createScaledPlaneGeometry(boardW, boardH),
+      mats.get("paint_blue"),
+      boardX,
+      boardH / 2,
+      -1,
+    );
+    const concreteBoard = placeMesh(
+      createScaledPlaneGeometry(boardW, boardH),
+      mats.get("concrete"),
+      boardX,
+      boardH / 2,
+      -1.01,
+    );
+    concreteBoard.position.x += boardW;
+
+    const decalList = mats.decalNames;
+    let curX = -boardW / 2 + 0.25;
+    let curY = boardH - 0.75;
+    const rowH = 0.62;
+
+    const placeDecalEntry = (entry, height) => {
+      const width = height * entry.aspect;
+      if (curX + width > boardW * 1.5 - 0.2) return;
+      if (curX < boardW / 2 && curX + width > boardW / 2 - 0.15) curX = boardW / 2 + 0.25;
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, height), entry.material);
+      mesh.position.set(boardX + curX + width / 2, curY + height / 2, -0.996);
+      mesh.renderOrder = 2;
+      group.add(mesh);
+      curX += width + 0.14;
+    };
+
+    [decalList.slice(0, 9), decalList.slice(9, 17), decalList.slice(17)].forEach(
+      (slice, rowIdx) => {
+        curX = -boardW / 2 + 0.25;
+        curY = boardH - 0.75 - rowIdx * 0.78;
+        slice.forEach((decalName) => placeDecalEntry(mats.decal(decalName), rowH));
+      },
+    );
+
+    curX = -boardW / 2 + 0.25;
+    curY = boardH - 0.75 - 3 * 0.78 - 0.05;
+    placeDecalEntry(mats.label("SALTLINE TERMINAL  B4-0271", { color: "white" }), 0.3);
+    placeDecalEntry(mats.label("MAX GROSS 30480 KG", { color: "yellow", distress: 0.6 }), 0.22);
+    placeDecalEntry(mats.label("DANGER", { color: "red", distress: 0.2 }), 0.3);
+    placeDecalEntry(mats.label("KEEP CLEAR", { color: "black", font: "sans" }), 0.25);
+    placeDecalEntry(mats.number(4), 0.3);
+    placeDecalEntry(mats.number(7), 0.3);
+
+    if (filterList && !matNames.length) {
+      camPos = [boardW / 2, 1.7, 7.2];
+      targetPos = [boardW / 2, 1.6, -1];
+    }
+  }
+
+  if (engineContext.params.wet !== undefined) {
+    mats.uniforms.wet.value = +engineContext.params.wet;
+  }
+  console.log("[mats] " + JSON.stringify(mats.stats()));
+  return { cam: camPos, target: targetPos, update() {} };
 }
 
 export const applyPatch = applyMaterialPatch;

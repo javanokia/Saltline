@@ -3,10 +3,11 @@
  * @description 远景海鸥群程序化飞行与振翅着色器
  */
 
-import { THREE, Ve, Qe, nt, He, Nn, Sn, uv } from "./common.js";
+import * as THREE from "three";
+import { vec3, createSeededRng } from "./common.js";
 
 function wb(i, e, t = 12) {
-  let n = uv(5521),
+  let n = createSeededRng(5521),
     s = [],
     o = [],
     r = [];
@@ -30,11 +31,15 @@ function wb(i, e, t = 12) {
     for (let y of x)
       (s.push(y[0], y[1] - 60, y[2]), o.push(f[0], f[1], f[2], p), r.push(d, v, g, y[3]));
   }
-  let a = new nt();
-  (a.setAttribute("position", new He(s, 3)),
-    a.setAttribute("aOrbit", new He(o, 4)),
-    a.setAttribute("aPar", new He(r, 4)));
-  let l = new Nn({ color: new Ve(0.2, 0.21, 0.23), side: Sn, fog: !1 });
+  let a = new THREE.BufferGeometry();
+  (a.setAttribute("position", new THREE.Float32BufferAttribute(s, 3)),
+    a.setAttribute("aOrbit", new THREE.Float32BufferAttribute(o, 4)),
+    a.setAttribute("aPar", new THREE.Float32BufferAttribute(r, 4)));
+  let l = new THREE.MeshBasicMaterial({
+    color: new THREE.Color(0.2, 0.21, 0.23),
+    side: THREE.DoubleSide,
+    fog: !1,
+  });
   ((l.onBeforeCompile = (u) => {
     ((u.uniforms.uTime = e),
       (u.vertexShader =
@@ -59,7 +64,7 @@ uniform float uTime;
         )));
   }),
     (l.customProgramCacheKey = () => "saltline-gulls"));
-  let c = new Qe(a, l);
+  let c = new THREE.Mesh(a, l);
   return (
     (c.frustumCulled = !1),
     (c.castShadow = !1),

@@ -1,42 +1,30 @@
 // @ts-check
+/**
+ * @file src/weapon.js
+ * @description 第一人称武器控制器主入口与运行时状态机 (PAC-9 / SG-12 / SMG-45 / SR-99)
+ */
+
 import * as THREE from "three";
-
-// Three.js 类与枚举别名映射（仅保留本模块使用的类型）
-const {
-  Vector3: W,
-  Quaternion: Lt,
-  Euler: In,
-  Group: wt,
-  Mesh: Qe,
-  MeshStandardMaterial: Qt,
-  Color: Ve,
-  Matrix4: Ye,
-  Skeleton: k0,
-} = THREE;
-
 import { clamp, lerp, saturate, damp, FACTION_PLAYER, FACTION_ENEMY } from "./constants.js";
-
-import {
-  buildPac9Geometries,
-  PAC9_MODEL_PARAMS,
-  applyPac9ShaderDetails,
-  createPac9MarkingsMesh,
-  createPac9SightDotMesh,
-  createPac9MuzzleFlashMesh,
-  buildPac9HandsMesh,
-  countGeometryTris,
-  pac9RainUniform,
-} from "./weapons/pac9_model.js";
-
+import { PAC9_MODEL_PARAMS, pac9RainUniform } from "./weapons/pac9_model.js";
 import { WEAPON_REGISTRY, WEAPON_ORDER } from "./weapons/weapon_configs.js";
-import { buildShotgunMesh, buildSmgMesh, buildSniperMesh } from "./weapons/arsenal_models.js";
+import {
+  POSE_HIPFIRE,
+  POSE_ADS,
+  POSE_SPRINT,
+  POSE_RELOAD,
+  RELOAD_DURATION_TACTICAL,
+  RELOAD_DURATION_EMPTY,
+  RELOAD_TIMESTAMPS,
+  smootherstep,
+  createSpring,
+  stepSpring,
+  sampleHandKeyframes,
+} from "./weapons/poses.js";
+import { assembleWeaponViewModel } from "./weapons/view_model.js";
+import { executeWeaponFire } from "./weapons/ballistics.js";
 
-// ============================================================================
-// 几猫九式突击步枪 (PAC-9 / KR-7) - 核心动力学与视模运行时系统 (Viewmodel System)
-// ============================================================================
-
-const Vector3_ = W;
-const Quaternion_ = Lt;
+const { T_MAG_OUT, T_MAG_IN, T_RACK_START, T_RACK_BACK, T_RACK_RELEASE } = RELOAD_TIMESTAMPS;
 
 /** 弹匣容量 (30发标准穿甲步枪弹) */
 const MAG_CAPACITY = 30;
@@ -46,491 +34,36 @@ const DEFAULT_RESERVE_AMMO = 150;
 const FIRE_RATE_RPM = 720;
 /** 单发对甲基础伤害 */
 const BASE_DAMAGE = 26;
-/** 最大有效杀伤射程 (米) */
-const MAX_FIRE_RANGE = 300;
-
-/** 腰射 (Hipfire) 默认视模变换偏移: p = [x,y,z], r = [pitch,yaw,roll] */
-const POSE_HIPFIRE = {
-  p: [0.118, -0.122, -0.275],
-  r: [0.034, 0.085, -0.03],
-};
-
-/** 开镜瞄准 (ADS - Aim Down Sights) 视模对齐偏移 (全息红点光轴居中) */
-const POSE_ADS = {
-  p: [0, -PAC9_MODEL_PARAMS.sightY, -0.135],
-  r: [0, 0, 0],
-};
-
-/** 战术疾跑 (Sprint) 低姿出枪偏移 */
-const POSE_SPRINT = {
-  p: [-0.035, 0.004, 0.03],
-  r: [-0.04, 0.62, 0.26],
-};
-
-/** 战术换弹姿态基准偏移 */
-const POSE_RELOAD = {
-  p: [-0.03, 0.1, -0.02],
-  r: [0.46, 0.22, -0.8],
-};
-
-/** 战术换弹时长 (秒) */
-const RELOAD_DURATION_TACTICAL = 2.1;
-/** 空仓挂机换弹时长 (秒，包含左手拉栓复进动作) */
-const RELOAD_DURATION_EMPTY = 2.72;
-
-/**
- * Ken Perlin 五次平滑阶跃函数 (Smootherstep: 6t^5 - 15t^4 + 10t^3)
- * @param {number} t
- * @returns {number}
- */
-const smootherstep = (t) => {
-  t = saturate(t);
-  return t * t * t * (t * (6 * t - 15) + 10);
-};
-
-/**
- * 创建二阶阻尼简谐振子弹簧 (Damped Harmonic Oscillator)
- * @param {number} stiffness 弹性系数 k
- * @param {number} damping 阻尼系数 c
- */
-const createSpring = (stiffness, damping) => ({
-  x: 0,
-  v: 0,
-  k: stiffness,
-  c: damping,
-});
-
-/**
- * 物理弹簧步进积分器 (包含自适应微步进子切片，杜绝高帧率/卡顿时欧拉积分发散)
- * @param {object} spring 弹簧状态对象
- * @param {number} target 目标平衡位置
- * @param {number} dt 帧耗时 (秒)
- * @returns {number} 当前弹簧位移
- */
-function stepSpring(spring, target, dt) {
-  const steps = dt > 0.012 ? Math.ceil(dt / 0.008) : 1;
-  const subDt = dt / steps;
-  for (let i = 0; i < steps; i++) {
-    spring.v += ((target - spring.x) * spring.k - spring.v * spring.c) * subDt;
-    spring.x += spring.v * subDt;
-  }
-  return spring.x;
-}
-
-/**
- * 欧拉角快捷转换为四元数
- */
-const eulerToQuat = (x, y, z, order = "XYZ") =>
-  new Quaternion_().setFromEuler(new In(x, y, z, /** @type {any} */ (order)));
 
 /**
  * 创建几猫九式突击步枪视模控制器 (PAC-9 First-Person Viewmodel Controller)
- * @param {import('./types').EngineContext} ctx 全局引擎上下文 (包含 camera, player, input, combat, fx, mats, events 等)
+ * @param {import('./types').EngineContext} ctx 全局引擎上下文
  * @returns {Promise<import('./types').WeaponState>}
  */
 async function createWeapon(ctx) {
-  const root = new wt();
-  root.name = "viewmodel-pac9";
+  const {
+    root,
+    boltMesh,
+    magGroup,
+    magDefaultPos,
+    topRoundMesh,
+    opticSightMesh,
+    muzzleFlashMesh,
+    weaponMeshMap,
+    updateMuzzlePosForWeapon,
+    leftHandGroup,
+    updateTriggerFinger,
+    reloadRig,
+    totalTris,
+    totalMeshes,
+  } = assembleWeaponViewModel(ctx);
 
-  // 1. 获取程序化几何体构件
-  const geo = buildPac9Geometries();
+  const { leftHandMagInvert, poseGripHandguard, poseAtMagWell, kfTacticalReload, kfEmptyReload } =
+    reloadRig;
 
-  // 2. 材质分配与三向投影贴图纹理
-  const matScaleMap = {
-    anodized_black: 2,
-    gunmetal: 2,
-    brass: 4,
-    glove_fabric: 3,
-    rubber: 4,
-  };
-  const getProceduralMat = (name) =>
-    ctx.mats.get(name, {
-      triplanar: true,
-      vertexColors: true,
-      scale: matScaleMap[name] || 1,
-    });
-
-  const createMesh = (geometry, material) => {
-    const mesh = new Qe(geometry, material);
-    mesh.castShadow = false;
-    mesh.receiveShadow = true;
-    mesh.frustumCulled = false;
-    return mesh;
-  };
-
-  // 枪身机匣黑色阳极氧化铝材质
-  const matAnodized = new Qt({
-    color: new Ve(0.0085, 0.009, 0.0105),
-    roughness: 0.4,
-    metalness: 0.45,
-    vertexColors: true,
-  });
-  matAnodized.name = "pac9_anodised";
-  applyPac9ShaderDetails(matAnodized, 0);
-
-  // 哑光印字/刻字材质
-  const matMatte = new Qt({
-    color: 0xffffff,
-    roughness: 0.92,
-    metalness: 0,
-    vertexColors: true,
-  });
-  matMatte.name = "pac9_matte";
-
-  // 枪机枪管磷化/发黑军用高碳钢材质
-  const matPhosphate = new Qt({
-    color: new Ve(0.016, 0.016, 0.0165),
-    roughness: 0.5,
-    metalness: 0.7,
-    vertexColors: true,
-  });
-  matPhosphate.name = "pac9_phosphate";
-  applyPac9ShaderDetails(matPhosphate, 1);
-
-  // 工程塑料下机匣/握把聚合物材质
-  const matPolymer = new Qt({
-    color: new Ve(0.0125, 0.0128, 0.0135),
-    roughness: 0.62,
-    metalness: 0,
-    vertexColors: true,
-  });
-  matPolymer.name = "pac9_polymer";
-  applyPac9ShaderDetails(matPolymer, 2);
-
-  // 棕褐色军规抗冲击弹匣工程塑料
-  const matPolymerTan = new Qt({
-    color: new Ve(0.105, 0.08, 0.05),
-    roughness: 0.62,
-    metalness: 0,
-    vertexColors: true,
-  });
-  matPolymerTan.name = "pac9_polymer_tan";
-  applyPac9ShaderDetails(matPolymerTan, 2);
-
-  // 组装 PAC-9 机匣主体与附件组
-  const pac9Group = new wt();
-  pac9Group.name = "weapon_pac9_group";
-  pac9Group.add(
-    createMesh(geo.ano, matAnodized),
-    createMesh(geo.gun, matPhosphate),
-    createMesh(geo.poly, matPolymer),
-    createMesh(geo.plain, matMatte),
-  );
-
-  // 组装往复式枪机组 (Bolt Carrier Group)
-  const boltMesh = createMesh(geo.bolt, matPhosphate);
-  pac9Group.add(boltMesh);
-
-  // 组装可拆卸供弹具 (30发弹匣与首发黄铜穿甲弹)
-  const magGroup = new wt();
-  const magDefaultPos = new Vector3_().fromArray(PAC9_MODEL_PARAMS.magPos);
-  magGroup.position.copy(magDefaultPos);
-
-  const topRoundMesh = createMesh(geo.round, getProceduralMat("brass"));
-  magGroup.add(createMesh(geo.mag, matPolymerTan), topRoundMesh);
-  pac9Group.add(magGroup);
-
-  // 组装高精度机匣激光刻字与导轨刻度 (PAC-9 刻标、警示标记、快慢机 AUTO/SEMI/SAFE)
-  let markingsMesh = null;
-  try {
-    markingsMesh = createPac9MarkingsMesh([
-      ["model", -0.0168, -0.0315, 0.064, 0.0095, "L"],
-      ["maker", -0.0168, -0.042, 0.064, 0.003, "L"],
-      ["cal", -0.0168, -0.0465, 0.064, 0.0028, "L"],
-      ["prop", -0.0168, -0.071, 0.066, 0.0026, "L"],
-      ["auto", -0.0168, -0.027, -0.0335, 0.0036, "L"],
-      ["semi", -0.0168, -0.0262, -0.049, 0.0036, "L"],
-      ["safe", -0.0168, -0.0362, -0.062, 0.0036, "L"],
-      ["rack", -0.0168, -0.004, -0.205, 0.02, "L"],
-      ["warn", -0.0181, -0.01, 0.03, 0.0062, "L"],
-      ["optic", -0.0195, 0.0735, 0.021, 0.0024, "L"],
-      ["model", 0.0168, -0.0315, 0.068, 0.0095, "R"],
-      ["warn", 0.0168, -0.066, 0.066, 0.0075, "R"],
-      ["rack", 0.0168, -0.004, -0.205, 0.02, "R"],
-      ["auto", 0.0168, -0.027, -0.0335, 0.0036, "R"],
-      ["safe", 0.0168, -0.0362, -0.062, 0.0036, "R"],
-      ["optic", 0.0195, 0.0735, 0.021, 0.0024, "R"],
-      ["cal", 0.0181, 0.0245, -0.055, 0.0026, "R"],
-      ["r2", 0, 0.04365, -0.0816, 0.003, "T"],
-      ["r4", 0, 0.04365, -0.0616, 0.003, "T"],
-      ["r6", 0, 0.04365, 0.0584, 0.003, "T"],
-      ["r8", 0, 0.04365, 0.0784, 0.003, "T"],
-      ["r10", 0, 0.04365, 0.0984, 0.003, "T"],
-      ["r12", 0, 0.04365, 0.1184, 0.003, "T"],
-    ]);
-    markingsMesh.castShadow = false;
-    markingsMesh.receiveShadow = true;
-    markingsMesh.frustumCulled = false;
-    pac9Group.add(markingsMesh);
-  } catch (err) {
-    console.warn("[weapon] markings skipped: " + err);
-  }
-
-  // 全息瞄准镜分划板与准直物镜
-  const opticSightMesh = createPac9SightDotMesh(
-    PAC9_MODEL_PARAMS.window.map((pt) => [
-      pt[0] * 1.01,
-      (pt[1] - PAC9_MODEL_PARAMS.sightY) * 1.01 + PAC9_MODEL_PARAMS.sightY,
-    ]),
-    PAC9_MODEL_PARAMS.lensF + 0.0025,
-  );
-  opticSightMesh.frustumCulled = false;
-  pac9Group.add(opticSightMesh);
-
-  root.add(pac9Group);
-
-  // 组装多武器扩展视模 (SG-12 / SMG-45 / SR-99)
-  const shotgunGroup = buildShotgunMesh(ctx.mats);
-  shotgunGroup.visible = false;
-  root.add(shotgunGroup);
-
-  const smgGroup = buildSmgMesh(ctx.mats);
-  smgGroup.visible = false;
-  root.add(smgGroup);
-
-  const sniperGroup = buildSniperMesh(ctx.mats);
-  sniperGroup.visible = false;
-  root.add(sniperGroup);
-
-  const weaponMeshMap = {
-    pac9: pac9Group,
-    sg12: shotgunGroup,
-    smg45: smgGroup,
-    sr99: sniperGroup,
-  };
-
-  const updateMuzzlePosForWeapon = (weaponId) => {
-    if (weaponId === "sr99") muzzleFlashMesh.position.set(0, 0.022, -0.92);
-    else if (weaponId === "sg12") muzzleFlashMesh.position.set(0, 0.024, -0.63);
-    else if (weaponId === "smg45") muzzleFlashMesh.position.set(0, 0.022, -0.37);
-    else muzzleFlashMesh.position.fromArray(PAC9_MODEL_PARAMS.muzzle);
-  };
-
-  // 枪口焰粒子与几何体
-  const muzzleFlashMesh = createPac9MuzzleFlashMesh();
-  muzzleFlashMesh.position.fromArray(PAC9_MODEL_PARAMS.muzzle);
-  muzzleFlashMesh.visible = false;
-  root.add(muzzleFlashMesh);
-
-  // 3. 动力学手套与骨骼姿态系统
-  const projectDirection = (quat, dir, mirror) => {
-    const vec = new Vector3_(dir[0], dir[1], dir[2])
-      .normalize()
-      .applyQuaternion(quat.clone().invert());
-    if (mirror) vec.x *= -1;
-    return [vec.x, vec.y, vec.z];
-  };
-
-  // 右手（持握机匣握把，扣扳机手）
-  const rightHandBaseQuat = eulerToQuat(-0.24, 0, 0).multiply(eulerToQuat(0, 0, -Math.PI / 2));
-  const rightHandRig = buildPac9HandsMesh({
-    mirror: false,
-    fingers: [null, [0.62, 1.72, 0.8, 0], [0.68, 1.7, 0.8, -0.03], [0.74, 1.66, 0.8, -0.09]],
-    indexPoses: [
-      [0.1, 0.16, 0.1, 0.05],
-      [0.46, 1.15, 0.5, 0],
-    ],
-    thumb: [
-      projectDirection(rightHandBaseQuat, [-0.85, 0.05, -0.5]),
-      projectDirection(rightHandBaseQuat, [-0.6, -0.05, -0.8]),
-      projectDirection(rightHandBaseQuat, [-0.05, -0.2, -0.97]),
-    ],
-    forearm: projectDirection(rightHandBaseQuat, [0.27, -0.44, 0.86]),
-    sleeve: 0.34,
-  });
-
-  const rightHandGroup = new wt();
-  rightHandGroup.quaternion.copy(rightHandBaseQuat);
-  rightHandGroup.position
-    .fromArray(PAC9_MODEL_PARAMS.grip)
-    .sub(new Vector3_(0.006, -0.031, -0.085).applyQuaternion(rightHandBaseQuat));
-
-  const matGloveFabric = getProceduralMat("glove_fabric");
-  rightHandGroup.add(createMesh(rightHandRig.fabric, matGloveFabric));
-
-  const triggerFingerMesh = createMesh(rightHandRig.index[0].clone(), matGloveFabric);
-  rightHandGroup.add(triggerFingerMesh);
-  root.add(rightHandGroup);
-
-  // 扳机手指渐变插值函数 (扣动扳机动作动力学)
-  const indexAttrRelaxed = rightHandRig.index[0].attributes;
-  const indexAttrPulled = rightHandRig.index[1].attributes;
-  let lastFingerProgress = -1;
-
-  function updateTriggerFinger(progress) {
-    if (Math.abs(progress - lastFingerProgress) < 0.004) return;
-    lastFingerProgress = progress;
-
-    const posAttr = triggerFingerMesh.geometry.attributes.position;
-    const normAttr = triggerFingerMesh.geometry.attributes.normal;
-    const relaxedPos = indexAttrRelaxed.position.array;
-    const pulledPos = indexAttrPulled.position.array;
-    const relaxedNorm = indexAttrRelaxed.normal.array;
-    const pulledNorm = indexAttrPulled.normal.array;
-
-    for (let i = 0; i < relaxedPos.length; i++) {
-      posAttr.array[i] = relaxedPos[i] + (pulledPos[i] - relaxedPos[i]) * progress;
-      normAttr.array[i] = relaxedNorm[i] + (pulledNorm[i] - relaxedNorm[i]) * progress;
-    }
-    posAttr.needsUpdate = true;
-    normAttr.needsUpdate = true;
-  }
-
-  // 左手（托住战术护木、拔插弹匣、拉动枪栓）
-  const leftHandBaseQuat = eulerToQuat(0, 0, Math.PI / 2).multiply(eulerToQuat(0.06, 0, 0));
-  const leftHandRig = buildPac9HandsMesh({
-    mirror: true,
-    fingers: [
-      [1.27, 1.42, 0.75, 0.02],
-      [1.3, 1.45, 0.75, 0],
-      [1.3, 1.45, 0.75, -0.02],
-      [1.33, 1.45, 0.75, -0.05],
-    ],
-    thumb: [
-      projectDirection(leftHandBaseQuat, [0, 0.25, -0.97], true),
-      projectDirection(leftHandBaseQuat, [0.05, 0.1, -0.99], true),
-      projectDirection(leftHandBaseQuat, [0, 0, -1], true),
-    ],
-    forearm: projectDirection(leftHandBaseQuat, [-0.5, -0.35, 0.79], true),
-    sleeve: 0.34,
-  });
-
-  const leftHandGroup = new wt();
-  leftHandGroup.add(createMesh(leftHandRig.fabric, matGloveFabric));
-  root.add(leftHandGroup);
-
-  // 左手 IK 动画空间关键帧构造辅助
-  const wristOffset = new Vector3_(0, -0.015, -0.055);
-  const makePose = (quat, posArr, offset = wristOffset) => ({
-    q: quat.clone(),
-    p: new Vector3_(posArr[0], posArr[1], posArr[2]).sub(offset.clone().applyQuaternion(quat)),
-  });
-  const offsetPose = (base, dx, dy, dz, overrideQuat = null) => ({
-    q: overrideQuat ? overrideQuat.clone() : base.q.clone(),
-    p: base.p.clone().add(new Vector3_(dx, dy, dz)),
-  });
-
-  const leftHandHoldQuat = eulerToQuat(0, 0, Math.PI / 2).multiply(eulerToQuat(0.12, 0, 0));
-  const poseGripHandguard = makePose(leftHandBaseQuat, [-0.015, -0.062, -0.236]);
-  const poseAtMagWell = makePose(leftHandHoldQuat, [-0.0135, -0.15, -0.0745]);
-  const poseApproachMag = offsetPose(poseAtMagWell, -0.035, -0.02, 0.01);
-  const poseDropMagDown = offsetPose(
-    poseAtMagWell,
-    -0.06,
-    -0.3,
-    0.13,
-    leftHandHoldQuat.clone().multiply(eulerToQuat(-0.5, 0, 0.25)),
-  );
-  const poseInsertMagPrep = offsetPose(poseAtMagWell, 0, -0.035, 0.004);
-  const poseMagClickIn = offsetPose(poseAtMagWell, -0.004, -0.06, 0);
-  const poseTapBasePlate = offsetPose(poseAtMagWell, 0, -0.012, 0);
-
-  // 拉栓关键手位
-  const rackQuat = eulerToQuat(-0.6, 0, 0).multiply(
-    new Quaternion_().setFromRotationMatrix(
-      new Ye().makeBasis(new Vector3_(0, 0, 1), new Vector3_(-1, 0, 0), new Vector3_(0, -1, 0)),
-    ),
-  );
-  const poseGripChargingHandle = makePose(
-    rackQuat,
-    [
-      PAC9_MODEL_PARAMS.handlePos[0] - 0.004,
-      PAC9_MODEL_PARAMS.handlePos[1],
-      PAC9_MODEL_PARAMS.handlePos[2],
-    ],
-    new Vector3_(0, -0.024, -0.118),
-  );
-  const poseRackBoltBack = offsetPose(poseGripChargingHandle, 0, 0, PAC9_MODEL_PARAMS.boltTravel);
-
-  // 换弹关键帧时间表: [时间(秒), 姿态]
-  const kfTacticalReload = [
-    [0, poseGripHandguard],
-    [0.1, poseGripHandguard],
-    [0.36, poseApproachMag],
-    [0.44, poseAtMagWell],
-    [0.5, poseAtMagWell],
-    [0.8, poseDropMagDown],
-    [0.98, poseDropMagDown],
-    [1.28, poseInsertMagPrep],
-    [1.35, poseAtMagWell],
-    [1.45, poseMagClickIn],
-    [1.52, poseTapBasePlate],
-    [1.62, poseAtMagWell],
-    [1.7, poseApproachMag],
-    [2.02, poseGripHandguard],
-    [9, poseGripHandguard],
-  ];
-
-  // 空仓换弹时间表 (增加拉动拉机柄动作)
-  const kfEmptyReload = [
-    ...kfTacticalReload.slice(0, 12),
-    [1.7, poseApproachMag],
-    [1.96, poseGripChargingHandle],
-    [2.02, poseGripChargingHandle],
-    [2.14, poseRackBoltBack],
-    [2.19, poseRackBoltBack],
-    [2.26, poseGripChargingHandle],
-    [2.36, poseGripChargingHandle],
-    [2.66, poseGripHandguard],
-    [9, poseGripHandguard],
-  ];
-
-  // 关键帧时间戳节点
-  const T_MAG_OUT = 0.47;
-  const T_MAG_IN = 1.345;
-  const T_RACK_START = 2.02;
-  const T_RACK_BACK = 2.14;
-  const T_RACK_RELEASE = 2.19;
-
-  const tempVec = new Vector3_();
-  const tempQuat1 = new Quaternion_();
-  const tempQuat2 = new Quaternion_();
-
-  function sampleHandKeyframes(keyframes, time) {
-    let idx = 0;
-    while (idx < keyframes.length - 2 && time > keyframes[idx + 1][0]) {
-      idx++;
-    }
-    const k0 = keyframes[idx];
-    const k1 = keyframes[idx + 1];
-    const alpha = smootherstep((time - k0[0]) / Math.max(1e-4, k1[0] - k0[0]));
-    tempVec.copy(k0[1].p).lerp(k1[1].p, alpha);
-    tempQuat1.copy(k0[1].q).slerp(k1[1].q, alpha);
-  }
-
-  leftHandGroup.position.copy(poseGripHandguard.p);
-  leftHandGroup.quaternion.copy(poseGripHandguard.q);
-
-  const leftHandMagInvert = leftHandHoldQuat.clone().invert();
-
-  // 设置第一人称视模渲染层级
-  root.traverse((obj) => {
-    obj.layers.set(FACTION_ENEMY);
-  });
-  ctx.camera.add(root);
-
-  // 统计几何体面数与网格数
-  const totalTris =
-    Object.values(geo).reduce((sum, g) => sum + countGeometryTris(g), 0) +
-    countGeometryTris(rightHandRig.fabric) +
-    countGeometryTris(rightHandRig.index[0]) +
-    countGeometryTris(leftHandRig.fabric) +
-    (markingsMesh ? countGeometryTris(markingsMesh.geometry) : 0) +
-    2;
-
-  let totalMeshes = 0;
-  root.traverse((obj) => {
-    if (/** @type {any} */ (obj).isMesh) totalMeshes++;
-  });
-  console.log(
-    "[weapon] " +
-      PAC9_MODEL_PARAMS.name +
-      ": " +
-      Math.round(totalTris) +
-      " tris, " +
-      totalMeshes +
-      " meshes (flash only while firing)",
-  );
+  const tempVec = new THREE.Vector3();
+  const tempQuat1 = new THREE.Quaternion();
+  const tempQuat2 = new THREE.Quaternion();
 
   const random = ctx.rng && ctx.rng.fork ? ctx.rng.fork() : Math.random;
 
@@ -751,7 +284,7 @@ async function createWeapon(ctx) {
     return outVec.applyQuaternion(cam.quaternion).add(cam.position);
   }
 
-  function getMuzzleWorldPos(outVec = new Vector3_()) {
+  function getMuzzleWorldPos(outVec = new THREE.Vector3()) {
     let localMuzzle = PAC9_MODEL_PARAMS.muzzle;
     if (activeWeaponId === "sr99") localMuzzle = [0, 0.022, -0.92];
     else if (activeWeaponId === "sg12") localMuzzle = [0, 0.024, -0.63];
@@ -781,139 +314,21 @@ async function createWeapon(ctx) {
     return true;
   }
 
-  // 临时向量
-  const vRayDir = new Vector3_();
-  const vMuzzlePos = new Vector3_();
-  const vHitPos = new Vector3_();
-  const vEjectPos = new Vector3_();
-  const vShellVel = new Vector3_();
-  const vEyePos = new Vector3_();
-
   /**
    * 击发核心物理过程 (Raycast, Ballistics, Visual/Audio Effects)
    */
   function fireShot() {
-    const player = ctx.player;
-    const camera = ctx.camera;
-    const cfg = WEAPON_REGISTRY[activeWeaponId] || WEAPON_REGISTRY.pac9;
-
-    weapon.ammo--;
-    state.burst++;
-    state.lastShot = state.t;
-    state.heat = Math.min(1.3, state.heat + 0.05);
-
-    const pellets = cfg.pellets || 1;
-    const baseSpread = state.adsE > 0.4 ? cfg.spreadAds : cfg.spreadHip;
-    weapon.spread = baseSpread;
-
-    vEyePos.copy(player.eye || camera.position);
-    getMuzzleWorldPos(vMuzzlePos);
-
-    const fx = ctx.fx;
-
-    for (let p = 0; p < pellets; p++) {
-      const spreadAngle = random() * Math.PI * 2;
-      const spreadRadius = Math.tan(baseSpread) * Math.sqrt(random());
-
-      vRayDir
-        .set(Math.cos(spreadAngle) * spreadRadius, Math.sin(spreadAngle) * spreadRadius, -1)
-        .normalize()
-        .applyQuaternion(camera.quaternion);
-
-      let hitResult = null;
-      try {
-        hitResult = ctx.combat.playerShot(vEyePos, vRayDir, {
-          damage: cfg.baseDamage,
-          range: cfg.maxRange,
-        });
-      } catch (e) {
-        console.warn("[weapon] playerShot calculation error:", e);
-      }
-
-      if (hitResult && hitResult.point) {
-        vHitPos.copy(hitResult.point);
-      } else {
-        vHitPos.copy(vEyePos).addScaledVector(vRayDir, cfg.maxRange);
-      }
-
-      if (fx && fx.tracer) {
-        fx.tracer(vMuzzlePos, vHitPos);
-      }
-    }
-
-    // 触发特效 (弹道曳光与抛壳)
-    if (fx && fx.shell) {
-      localPointToWorld(PAC9_MODEL_PARAMS.eject, vEjectPos);
-      vShellVel
-        .set(2 + random() * 1.2, 1.2 + random() * 0.8, 0.5 - random() * 0.6)
-        .applyQuaternion(camera.quaternion);
-      if (player.vel) vShellVel.add(player.vel);
-      fx.shell(vEjectPos, vShellVel);
-    }
-
-    // 枪口动态点光源闪烁
-    if (ctx.render && ctx.render.lightPool && ctx.render.lightPool.flash) {
-      const lightRadius = cfg.id === "sr99" ? 14 : cfg.id === "sg12" ? 12 : 9;
-      const lightColor = cfg.id === "sr99" ? 0xffcc40 : 0xffa020;
-      ctx.render.lightPool.flash(vMuzzlePos, lightColor, 50, lightRadius, 0.05);
-    }
-
-    ctx.events.emit("weapon:fire", {
-      origin: vEyePos,
-      dir: vRayDir,
-      muzzle: vMuzzlePos,
-      ads: state.adsE,
-      weaponType: cfg.id,
-      soundType: cfg.soundType,
+    executeWeaponFire({
+      ctx,
+      weapon,
+      state,
+      activeWeaponId,
+      muzzleFlashMesh,
+      topRoundMesh,
+      getMuzzleWorldPos,
+      localPointToWorld,
+      random,
     });
-
-    // 视模后坐力弹簧冲量施加
-    const adsFactor = lerp(1, 0.55, state.adsE) * (player.crouching ? 0.85 : 1);
-    state.kZ.v += cfg.recoil.kickZ;
-    state.kP.v += cfg.recoil.pitch * adsFactor;
-    state.kY.v += (random() - 0.5) * cfg.recoil.yaw * adsFactor;
-    state.kR.v += (random() - 0.5) * cfg.recoil.roll;
-
-    // 施加给玩家视角后坐力晃动
-    const burstCount = state.burst;
-    const recoilScale = burstCount <= 9 ? 1 : 0.38;
-    const recoilPitchAmount =
-      cfg.recoil.pitch * 0.15 * recoilScale * adsFactor * (0.85 + random() * 0.3);
-    const recoilYaw =
-      (burstCount < 4
-        ? (random() - 0.5) * 0.0022
-        : Math.sin(burstCount * 0.57 + state.recPhase) * 0.0042 + (random() - 0.5) * 0.002) *
-      adsFactor;
-
-    if (player.addRecoil) {
-      player.addRecoil(recoilPitchAmount, recoilYaw);
-    }
-    if (player.addShake) {
-      player.addShake(0.12 * adsFactor);
-    }
-
-    // 视模弹簧冲量激振
-    state.kZ.v += 1.5 * lerp(1, 0.6, state.adsE);
-    state.kP.v += 1.5 * adsFactor;
-    state.kY.v += (random() - 0.5) * 1 * adsFactor;
-    state.kR.v += (random() - 0.5) * 1.8 * adsFactor;
-    state.bloom = Math.min(1, state.bloom + 0.17);
-    state.flashT = state.flashDur = 0.036 + random() * 0.02;
-
-    // 枪口焰 Shader 参数
-    const flashUniforms = muzzleFlashMesh.material.uniforms;
-    flashUniforms.uSeed.value = random() * 100;
-    flashUniforms.uJet.value = 0.6 + random() * 0.6;
-    muzzleFlashMesh.rotation.z = (random() - 0.5) * 0.4;
-
-    const flashScale = (0.8 + random() * 0.5) * lerp(1, 0.62, state.adsE);
-    muzzleFlashMesh.scale.set(flashScale, flashScale, flashScale * (0.8 + random() * 0.5));
-
-    state.boltT = 0;
-    if (weapon.ammo <= 0) {
-      state.boltLocked = true;
-      topRoundMesh.visible = false;
-    }
   }
 
   /**
@@ -995,7 +410,12 @@ async function createWeapon(ctx) {
     }
 
     // 关键帧插值驱动左手位姿
-    sampleHandKeyframes(reloadData.empty ? kfEmptyReload : kfTacticalReload, curT);
+    sampleHandKeyframes(
+      reloadData.empty ? kfEmptyReload : kfTacticalReload,
+      curT,
+      tempVec,
+      tempQuat1,
+    );
     leftHandGroup.position.copy(tempVec);
     leftHandGroup.quaternion.copy(tempQuat1);
 
@@ -1211,8 +631,8 @@ async function createWeapon(ctx) {
       state.smokeTick -= dt;
       if (state.smokeTick <= 0 && ctx.fx && ctx.fx.smoke) {
         state.smokeTick = 0.085;
-        getMuzzleWorldPos(vMuzzlePos);
-        ctx.fx.smoke(vMuzzlePos, {
+        getMuzzleWorldPos(tempVec);
+        ctx.fx.smoke(tempVec, {
           size: 0.1 + state.smoke * 0.06,
           life: 1.3,
           rise: 0.5,
@@ -1399,7 +819,7 @@ async function createShowcase(ctx) {
   ctx.weapon = weaponInstance;
   const root = weaponInstance.root;
 
-  const defaultCamPos = new Vector3_(0, 1.68, 4);
+  const defaultCamPos = new THREE.Vector3(0, 1.68, 4);
   const lookDirections = {
     south: [0.28, -0.01, 1],
     east: [1, 0, 0.25],

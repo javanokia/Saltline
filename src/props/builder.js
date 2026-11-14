@@ -777,22 +777,55 @@ class PropCompoundBuilder {
     return this;
   }
 
-  decal(decalObj, size, trans, height) {
-    const plane = new THREE.PlaneGeometry(size, height || size / (decalObj.aspect || 1));
-    return this.add(decalObj.material, plane, trans, 1);
+  decal(decalObj, size, arg2, arg3) {
+    let trans = null;
+    let height = null;
+    if (typeof arg2 === "number") {
+      height = arg2;
+      trans = arg3;
+    } else {
+      trans = arg2;
+      height = typeof arg3 === "number" ? arg3 : null;
+    }
+    const asp = (decalObj && decalObj.aspect) || 1;
+    const h = height || size / asp;
+    const plane = new THREE.PlaneGeometry(size, h);
+    return this.add(decalObj ? decalObj.material : "steel_dark", plane, trans, 1, {
+      raw: true,
+      cast: false,
+    });
   }
 
-  label(text, opts, maxW, maxH, trans) {
+  label(text, opts, maxW, maxH, trans, lumFactor = 1) {
     const lbl = this.G.mats.label(text, opts);
-    const width = Math.min(maxW, maxH * (lbl.aspect || 1));
-    const plane = new THREE.PlaneGeometry(width, width / (lbl.aspect || 1));
-    return this.add(lbl.material, plane, trans, 1, { raw: true, cast: false });
+    const aspect = (lbl && lbl.aspect) || 1;
+    const width = Math.min(maxW, maxH * aspect);
+    const height = width / aspect;
+    const plane = new THREE.PlaneGeometry(width, height);
+    return this.add(lbl ? lbl.material : "steel_dark", plane, trans, lumFactor, {
+      raw: true,
+      cast: false,
+    });
   }
 
   cdecal(decalObj, radius, arcWidth, trans, customH) {
-    const height = customH || arcWidth / (decalObj.aspect || 1);
+    const asp = (decalObj && decalObj.aspect) || 1;
+    const height = typeof customH === "number" ? customH : arcWidth / asp;
     const curved = createCurvedCylinderDecal(radius, arcWidth, height);
-    return this.add(decalObj.material, curved, trans, 1, { raw: true, cast: false });
+    return this.add(decalObj ? decalObj.material : "steel_dark", curved, trans, 1, {
+      raw: true,
+      cast: false,
+    });
+  }
+
+  bar(matOrName, p0, p1, radius = 0.02, opts = {}) {
+    const geo = createConnectingCylinder(p0, p1, radius, opts.seg || 6, opts.caps !== false);
+    return this.add(matOrName, geo, opts.trans, typeof opts === "number" ? opts : opts.col || 1);
+  }
+
+  beam(matOrName, p0, p1, width, depth, opts = {}) {
+    const geo = createOrientedBoxBeam(p0, p1, width, depth, opts.r ?? 0.006);
+    return this.add(matOrName, geo, opts.trans, typeof opts === "number" ? opts : opts.col || 1);
   }
 
   tube(matOrName, points, radius = 0.03, opts = {}) {
@@ -969,6 +1002,21 @@ function createSubdividedBoxGeometry(
 }
 
 /**
+ * 安全构建从基础朝向 (0, 1, 0) 指向 delta 方向的四元数，防奇异值与 NaN
+ */
+function safeDirectionQuaternion(dir, out = new THREE.Quaternion()) {
+  const up = new THREE.Vector3(0, 1, 0);
+  const dot = up.dot(dir);
+  if (dot > 0.999999) {
+    return out.identity();
+  } else if (dot < -0.999999) {
+    return out.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI);
+  } else {
+    return out.setFromUnitVectors(up, dir);
+  }
+}
+
+/**
  * 创建连接两点的圆柱管 (Connecting Cylinder Between 2 Points)
  */
 function createConnectingCylinder(p0, p1, radius = 0.02, seg = 6, caps = true) {
@@ -976,11 +1024,11 @@ function createConnectingCylinder(p0, p1, radius = 0.02, seg = 6, caps = true) {
   const v1 = new THREE.Vector3(p1[0], p1[1], p1[2]);
   const delta = new THREE.Vector3().subVectors(v1, v0);
   const len = delta.length();
+  if (len < 1e-6) {
+    return new THREE.BufferGeometry();
+  }
   const geo = createCylinderGeometry(radius, radius, len, seg, !caps);
-  const q = new THREE.Quaternion().setFromUnitVectors(
-    new THREE.Vector3(0, 1, 0),
-    delta.normalize(),
-  );
+  const q = safeDirectionQuaternion(delta.clone().normalize());
   const m = new THREE.Matrix4().compose(
     new THREE.Vector3().addVectors(v0, v1).multiplyScalar(0.5),
     q,
@@ -998,11 +1046,14 @@ function createOrientedBoxBeam(p0, p1, width, depth, bevel = 0.006, raw = false)
   const v1 = new THREE.Vector3(p1[0], p1[1], p1[2]);
   const delta = new THREE.Vector3().subVectors(v1, v0);
   const len = delta.length();
-  delta.normalize();
+  if (len < 1e-6) {
+    return new THREE.BufferGeometry();
+  }
+  const dir = delta.clone().normalize();
   const geo = raw
     ? createBoxGeometry(width, len, depth)
     : createChamferedBoxGeometry(width, len, depth, bevel);
-  const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), delta);
+  const q = safeDirectionQuaternion(dir);
   const m = new THREE.Matrix4().compose(
     new THREE.Vector3().addVectors(v0, v1).multiplyScalar(0.5),
     q,

@@ -48,11 +48,13 @@ import {
   buildTarpCargo,
   buildSandbags,
   buildCardboardBoxes,
+} from "./props/cargo.js";
+import {
   buildForklift,
   buildGenerator,
   buildDumpster,
   buildToolboxCart,
-} from "./props/industrial.js";
+} from "./props/machinery.js";
 
 // 道具构建器注册表
 const PROP_BUILDERS = {};

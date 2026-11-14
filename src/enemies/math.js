@@ -77,3 +77,60 @@ export function intersectRayCapsule(rayOrigin, rayDir, segA, segB, radius, maxDi
   vClosestOnSeg.copy(segA).addScaledVector(vSegDelta, t);
   return intersectRaySphere(rayOrigin, rayDir, vClosestOnSeg, radius, maxDist, outHit);
 }
+
+const vSegA = new THREE.Vector3();
+const vSegB = new THREE.Vector3();
+const vSegOrig = new THREE.Vector3();
+
+/**
+ * 空间线段与线段最近距离平方计算 (Segment-to-Segment Shortest Distance Squared)
+ * @param {THREE.Vector3} segA1 线段 A 起点
+ * @param {THREE.Vector3} segA2 线段 A 终点
+ * @param {THREE.Vector3} segB1 线段 B 起点
+ * @param {THREE.Vector3} segB2 线段 B 终点
+ * @returns {number}
+ */
+export function segmentSegmentDistanceSq(segA1, segA2, segB1, segB2) {
+  vSegA.copy(segA2).sub(segA1);
+  vSegB.copy(segB2).sub(segB1);
+  vSegOrig.copy(segA1).sub(segB1);
+
+  const lenSqA = vSegA.dot(vSegA);
+  const lenSqB = vSegB.dot(vSegB);
+  const dotBOrig = vSegB.dot(vSegOrig);
+
+  let s, t;
+
+  if (lenSqA <= 1e-9 && lenSqB <= 1e-9) {
+    return vSegOrig.dot(vSegOrig);
+  }
+
+  if (lenSqA <= 1e-9) {
+    s = 0;
+    t = Math.min(1, Math.max(0, dotBOrig / lenSqB));
+  } else {
+    const dotAOrig = vSegA.dot(vSegOrig);
+    if (lenSqB <= 1e-9) {
+      t = 0;
+      s = Math.min(1, Math.max(0, -dotAOrig / lenSqA));
+    } else {
+      const dotAB = vSegA.dot(vSegB);
+      const denom = lenSqA * lenSqB - dotAB * dotAB;
+      s =
+        denom !== 0 ? Math.min(1, Math.max(0, (dotAB * dotBOrig - dotAOrig * lenSqB) / denom)) : 0;
+      t = (dotAB * s + dotBOrig) / lenSqB;
+      if (t < 0) {
+        t = 0;
+        s = Math.min(1, Math.max(0, -dotAOrig / lenSqA));
+      } else if (t > 1) {
+        t = 1;
+        s = Math.min(1, Math.max(0, (dotAB - dotAOrig) / lenSqA));
+      }
+    }
+  }
+
+  const cx = vSegOrig.x + vSegA.x * s - vSegB.x * t;
+  const cy = vSegOrig.y + vSegA.y * s - vSegB.y * t;
+  const cz = vSegOrig.z + vSegA.z * s - vSegB.z * t;
+  return cx * cx + cy * cy + cz * cz;
+}
